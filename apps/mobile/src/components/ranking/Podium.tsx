@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 import type { RankingEntry } from '@/services/api';
 
 const MEDAL_COLORS = {
@@ -22,41 +21,43 @@ const PodiumItem = ({ entry, rank }: PodiumItemProps): React.JSX.Element => {
   const height = PODIUM_HEIGHTS[rank];
 
   return (
-    <View style={styles.podiumItem}>
+    <View className="items-center flex-1">
       <Ionicons name="medal" size={28} color={medal.icon} />
       <View
-        style={[
-          styles.avatar,
-          { borderColor: medal.border, backgroundColor: medal.bg },
-        ]}
+        className="w-12 h-12 rounded-full items-center justify-center border-2 mt-1 mb-1"
+        style={{ borderColor: medal.border, backgroundColor: medal.bg }}
       >
-        <Text style={[styles.avatarText, { color: medal.text }]}>
+        <Text
+          className="text-xl font-bold"
+          style={{ color: medal.text }}
+        >
           {entry.displayName.charAt(0).toUpperCase()}
         </Text>
       </View>
       <Text
-        style={styles.displayName}
+        className="text-xs font-semibold text-gray-800 mb-1 text-center"
         numberOfLines={1}
       >
         {entry.displayName}
       </Text>
-      <Text style={styles.points}>
+      <Text className="text-sm font-bold text-primary mb-1">
         {entry.points} pkt
       </Text>
 
       <View
-        style={[
-          styles.podiumBlock,
-          {
-            height,
-            backgroundColor: medal.bg,
-            borderWidth: 2,
-            borderColor: medal.border,
-            borderBottomWidth: 0,
-          },
-        ]}
+        className="w-full rounded-t-lg items-center justify-center"
+        style={{
+          height,
+          backgroundColor: medal.bg,
+          borderWidth: 2,
+          borderColor: medal.border,
+          borderBottomWidth: 0,
+        }}
       >
-        <Text style={[styles.podiumRank, { color: medal.text }]}>
+        <Text
+          className="text-2xl font-extrabold"
+          style={{ color: medal.text }}
+        >
           {rank}
         </Text>
       </View>
@@ -72,81 +73,24 @@ export const Podium = ({ entries }: PodiumProps): React.JSX.Element => {
   const [first, second, third] = entries;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
+    <View className="px-4 pb-2">
+      <View className="flex-row items-end gap-2">
         {second ? (
           <PodiumItem entry={second} rank={2} />
         ) : (
-          <View style={styles.flex1} />
+          <View className="flex-1" />
         )}
         {first ? (
           <PodiumItem entry={first} rank={1} />
         ) : (
-          <View style={styles.flex1} />
+          <View className="flex-1" />
         )}
         {third ? (
           <PodiumItem entry={third} rank={3} />
         ) : (
-          <View style={styles.flex1} />
+          <View className="flex-1" />
         )}
       </View>
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  podiumItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  avatarText: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
-  },
-  displayName: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[800],
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  points: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-    marginBottom: 4,
-  },
-  podiumBlock: {
-    width: '100%',
-    borderTopLeftRadius: theme.borderRadius.md,
-    borderTopRightRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  podiumRank: {
-    fontSize: theme.fontSize['2xl'],
-    fontWeight: theme.fontWeight.extrabold,
-  },
-  container: {
-    paddingHorizontal: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: theme.spacing.sm,
-  },
-  flex1: {
-    flex: 1,
-  },
-}));
