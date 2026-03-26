@@ -9,20 +9,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
+import { withUniwind } from 'uniwind';
 import { TaskCard } from '@/components/task/TaskCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useTasks } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import type { Task } from '@/services/api';
+import { StyledSafeAreaView } from '@/lib/styled';
+
 
 const EmptyState = (): React.JSX.Element => (
-  <View style={styles.emptyContainer}>
+  <View className="flex-1 items-center justify-center py-20 px-8">
     <Ionicons name="clipboard-outline" size={48} color="#9CA3AF" />
-    <Text style={styles.emptyTitle}>
+    <Text className="text-lg font-semibold text-gray-900 text-center mb-2">
       Brak zadań
     </Text>
-    <Text style={styles.emptySubtitle}>
+    <Text className="text-sm text-gray-500 text-center">
       Wróć na mapę i dołącz do gry, aby zobaczyć zadania.
     </Text>
   </View>
@@ -41,19 +43,19 @@ export default function TasksScreen(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
+      <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+        <Text className="text-2xl font-extrabold text-secondary mb-1">
           Zadania
         </Text>
         {currentGame ? (
-          <Text style={styles.headerSubtitle}>{currentGame.name}</Text>
+          <Text className="text-sm text-gray-500 mb-3">{currentGame.name}</Text>
         ) : null}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressRow}>
-            <Text style={styles.progressLabel}>Postęp</Text>
-            <Text style={styles.progressValue}>
+        <View className="gap-1.5">
+          <View className="flex-row justify-between">
+            <Text className="text-xs text-gray-500">Postęp</Text>
+            <Text className="text-xs font-semibold text-primary">
               {completedCount} / {tasks.length}
             </Text>
           </View>
@@ -63,7 +65,7 @@ export default function TasksScreen(): React.JSX.Element {
 
       {/* Task list */}
       {isFetching && tasks.length === 0 ? (
-        <View style={styles.loaderContainer}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
       ) : (
@@ -73,7 +75,7 @@ export default function TasksScreen(): React.JSX.Element {
           renderItem={({ item }) => (
             <TaskCard task={item} onPress={handleTaskPress} />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }}
           ListEmptyComponent={<EmptyState />}
           refreshControl={
             <RefreshControl
@@ -85,81 +87,6 @@ export default function TasksScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.gray[50],
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-    marginBottom: 12,
-  },
-  progressContainer: {
-    gap: 6,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  progressLabel: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-  },
-  progressValue: {
-    fontSize: 12,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
-  },
-  loaderContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listContent: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 32,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[900],
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-}));

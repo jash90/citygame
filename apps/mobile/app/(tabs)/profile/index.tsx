@@ -7,9 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { StyleSheet } from 'react-native-unistyles';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -17,8 +15,10 @@ import { useAuthStore } from '@/stores/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/services/api';
 import { QUERY_KEYS } from '@/lib/constants';
+import { StyledSafeAreaView } from '@/lib/styled';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
 
 const StatCard = ({
   label,
@@ -31,10 +31,10 @@ const StatCard = ({
   icon: IoniconsName;
   iconColor: string;
 }): React.JSX.Element => (
-  <Card style={styles.statCard}>
+  <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16, gap: 4 }}>
     <Ionicons name={icon} size={24} color={iconColor} />
-    <Text style={styles.statValue}>{value}</Text>
-    <Text style={styles.statLabel}>{label}</Text>
+    <Text className="text-xl font-extrabold text-secondary">{value}</Text>
+    <Text className="text-xs text-gray-500 text-center">{label}</Text>
   </Card>
 );
 
@@ -66,34 +66,35 @@ export default function ProfileScreen(): React.JSX.Element {
   const stats = profile?.stats;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profil</Text>
+      <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+        <Text className="text-2xl font-extrabold text-secondary">Profil</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        className="px-4 py-5"
+        contentContainerStyle={{ gap: 16 }}
         showsVerticalScrollIndicator={false}
       >
         {isLoading ? (
-          <View style={styles.loaderContainer}>
+          <View className="py-10 items-center">
             <ActivityIndicator size="large" color="#FF6B35" />
           </View>
         ) : (
           <>
             {/* Avatar + name */}
-            <Card elevated style={styles.avatarCard}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
+            <Card elevated style={{ alignItems: 'center', paddingVertical: 24, gap: 12 }}>
+              <View className="w-20 h-20 rounded-full bg-primary items-center justify-center">
+                <Text className="text-4xl font-bold text-white">
                   {displayUser?.displayName?.charAt(0).toUpperCase() ?? '?'}
                 </Text>
               </View>
-              <View style={styles.nameContainer}>
-                <Text style={styles.displayName}>
+              <View className="items-center gap-1">
+                <Text className="text-xl font-bold text-secondary">
                   {displayUser?.displayName ?? 'Gracz'}
                 </Text>
-                <Text style={styles.email}>
+                <Text className="text-sm text-gray-500">
                   {displayUser?.email ?? ''}
                 </Text>
               </View>
@@ -102,10 +103,10 @@ export default function ProfileScreen(): React.JSX.Element {
             {/* Stats */}
             {stats ? (
               <View>
-                <Text style={styles.sectionTitle}>
+                <Text className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-widest">
                   Statystyki
                 </Text>
-                <View style={styles.statsRow}>
+                <View className="flex-row gap-3 mb-3">
                   <StatCard
                     label="Rozegranych gier"
                     value={stats.gamesPlayed}
@@ -119,7 +120,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     iconColor="#F59E0B"
                   />
                 </View>
-                <View style={styles.statsRow}>
+                <View className="flex-row gap-3 mb-3">
                   <StatCard
                     label="Ukończonych zadań"
                     value={stats.completedTasks}
@@ -137,7 +138,7 @@ export default function ProfileScreen(): React.JSX.Element {
             ) : null}
 
             {/* Actions */}
-            <View style={styles.actionsContainer}>
+            <View className="mt-2">
               <Button
                 label="Wyloguj się"
                 variant="outline"
@@ -148,113 +149,12 @@ export default function ProfileScreen(): React.JSX.Element {
               />
             </View>
 
-            <Text style={styles.versionText}>
+            <Text className="text-xs text-center text-gray-400 mt-2">
               CityGame v1.0.0
             </Text>
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.gray[50],
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 16,
-  },
-  loaderContainer: {
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
-  avatarCard: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    gap: 12,
-  },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 9999,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 36,
-    fontWeight: theme.fontWeight.bold,
-    color: '#FFFFFF',
-  },
-  nameContainer: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  displayName: {
-    fontSize: 20,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.secondary,
-  },
-  email: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[500],
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 16,
-    gap: 4,
-  },
-  statEmoji: {
-    fontSize: 24,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-  actionsContainer: {
-    marginTop: 8,
-  },
-  versionText: {
-    fontSize: 12,
-    textAlign: 'center',
-    color: theme.colors.gray[400],
-    marginTop: 8,
-  },
-}));

@@ -6,9 +6,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 import { Podium } from '@/components/ranking/Podium';
 import { RankItem } from '@/components/ranking/RankItem';
 import { LiveIndicator } from '@/components/ranking/LiveIndicator';
@@ -18,14 +16,16 @@ import { useAuthStore } from '@/stores/authStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useRanking } from '@/hooks/useGame';
 import type { RankEntry } from '@/services/api';
+import { StyledSafeAreaView } from '@/lib/styled';
+
 
 const EmptyState = (): React.JSX.Element => (
-  <View style={styles.emptyContainer}>
+  <View className="flex-1 items-center justify-center py-16 px-8">
     <Ionicons name="trophy-outline" size={48} color="#9CA3AF" />
-    <Text style={styles.emptyTitle}>
+    <Text className="text-lg font-semibold text-gray-900 text-center mb-2">
       Brak danych rankingu
     </Text>
-    <Text style={styles.emptySubtitle}>
+    <Text className="text-sm text-gray-500 text-center">
       Dołącz do gry, aby zobaczyć ranking w czasie rzeczywistym.
     </Text>
   </View>
@@ -59,24 +59,24 @@ export default function RankingScreen(): React.JSX.Element {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerRow}>
-          <Text style={styles.headerTitle}>
+      <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+        <View className="flex-row items-center justify-between">
+          <Text className="text-2xl font-extrabold text-secondary">
             Ranking
           </Text>
           <LiveIndicator isLive={isLive && isConnected} />
         </View>
         {currentSession ? (
-          <Text style={styles.headerSubtitle}>
+          <Text className="text-xs text-gray-500 mt-0.5">
             {entries.length} graczy
           </Text>
         ) : null}
       </View>
 
       {isFetching && entries.length === 0 ? (
-        <View style={styles.loaderContainer}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
       ) : (
@@ -86,10 +86,10 @@ export default function RankingScreen(): React.JSX.Element {
           renderItem={renderItem}
           ListHeaderComponent={
             entries.length > 0 ? (
-              <View style={styles.listHeaderContainer}>
+              <View className="pb-4">
                 <Podium entries={podiumEntries} />
                 {restEntries.length > 0 ? (
-                  <Text style={styles.restLabel}>
+                  <Text className="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-widest">
                     Pozostali gracze
                   </Text>
                 ) : null}
@@ -99,7 +99,7 @@ export default function RankingScreen(): React.JSX.Element {
           ListEmptyComponent={
             entries.length === 0 ? <EmptyState /> : null
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: 24 }}
           refreshControl={
             <RefreshControl
               refreshing={isFetching}
@@ -110,79 +110,6 @@ export default function RankingScreen(): React.JSX.Element {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.gray[50],
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-    marginTop: 2,
-  },
-  loaderContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  listHeaderContainer: {
-    paddingBottom: 16,
-  },
-  restLabel: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 12,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[400],
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 64,
-    paddingHorizontal: 32,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[900],
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-}));
