@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet as RNStyleSheet } from 'react-native';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
-import { StyleSheet } from 'react-native-unistyles';
 import { useLocationStore } from '@/stores/locationStore';
 
 interface GameMapProps {
@@ -47,7 +46,7 @@ export const GameMap = ({
     : (initialRegion ?? DEFAULT_REGION);
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1">
       <MapView
         style={RNStyleSheet.absoluteFillObject}
         initialRegion={mapRegion}
@@ -63,7 +62,21 @@ export const GameMap = ({
               coordinate={{ latitude: location.lat, longitude: location.lng }}
               anchor={{ x: 0.5, y: 0.5 }}
             >
-              <View style={styles.locationDot} />
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 9999,
+                  backgroundColor: '#FF6B35',
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 2,
+                  elevation: 2,
+                }}
+              />
             </Marker>
             {accuracy && accuracy > 0 ? (
               <Circle
@@ -82,18 +95,3 @@ export const GameMap = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  container: {
-    flex: 1,
-  },
-  locationDot: {
-    width: 16,
-    height: 16,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: theme.colors.primary,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    ...theme.shadows.sm,
-  },
-}));

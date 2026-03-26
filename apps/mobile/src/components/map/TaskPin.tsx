@@ -2,7 +2,6 @@ import React from 'react';
 import { View } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 import type { Task } from '@/services/api';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
@@ -45,9 +44,23 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
       onPress={() => onPress?.(task)}
       tracksViewChanges={false}
     >
-      <View style={styles.pinContainer}>
+      <View style={{ alignItems: 'center' }}>
         <View
-          style={[styles.pinCircle, { backgroundColor: pinColor }]}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 9999,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 2,
+            borderColor: '#FFFFFF',
+            backgroundColor: pinColor,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.15,
+            shadowRadius: 4,
+            elevation: 4,
+          }}
         >
           <Ionicons name={icon} size={18} color="#FFFFFF" />
         </View>
@@ -67,19 +80,3 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
     </Marker>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  pinContainer: {
-    alignItems: 'center',
-  },
-  pinCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    ...theme.shadows.md,
-  },
-}));
