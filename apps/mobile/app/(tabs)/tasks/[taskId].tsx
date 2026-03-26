@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { withAlpha } from '@/lib/unistyles';
 import { TaskTypeBadge } from '@/components/ui/Badge';
@@ -48,7 +49,7 @@ const CountdownTimer = ({
 
   return (
     <View style={styles.timerContainer(isUrgent)}>
-      <Text style={styles.timerIcon}>⏱</Text>
+      <Ionicons name="timer-outline" size={16} color={isUrgent ? '#DC2626' : '#B45309'} />
       <Text style={styles.timerText(isUrgent)}>
         {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
       </Text>
@@ -114,9 +115,12 @@ const HintsPanel = ({
         {hintMutation.isPending ? (
           <ActivityIndicator size="small" color="#FF6B35" />
         ) : (
-          <Text style={styles.hintButtonText}>
-            💡 Poproś o kolejną podpowiedź
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="bulb-outline" size={16} color="#6B7280" />
+            <Text style={styles.hintButtonText}>
+              Poproś o kolejną podpowiedź
+            </Text>
+          </View>
         )}
       </TouchableOpacity>
     </View>
@@ -128,6 +132,8 @@ const HintsPanel = ({
 export default function TaskDetailScreen(): React.JSX.Element {
   const { taskId } = useLocalSearchParams<{ taskId: string }>();
   const router = useRouter();
+  const routerRef = useRef(router);
+  routerRef.current = router;
   const [showHints, setShowHints] = useState(false);
 
   const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult } = useGameStore();
@@ -159,7 +165,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
 
     clearLastAiResult();
 
-    router.push({
+    routerRef.current.push({
       pathname: '/(modals)/task-result' as never,
       params: {
         success: isSuccess ? '1' : '0',
@@ -169,7 +175,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
         isAiTask: '1',
       },
     });
-  }, [lastAiResult, task, clearLastAiResult, router]);
+  }, [lastAiResult, task, clearLastAiResult]);
 
   const handleUnlock = (): void => {
     if (!task || !gameId) return;
@@ -254,7 +260,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
           style={styles.backButton}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Ionicons name="arrow-back" size={20} color="#374151" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {task.title}
@@ -291,7 +297,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
         {/* Locked state — show unlock button */}
         {isLocked ? (
           <View style={styles.lockedCard}>
-            <Text style={styles.lockedEmoji}>🔒</Text>
+            <Ionicons name="lock-closed" size={30} color="#9CA3AF" />
             <Text style={styles.lockedText}>
               To zadanie jest jeszcze zablokowane. Odblokuj je, aby zobaczyć treść.
             </Text>
@@ -334,10 +340,11 @@ export default function TaskDetailScreen(): React.JSX.Element {
                   style={styles.hintsToggle}
                   onPress={() => setShowHints((prev) => !prev)}
                 >
+                  <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
                   <Text style={styles.hintsToggleText}>
-                    💡 Podpowiedzi
+                    Podpowiedzi
                   </Text>
-                  <Text style={styles.hintsToggleArrow}>{showHints ? '▲' : '▼'}</Text>
+                  <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
                 </TouchableOpacity>
                 {showHints ? (
                   <HintsPanel gameId={gameId} taskId={task.id} />

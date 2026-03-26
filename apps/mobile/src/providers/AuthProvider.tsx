@@ -1,6 +1,6 @@
-import React, { useEffect, type ReactNode } from 'react';
-import { View, ActivityIndicator, Platform } from 'react-native';
-import { Redirect, useRouter } from 'expo-router';
+import React, { useEffect, useRef, type ReactNode } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { StyleSheet } from 'react-native-unistyles';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/services/api';
@@ -19,6 +19,10 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element => {
   const { isAuthenticated, isLoading, init, logout } = useAuthStore();
   const router = useRouter();
+  const segments = useSegments();
+  const navigationState = useRootNavigationState();
+  const routerRef = useRef(router);
+  routerRef.current = router;
 
   useEffect(() => {
     apiClient.setUnauthorizedHandler(() => {
@@ -27,13 +31,26 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
     init();
   }, [init, logout]);
 
+  // Auth-based navigation guard
+  useEffect(() => {
+    if (isLoading) return;
+    if (!navigationState?.key) return; // navigation not ready
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      routerRef.current.replace('/(auth)/login' as never);
+    } else if (isAuthenticated && inAuthGroup) {
+      routerRef.current.replace('/(tabs)' as never);
+    }
+  }, [isAuthenticated, isLoading, segments, navigationState?.key]);
+
   // Register push token once authenticated
   useEffect(() => {
     if (!isAuthenticated) return;
 
     void registerForPushNotifications().then((token) => {
       if (!token) return;
-      // Send to backend so server can address this device
       void apiClient.put('/auth/push-token', { pushToken: token }).catch(() => {
         // Non-critical — app works fine without push registration
       });
@@ -53,12 +70,12 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
 
       // Navigate based on notification payload
       if (data?.taskId && typeof data.taskId === 'string') {
-        router.push({
+        routerRef.current.push({
           pathname: '/(tabs)/tasks/[taskId]' as never,
           params: { taskId: data.taskId },
         });
       } else if (data?.screen && typeof data.screen === 'string') {
-        router.push(data.screen as never);
+        routerRef.current.push(data.screen as never);
       }
     });
 
@@ -66,7 +83,8 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       removeNotificationSubscription(receivedSub);
       removeNotificationSubscription(responseSub);
     };
-  }, [isAuthenticated, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -74,10 +92,6 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
-  }
-
-  if (!isAuthenticated) {
-    return <Redirect href="/(auth)/login" />;
   }
 
   return <>{children}</>;

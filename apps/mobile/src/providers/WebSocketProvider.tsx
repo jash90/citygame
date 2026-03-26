@@ -87,7 +87,8 @@ export const WebSocketProvider = ({
       setIsConnected(false);
       setLive(false);
     };
-  }, [isAuthenticated, tokens?.accessToken, setRanking, updateRanking, setLive, setLastAiResult]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, tokens?.accessToken]);
 
   const joinGame = (sessionId: string): void => {
     socketRef.current?.emit('game:join', { sessionId });

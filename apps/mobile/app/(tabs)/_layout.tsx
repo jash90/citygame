@@ -1,26 +1,16 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/lib/theme';
 
-// Simple text-based tab icons using emoji to avoid icon library dependency at skeleton stage
-const TAB_ICONS = {
-  map: '🗺️',
-  tasks: '📋',
-  ranking: '🏆',
-  profile: '👤',
-} as const;
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
-interface TabIconProps {
-  emoji: string;
-  focused: boolean;
-}
-
-const TabIcon = ({ emoji, focused }: TabIconProps): React.JSX.Element => (
-  <Text style={{ fontSize: focused ? 22 : 20, opacity: focused ? 1 : 0.6 }}>
-    {emoji}
-  </Text>
-);
+const TAB_ICONS: Record<string, { active: IoniconsName; inactive: IoniconsName }> = {
+  map: { active: 'map', inactive: 'map-outline' },
+  tasks: { active: 'clipboard', inactive: 'clipboard-outline' },
+  ranking: { active: 'trophy', inactive: 'trophy-outline' },
+  profile: { active: 'person', inactive: 'person-outline' },
+};
 
 export default function TabLayout(): React.JSX.Element {
   return (
@@ -47,8 +37,12 @@ export default function TabLayout(): React.JSX.Element {
         name="map/index"
         options={{
           title: 'Mapa',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji={TAB_ICONS.map} focused={focused} />
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? TAB_ICONS.map.active : TAB_ICONS.map.inactive}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -56,8 +50,12 @@ export default function TabLayout(): React.JSX.Element {
         name="tasks/index"
         options={{
           title: 'Zadania',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji={TAB_ICONS.tasks} focused={focused} />
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? TAB_ICONS.tasks.active : TAB_ICONS.tasks.inactive}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -65,8 +63,12 @@ export default function TabLayout(): React.JSX.Element {
         name="ranking/index"
         options={{
           title: 'Ranking',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji={TAB_ICONS.ranking} focused={focused} />
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? TAB_ICONS.ranking.active : TAB_ICONS.ranking.inactive}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />
@@ -74,8 +76,12 @@ export default function TabLayout(): React.JSX.Element {
         name="profile/index"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ focused }) => (
-            <TabIcon emoji={TAB_ICONS.profile} focused={focused} />
+          tabBarIcon: ({ focused, color, size }) => (
+            <Ionicons
+              name={focused ? TAB_ICONS.profile.active : TAB_ICONS.profile.inactive}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

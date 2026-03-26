@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '@/stores/gameStore';
@@ -79,7 +80,7 @@ const QRTaskInput = ({
         onPress={handleScan}
         activeOpacity={0.7}
       >
-        <Text style={styles.scanIcon}>{scanned ? '✅' : '◻️'}</Text>
+        <Ionicons name={scanned ? 'checkmark-circle' : 'qr-code-outline'} size={36} color={scanned ? '#22C55E' : '#FF6B35'} />
         <Text style={styles.scanLabel}>
           {scanned ? `Zeskanowano: ${scanned}` : 'Dotknij, aby zeskanować kod QR'}
         </Text>
@@ -122,7 +123,7 @@ const GPSTaskInput = ({
         onPress={handleCheck}
         activeOpacity={0.7}
       >
-        <Text style={styles.scanIcon}>{verified ? '✅' : '📍'}</Text>
+        <Ionicons name={verified ? 'checkmark-circle' : 'location'} size={36} color={verified ? '#22C55E' : '#FF6B35'} />
         <Text style={styles.scanLabel}>
           {verified
             ? 'Lokalizacja zweryfikowana!'

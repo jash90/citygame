@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import type { RankingEntry } from '@/services/api';
 
 const MEDAL_COLORS = {
-  1: { bg: '#FFF8DC', border: '#FFD700', text: '#B8860B', emoji: '🥇' },
-  2: { bg: '#F5F5F5', border: '#C0C0C0', text: '#708090', emoji: '🥈' },
-  3: { bg: '#FDF5E6', border: '#CD7F32', text: '#8B4513', emoji: '🥉' },
+  1: { bg: '#FFF8DC', border: '#FFD700', text: '#B8860B', icon: '#FFD700' },
+  2: { bg: '#F5F5F5', border: '#C0C0C0', text: '#708090', icon: '#C0C0C0' },
+  3: { bg: '#FDF5E6', border: '#CD7F32', text: '#8B4513', icon: '#CD7F32' },
 } as const;
 
 const PODIUM_HEIGHTS = { 1: 120, 2: 90, 3: 70 } as const;
@@ -22,7 +23,7 @@ const PodiumItem = ({ entry, rank }: PodiumItemProps): React.JSX.Element => {
 
   return (
     <View style={styles.podiumItem}>
-      <Text style={styles.medalEmoji}>{medal.emoji}</Text>
+      <Ionicons name="medal" size={28} color={medal.icon} />
       <View
         style={[
           styles.avatar,
@@ -98,10 +99,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     flex: 1,
   },
-  medalEmoji: {
-    fontSize: theme.fontSize['2xl'],
-    marginBottom: 4,
-  },
   avatar: {
     width: 48,
     height: 48,
@@ -109,6 +106,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
+    marginTop: 4,
     marginBottom: 4,
   },
   avatarText: {

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { TaskCard } from '@/components/task/TaskCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
@@ -17,7 +18,7 @@ import type { Task } from '@/services/api';
 
 const EmptyState = (): React.JSX.Element => (
   <View style={styles.emptyContainer}>
-    <Text style={styles.emptyEmoji}>📋</Text>
+    <Ionicons name="clipboard-outline" size={48} color="#9CA3AF" />
     <Text style={styles.emptyTitle}>
       Brak zadań
     </Text>

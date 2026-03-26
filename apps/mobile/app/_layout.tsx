@@ -6,7 +6,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
-import '@/lib/unistyles';
 
 export default function RootLayout(): React.JSX.Element {
   return (

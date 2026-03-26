@@ -25,6 +25,7 @@
     },
     "platforms": ["ios", "android"],
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-camera",

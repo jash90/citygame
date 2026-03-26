@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { withAlpha } from '@/lib/unistyles';
 import { GameMap } from '@/components/map/GameMap';
 import { TaskPin } from '@/components/map/TaskPin';
@@ -72,7 +73,10 @@ export default function MapScreen(): React.JSX.Element {
             <Text style={styles.headerTitle} numberOfLines={1}>
               {currentGame.name}
             </Text>
-            <Text style={styles.headerCity}>📍 {currentGame.city}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <Ionicons name="location-outline" size={12} color="#9CA3AF" />
+              <Text style={styles.headerCity}>{currentGame.city}</Text>
+            </View>
           </View>
           <View style={styles.headerBadge}>
             <Text style={styles.headerBadgeText}>
@@ -88,7 +92,7 @@ export default function MapScreen(): React.JSX.Element {
           style={styles.locationBtn}
           activeOpacity={0.8}
         >
-          <Text style={styles.locationBtnEmoji}>📍</Text>
+          <Ionicons name="locate" size={22} color="#FF6B35" />
         </TouchableOpacity>
       </SafeAreaView>
     </View>
