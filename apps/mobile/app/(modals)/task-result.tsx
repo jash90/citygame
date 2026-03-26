@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Animated, ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
+import { StyledSafeAreaView } from '@/lib/styled';
 
 export default function TaskResultModal(): React.JSX.Element {
   const router = useRouter();
@@ -45,12 +45,12 @@ export default function TaskResultModal(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <StyledSafeAreaView className="flex-1 bg-surface">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.contentContainer}>
+        <View className="flex-1 items-center justify-center px-8 gap-6 py-8">
           {/* Animated result icon */}
           <Animated.View
             style={{
@@ -58,138 +58,65 @@ export default function TaskResultModal(): React.JSX.Element {
               opacity: opacityAnim,
             }}
           >
-            <View style={styles.iconCircle(isSuccess)}>
-              <Text style={styles.iconEmoji}>{isSuccess ? '🎉' : '😔'}</Text>
+            <View
+              className={`w-28 h-28 rounded-full items-center justify-center ${isSuccess ? 'bg-green-100' : 'bg-red-100'
+                }`}
+            >
+              <Ionicons name={isSuccess ? 'checkmark-circle' : 'close-circle'} size={64} color={isSuccess ? '#15803d' : '#dc2626'} />
             </View>
           </Animated.View>
 
           {/* Result title */}
-          <Animated.View style={[{ opacity: opacityAnim }, styles.resultContent]}>
-            <Text style={styles.resultTitle(isSuccess)}>
-              {isSuccess ? 'Doskonale!' : 'Niestety...'}
-            </Text>
-
-            {/* Points badge */}
-            {isSuccess && pointsAwarded > 0 ? (
-              <View style={styles.pointsBadge}>
-                <Text style={styles.pointsValue}>
-                  +{pointsAwarded}
-                </Text>
-                <Text style={styles.pointsLabel}>punktów</Text>
-              </View>
-            ) : null}
-
-            {/* AI verification result with score circle */}
-            {showAiResult ? (
-              <View style={styles.aiResultContainer}>
-                <AIVerificationStatus
-                  status="complete"
-                  result={{
-                    score: scoreValue!,
-                    feedback: feedback ?? '',
-                  }}
-                />
-              </View>
-            ) : feedback ? (
-              <Text style={styles.feedbackText}>
-                {feedback}
+          <Animated.View style={[{ opacity: opacityAnim }]}>
+            <View className="items-center gap-2 w-full">
+              <Text
+                className={`text-2xl font-extrabold ${isSuccess ? 'text-green-700' : 'text-red-600'
+                  }`}
+              >
+                {isSuccess ? 'Doskonale!' : 'Niestety...'}
               </Text>
-            ) : null}
+
+              {/* Points badge */}
+              {isSuccess && pointsAwarded > 0 ? (
+                <View className="bg-primary rounded-2xl px-5 py-2 flex-row items-center gap-2">
+                  <Text className="text-white font-extrabold text-xl">
+                    +{pointsAwarded}
+                  </Text>
+                  <Text className="text-white text-sm font-semibold">punktów</Text>
+                </View>
+              ) : null}
+
+              {/* AI verification result with score circle */}
+              {showAiResult ? (
+                <View className="w-full mt-2">
+                  <AIVerificationStatus
+                    status="complete"
+                    result={{
+                      score: scoreValue!,
+                      feedback: feedback ?? '',
+                    }}
+                  />
+                </View>
+              ) : feedback ? (
+                <Text className="text-base text-gray-600 text-center leading-7 mt-2">
+                  {feedback}
+                </Text>
+              ) : null}
+            </View>
           </Animated.View>
         </View>
       </ScrollView>
 
       {/* Bottom action */}
-      <View style={styles.bottomAction}>
+      <View className="px-6 pb-8">
         <TouchableOpacity
-          style={styles.continueButton}
+          className="bg-primary rounded-2xl py-4 items-center"
           onPress={handleContinue}
           activeOpacity={0.8}
         >
-          <Text style={styles.continueButtonText}>Dalej</Text>
+          <Text className="text-white text-base font-bold">Dalej</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-  },
-  contentContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 24,
-    paddingVertical: 32,
-  },
-  iconCircle: (isSuccess: boolean) => ({
-    width: 112,
-    height: 112,
-    borderRadius: 9999,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    backgroundColor: isSuccess ? theme.colors.green[100] : theme.colors.red[100],
-  }),
-  iconEmoji: {
-    fontSize: 60,
-  },
-  resultContent: {
-    alignItems: 'center',
-    gap: 8,
-    width: '100%',
-  },
-  resultTitle: (isSuccess: boolean) => ({
-    fontSize: 24,
-    fontWeight: theme.fontWeight.extrabold,
-    color: isSuccess ? theme.colors.green[700] : theme.colors.red[600],
-  }),
-  pointsBadge: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pointsValue: {
-    color: '#FFFFFF',
-    fontWeight: theme.fontWeight.extrabold,
-    fontSize: 20,
-  },
-  pointsLabel: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  aiResultContainer: {
-    width: '100%',
-    marginTop: 8,
-  },
-  feedbackText: {
-    fontSize: 16,
-    color: theme.colors.gray[600],
-    textAlign: 'center',
-    lineHeight: 16 * 1.75,
-    marginTop: 8,
-  },
-  bottomAction: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  continueButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: theme.fontWeight.bold,
-  },
-}));

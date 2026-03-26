@@ -3,7 +3,6 @@ import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet } from 'react-native-unistyles';
 import { useGameStore } from '@/stores/gameStore';
 
 const OVERLAY_SIZE = 260;
@@ -39,36 +38,36 @@ export default function QRScannerModal(): React.JSX.Element {
 
   if (!permission) {
     return (
-      <View style={styles.centeredBlack}>
-        <Text style={styles.whiteText}>Ładowanie kamery...</Text>
+      <View className="flex-1 bg-black items-center justify-center">
+        <Text className="text-white text-base">Ładowanie kamery...</Text>
       </View>
     );
   }
 
   if (!permission.granted) {
     return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.permissionTitle}>
+      <View className="flex-1 bg-black items-center justify-center px-8 gap-4">
+        <Text className="text-white text-xl font-bold text-center">
           Brak dostępu do kamery
         </Text>
-        <Text style={styles.permissionSubtitle}>
+        <Text className="text-gray-400 text-sm text-center">
           Aby skanować kody QR, aplikacja potrzebuje dostępu do kamery.
         </Text>
         <TouchableOpacity
-          style={styles.permissionButton}
+          className="bg-primary rounded-xl px-6 py-3"
           onPress={() => void requestPermission()}
         >
-          <Text style={styles.permissionButtonText}>Przyznaj dostęp</Text>
+          <Text className="text-white font-semibold">Przyznaj dostęp</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={handleClose}>
-          <Text style={styles.cancelText}>Anuluj</Text>
+          <Text className="text-gray-400 text-sm">Anuluj</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={styles.flex1Black}>
+    <View className="flex-1 bg-black">
       <StatusBar style="light" />
 
       <CameraView
@@ -81,10 +80,10 @@ export default function QRScannerModal(): React.JSX.Element {
       {/* Dark overlay with transparent cutout */}
       <View style={RNStyleSheet.absoluteFillObject} pointerEvents="none">
         {/* Top */}
-        <View style={styles.overlayFill} />
+        <View className="flex-1 bg-black/60" />
         {/* Middle row */}
-        <View style={[styles.middleRow, { height: OVERLAY_SIZE }]}>
-          <View style={styles.overlayFill} />
+        <View className="flex-row" style={{ height: OVERLAY_SIZE }}>
+          <View className="flex-1 bg-black/60" />
           {/* Transparent center */}
           <View
             style={{
@@ -95,132 +94,35 @@ export default function QRScannerModal(): React.JSX.Element {
               borderRadius: 12,
             }}
           />
-          <View style={styles.overlayFill} />
+          <View className="flex-1 bg-black/60" />
         </View>
         {/* Bottom */}
-        <View style={styles.overlayFill} />
+        <View className="flex-1 bg-black/60" />
       </View>
 
       {/* Close button */}
       <TouchableOpacity
-        style={styles.closeButton}
+        className="absolute top-14 right-4 w-10 h-10 rounded-full bg-black/50 items-center justify-center"
         onPress={handleClose}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.closeButtonText}>✕</Text>
+        <Text className="text-white text-lg">✕</Text>
       </TouchableOpacity>
 
       {/* Instruction text */}
-      <View style={styles.instructionContainer}>
-        <Text style={styles.instructionText}>
+      <View className="absolute bottom-16 left-0 right-0 items-center">
+        <Text className="text-white text-sm font-medium text-center px-8">
           Skieruj kamerę na kod QR, aby go zeskanować
         </Text>
         {scanned ? (
           <TouchableOpacity
-            style={styles.rescanButton}
+            className="mt-4 bg-primary rounded-xl px-6 py-3"
             onPress={() => setScanned(false)}
           >
-            <Text style={styles.rescanButtonText}>Skanuj ponownie</Text>
+            <Text className="text-white font-semibold">Skanuj ponownie</Text>
           </TouchableOpacity>
         ) : null}
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  flex1Black: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  centeredBlack: {
-    flex: 1,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  whiteText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-  },
-  permissionContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  permissionTitle: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: theme.fontWeight.bold,
-    textAlign: 'center',
-  },
-  permissionSubtitle: {
-    color: theme.colors.gray[400],
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  permissionButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  permissionButtonText: {
-    color: '#FFFFFF',
-    fontWeight: theme.fontWeight.semibold,
-  },
-  cancelText: {
-    color: theme.colors.gray[400],
-    fontSize: 14,
-  },
-  overlayFill: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  middleRow: {
-    flexDirection: 'row',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 56,
-    right: 16,
-    width: 40,
-    height: 40,
-    borderRadius: 9999,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-  },
-  instructionContainer: {
-    position: 'absolute',
-    bottom: 64,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  instructionText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: theme.fontWeight.medium,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  rescanButton: {
-    marginTop: 16,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  rescanButtonText: {
-    color: '#FFFFFF',
-    fontWeight: theme.fontWeight.semibold,
-  },
-}));

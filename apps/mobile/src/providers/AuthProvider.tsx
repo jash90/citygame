@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, type ReactNode } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { StyleSheet } from 'react-native-unistyles';
+import { withUniwind } from 'uniwind';
 import { useAuthStore } from '@/stores/authStore';
 import { apiClient } from '@/services/api';
 import { colors } from '@/lib/theme';
@@ -88,7 +88,7 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 items-center justify-center bg-surface">
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -96,12 +96,3 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
 
   return <>{children}</>;
 };
-
-const styles = StyleSheet.create((theme) => ({
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-  },
-}));

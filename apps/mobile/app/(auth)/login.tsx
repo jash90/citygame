@@ -10,11 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
-import { withAlpha } from '@/lib/unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { StyledSafeAreaView } from '@/lib/styled';
 
 export default function LoginScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');
@@ -36,36 +35,36 @@ export default function LoginScreen(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <StyledSafeAreaView className="flex-1 bg-surface">
       <KeyboardAvoidingView
-        style={styles.flex1}
+        className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerClassName="flex-grow justify-center px-6 py-8"
           keyboardShouldPersistTaps="handled"
         >
           {/* Logo / title */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoEmoji}>🏙️</Text>
+          <View className="items-center mb-10">
+            <View className="w-20 h-20 rounded-3xl bg-primary items-center justify-center mb-4 shadow-lg shadow-primary/40">
+              <Ionicons name="business" size={40} color="#FFFFFF" />
             </View>
-            <Text style={styles.title}>
+            <Text className="text-3xl font-extrabold text-secondary">
               CityGame
             </Text>
-            <Text style={styles.subtitle}>
+            <Text className="text-base text-gray-500 mt-1">
               Odkryj miasto. Zdobywaj punkty.
             </Text>
           </View>
 
           {/* Form */}
-          <View style={styles.formGap}>
+          <View className="gap-4">
             <View>
-              <Text style={styles.label}>
+              <Text className="text-sm font-medium text-gray-700 mb-1.5">
                 Adres e-mail
               </Text>
               <TextInput
-                style={styles.input}
+                className="border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
                 placeholder="jan.kowalski@email.pl"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
@@ -77,11 +76,11 @@ export default function LoginScreen(): React.JSX.Element {
             </View>
 
             <View>
-              <Text style={styles.label}>
+              <Text className="text-sm font-medium text-gray-700 mb-1.5">
                 Hasło
               </Text>
               <TextInput
-                style={styles.input}
+                className="border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
                 placeholder="Twoje hasło"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry
@@ -91,8 +90,8 @@ export default function LoginScreen(): React.JSX.Element {
             </View>
 
             {error ? (
-              <View style={styles.errorBox}>
-                <Text style={styles.errorText}>{error}</Text>
+              <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                <Text className="text-sm text-red-700">{error}</Text>
               </View>
             ) : null}
 
@@ -103,16 +102,16 @@ export default function LoginScreen(): React.JSX.Element {
               fullWidth
               isLoading={isLoading}
               onPress={handleLogin}
-              style={styles.buttonMargin}
+              style={{ marginTop: 8 }}
             />
           </View>
 
           {/* Register link */}
-          <View style={styles.linkRow}>
-            <Text style={styles.linkText}>Nie masz konta? </Text>
+          <View className="flex-row justify-center mt-6">
+            <Text className="text-gray-500 text-sm">Nie masz konta? </Text>
             <Link href="/(auth)/register" asChild>
               <TouchableOpacity>
-                <Text style={styles.linkAction}>
+                <Text className="text-primary text-sm font-semibold">
                   Zarejestruj się
                 </Text>
               </TouchableOpacity>
@@ -120,99 +119,6 @@ export default function LoginScreen(): React.JSX.Element {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-  },
-  flex1: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: theme.colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    ...theme.shadows.lg,
-    shadowColor: theme.colors.primary,
-    shadowOpacity: 0.4,
-  },
-  logoEmoji: {
-    fontSize: 36,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: theme.colors.gray[500],
-    marginTop: 4,
-  },
-  formGap: {
-    gap: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.gray[700],
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: theme.colors.gray[200],
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: theme.colors.gray[900],
-    backgroundColor: theme.colors.gray[50],
-  },
-  errorBox: {
-    backgroundColor: theme.colors.red[50],
-    borderWidth: 1,
-    borderColor: theme.colors.red[200],
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  errorText: {
-    fontSize: 14,
-    color: theme.colors.red[700],
-  },
-  buttonMargin: {
-    marginTop: 8,
-  },
-  linkRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  linkText: {
-    color: theme.colors.gray[500],
-    fontSize: 14,
-  },
-  linkAction: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: theme.fontWeight.semibold,
-  },
-}));

@@ -2,15 +2,16 @@ import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native-unistyles';
+import { withUniwind } from 'uniwind';
 import { Ionicons } from '@expo/vector-icons';
-import { withAlpha } from '@/lib/unistyles';
 import { GameMap } from '@/components/map/GameMap';
 import { TaskPin } from '@/components/map/TaskPin';
 import { GameBrowser } from '@/components/game/GameBrowser';
 import { useLocation } from '@/hooks/useLocation';
 import { useGameStore } from '@/stores/gameStore';
 import type { Task } from '@/services/api';
+
+const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export default function MapScreen(): React.JSX.Element {
   const { hasPermission, requestPermission } = useLocation();
@@ -52,7 +53,7 @@ export default function MapScreen(): React.JSX.Element {
   const totalCount = tasks.length;
 
   return (
-    <View style={styles.flex1}>
+    <View className="flex-1">
       <GameMap>
         {tasks.map((task) =>
           task.location ? (
@@ -66,106 +67,35 @@ export default function MapScreen(): React.JSX.Element {
       </GameMap>
 
       {/* Floating header overlay */}
-      <SafeAreaView edges={['top']} style={styles.headerOverlay} pointerEvents="none">
-        <View style={styles.headerCard}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerLabel}>Aktywna gra</Text>
-            <Text style={styles.headerTitle} numberOfLines={1}>
+      <StyledSafeAreaView edges={['top']} className="absolute top-0 left-0 right-0" pointerEvents="none">
+        <View className="mx-4 mt-2 bg-white/90 rounded-2xl px-4 py-3 flex-row items-center justify-between shadow-md">
+          <View className="flex-1 mr-3">
+            <Text className="text-xs text-gray-500">Aktywna gra</Text>
+            <Text className="text-base font-bold text-secondary" numberOfLines={1}>
               {currentGame.name}
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <View className="flex-row items-center gap-1">
               <Ionicons name="location-outline" size={12} color="#9CA3AF" />
-              <Text style={styles.headerCity}>{currentGame.city}</Text>
+              <Text className="text-xs text-gray-400">{currentGame.city}</Text>
             </View>
           </View>
-          <View style={styles.headerBadge}>
-            <Text style={styles.headerBadgeText}>
+          <View className="bg-primary/10 rounded-xl px-3 py-1.5">
+            <Text className="text-sm font-bold text-primary">
               {completedCount}/{totalCount} zadań
             </Text>
           </View>
         </View>
-      </SafeAreaView>
+      </StyledSafeAreaView>
 
       {/* My location button */}
-      <SafeAreaView edges={['bottom']} style={styles.locationBtnContainer} pointerEvents="box-none">
+      <StyledSafeAreaView edges={['bottom']} className="absolute bottom-4 right-4" pointerEvents="box-none">
         <TouchableOpacity
-          style={styles.locationBtn}
+          className="w-12 h-12 bg-surface rounded-full items-center justify-center shadow-md"
           activeOpacity={0.8}
         >
           <Ionicons name="locate" size={22} color="#FF6B35" />
         </TouchableOpacity>
-      </SafeAreaView>
+      </StyledSafeAreaView>
     </View>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  flex1: {
-    flex: 1,
-  },
-  headerOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-  },
-  headerCard: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    ...theme.shadows.md,
-    shadowColor: 'rgba(0,0,0,0.1)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  headerLabel: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.secondary,
-  },
-  headerCity: {
-    fontSize: 12,
-    color: theme.colors.gray[400],
-  },
-  headerBadge: {
-    backgroundColor: withAlpha(theme.colors.primary, 0.1),
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  headerBadgeText: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.primary,
-  },
-  locationBtnContainer: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-  },
-  locationBtn: {
-    width: 48,
-    height: 48,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 9999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...theme.shadows.md,
-    shadowColor: 'rgba(0,0,0,0.1)',
-  },
-  locationBtnEmoji: {
-    fontSize: 20,
-  },
-}));

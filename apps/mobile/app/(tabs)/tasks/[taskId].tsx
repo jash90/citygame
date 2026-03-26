@@ -10,8 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
-import { withAlpha } from '@/lib/unistyles';
+import { StyledSafeAreaView } from '@/lib/styled';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import { TaskRenderer } from '@/components/task/TaskRenderer';
 import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
@@ -33,24 +32,27 @@ const CountdownTimer = ({
   onExpireRef.current = onExpire;
 
   useEffect(() => {
-    if (remaining <= 0) {
-      onExpireRef.current();
-      return;
-    }
     const timer = setInterval(() => {
-      setRemaining((prev) => prev - 1);
+      setRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onExpireRef.current();
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, [remaining]);
+  }, []);
 
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
   const isUrgent = remaining <= 30;
 
   return (
-    <View style={styles.timerContainer(isUrgent)}>
+    <View className={`flex-row items-center gap-1.5 rounded-xl px-3 py-1.5 ${isUrgent ? 'bg-red-100' : 'bg-amber-100'}`}>
       <Ionicons name="timer-outline" size={16} color={isUrgent ? '#DC2626' : '#B45309'} />
-      <Text style={styles.timerText(isUrgent)}>
+      <Text className={`text-sm font-bold tabular-nums ${isUrgent ? 'text-red-600' : 'text-amber-700'}`}>
         {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
       </Text>
     </View>
@@ -96,18 +98,18 @@ const HintsPanel = ({
   };
 
   return (
-    <View style={styles.hintsGap}>
+    <View className="gap-2">
       {revealedHints.map((hint, index) => (
-        <View key={index} style={styles.hintCard}>
-          <Text style={styles.hintLabel}>
+        <View key={index} className="rounded-xl p-3 border border-amber-200 bg-amber-50">
+          <Text className="text-xs text-amber-600 font-semibold mb-1">
             Podpowiedź {index + 1}
             {hint.pointPenalty > 0 ? ` (-${hint.pointPenalty} pkt)` : ''}
           </Text>
-          <Text style={styles.hintContent}>{hint.content}</Text>
+          <Text className="text-sm text-amber-800">{hint.content}</Text>
         </View>
       ))}
       <TouchableOpacity
-        style={styles.hintButton(hintMutation.isPending)}
+        className={`rounded-xl p-3 border border-gray-200 bg-gray-50 items-center ${hintMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
         onPress={handleRevealHint}
         disabled={hintMutation.isPending}
         activeOpacity={0.8}
@@ -115,9 +117,9 @@ const HintsPanel = ({
         {hintMutation.isPending ? (
           <ActivityIndicator size="small" color="#FF6B35" />
         ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View className="flex-row items-center gap-1.5">
             <Ionicons name="bulb-outline" size={16} color="#6B7280" />
-            <Text style={styles.hintButtonText}>
+            <Text className="text-sm text-gray-500 text-center">
               Poproś o kolejną podpowiedź
             </Text>
           </View>
@@ -234,35 +236,35 @@ export default function TaskDetailScreen(): React.JSX.Element {
     // Tasks not yet loaded — show spinner
     if (tasks.length === 0) {
       return (
-        <SafeAreaView style={styles.loadingContainer}>
+        <StyledSafeAreaView className="flex-1 bg-surface items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
-        </SafeAreaView>
+        </StyledSafeAreaView>
       );
     }
     return (
-      <SafeAreaView style={styles.notFoundContainer}>
-        <Text style={styles.notFoundText}>
+      <StyledSafeAreaView className="flex-1 bg-surface items-center justify-center px-6">
+        <Text className="text-lg font-semibold text-gray-900 text-center">
           Nie znaleziono zadania
         </Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backLink}>
-          <Text style={styles.backLinkText}>Wróć</Text>
+        <TouchableOpacity onPress={() => router.back()} className="mt-4">
+          <Text className="text-primary font-semibold">Wróć</Text>
         </TouchableOpacity>
-      </SafeAreaView>
+      </StyledSafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View className="flex-row items-center px-4 py-3 bg-surface border-b border-gray-100">
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.backButton}
+          className="mr-3 w-8 h-8 items-center justify-center"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Ionicons name="arrow-back" size={20} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>
+        <Text className="flex-1 text-base font-bold text-secondary" numberOfLines={1}>
           {task.title}
         </Text>
         {task.timeLimitSec && !isLocked ? (
@@ -274,35 +276,36 @@ export default function TaskDetailScreen(): React.JSX.Element {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        className="px-4 py-4"
+        contentContainerStyle={{ gap: 16 }}
         showsVerticalScrollIndicator={false}
       >
         {/* Task meta */}
-        <View style={styles.metaRow}>
+        <View className="flex-row items-center gap-2">
           <TaskTypeBadge type={task.type} />
-          <View style={styles.pointsBadge}>
-            <Text style={styles.pointsBadgeText}>
+          <View className="bg-primary/10 rounded-full px-2.5 py-0.5">
+            <Text className="text-xs font-semibold text-primary">
               {task.points} pkt
             </Text>
           </View>
         </View>
 
         {/* Description */}
-        <View style={styles.card}>
-          <Text style={styles.descriptionText}>
+        <View className="bg-surface rounded-2xl p-4 border border-gray-100">
+          <Text className="text-base text-gray-700 leading-7">
             {task.description}
           </Text>
         </View>
 
         {/* Locked state — show unlock button */}
         {isLocked ? (
-          <View style={styles.lockedCard}>
+          <View className="bg-surface rounded-2xl p-4 border border-gray-100 items-center gap-3">
             <Ionicons name="lock-closed" size={30} color="#9CA3AF" />
-            <Text style={styles.lockedText}>
+            <Text className="text-sm text-gray-600 text-center">
               To zadanie jest jeszcze zablokowane. Odblokuj je, aby zobaczyć treść.
             </Text>
             <TouchableOpacity
-              style={styles.unlockButton(unlockMutation.isPending)}
+              className={`bg-primary rounded-xl px-6 py-3 ${unlockMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
               onPress={handleUnlock}
               disabled={unlockMutation.isPending}
               activeOpacity={0.8}
@@ -310,15 +313,15 @@ export default function TaskDetailScreen(): React.JSX.Element {
               {unlockMutation.isPending ? (
                 <ActivityIndicator color="white" size="small" />
               ) : (
-                <Text style={styles.unlockButtonText}>Odblokuj zadanie</Text>
+                <Text className="text-white font-bold">Odblokuj zadanie</Text>
               )}
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {/* Task input */}
-            <View style={styles.card}>
-              <Text style={styles.answerLabel}>
+            <View className="bg-surface rounded-2xl p-4 border border-gray-100">
+              <Text className="text-sm font-semibold text-gray-900 mb-3">
                 Twoja odpowiedź
               </Text>
               <TaskRenderer
@@ -337,11 +340,11 @@ export default function TaskDetailScreen(): React.JSX.Element {
             {currentSession && (
               <View>
                 <TouchableOpacity
-                  style={styles.hintsToggle}
+                  className="flex-row items-center gap-2 py-2"
                   onPress={() => setShowHints((prev) => !prev)}
                 >
                   <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
-                  <Text style={styles.hintsToggleText}>
+                  <Text className="text-sm font-semibold text-primary">
                     Podpowiedzi
                   </Text>
                   <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
@@ -354,198 +357,6 @@ export default function TaskDetailScreen(): React.JSX.Element {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.gray[50],
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  notFoundContainer: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-  },
-  notFoundText: {
-    fontSize: 18,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[900],
-    textAlign: 'center',
-  },
-  backLink: {
-    marginTop: 16,
-  },
-  backLinkText: {
-    color: theme.colors.primary,
-    fontWeight: theme.fontWeight.semibold,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  backButton: {
-    marginRight: 12,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backIcon: {
-    fontSize: 20,
-    color: theme.colors.gray[700],
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.secondary,
-  },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 16,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pointsBadge: {
-    backgroundColor: withAlpha(theme.colors.primary, 0.1),
-    borderRadius: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-  },
-  pointsBadgeText: {
-    fontSize: 12,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
-  },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.gray[100],
-  },
-  descriptionText: {
-    fontSize: 16,
-    color: theme.colors.gray[700],
-    lineHeight: 16 * 1.75,
-  },
-  lockedCard: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.gray[100],
-    alignItems: 'center',
-    gap: 12,
-  },
-  lockedEmoji: {
-    fontSize: 30,
-  },
-  lockedText: {
-    fontSize: 14,
-    color: theme.colors.gray[600],
-    textAlign: 'center',
-  },
-  unlockButton: (isPending: boolean) => ({
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    opacity: isPending ? 0.5 : 1,
-  }),
-  unlockButtonText: {
-    color: '#FFFFFF',
-    fontWeight: theme.fontWeight.bold,
-  },
-  answerLabel: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[900],
-    marginBottom: 12,
-  },
-  hintsToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  hintsToggleText: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.primary,
-  },
-  hintsToggleArrow: {
-    color: theme.colors.primary,
-  },
-  hintsGap: {
-    gap: 8,
-  },
-  hintCard: {
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    backgroundColor: theme.colors.amber[50],
-    borderColor: theme.colors.amber[200],
-  },
-  hintLabel: {
-    fontSize: 12,
-    color: theme.colors.amber[600],
-    fontWeight: theme.fontWeight.semibold,
-    marginBottom: 4,
-  },
-  hintContent: {
-    fontSize: 14,
-    color: theme.colors.amber[800],
-  },
-  hintButton: (isPending: boolean) => ({
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.gray[200],
-    backgroundColor: theme.colors.gray[50],
-    alignItems: 'center' as const,
-    opacity: isPending ? 0.5 : 1,
-  }),
-  hintButtonText: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-    textAlign: 'center' as const,
-  },
-  timerContainer: (isUrgent: boolean) => ({
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: isUrgent ? theme.colors.red[100] : theme.colors.amber[100],
-  }),
-  timerIcon: {
-    fontSize: 16,
-  },
-  timerText: (isUrgent: boolean) => ({
-    fontSize: 14,
-    fontWeight: theme.fontWeight.bold,
-    fontVariant: ['tabular-nums'] as const,
-    color: isUrgent ? theme.colors.red[600] : theme.colors.amber[700],
-  }),
-}));

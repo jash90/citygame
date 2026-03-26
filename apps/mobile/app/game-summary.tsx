@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 import { useGameStore } from '@/stores/gameStore';
+import { StyledSafeAreaView } from '@/lib/styled';
 
 export default function GameSummaryScreen(): React.JSX.Element {
   const router = useRouter();
@@ -58,9 +57,9 @@ export default function GameSummaryScreen(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <StyledSafeAreaView className="flex-1 bg-surface">
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerClassName="flex-1 px-6 py-8 gap-8 items-center justify-center"
         showsVerticalScrollIndicator={false}
       >
         {/* Trophy animation */}
@@ -70,165 +69,71 @@ export default function GameSummaryScreen(): React.JSX.Element {
             opacity: opacityAnim,
           }}
         >
-          <View style={styles.trophyCircle}>
+          <View className="w-32 h-32 rounded-full bg-amber-100 items-center justify-center">
             <Ionicons name="trophy" size={64} color="#FFD700" />
           </View>
         </Animated.View>
 
         {/* Title */}
-        <Animated.View style={[{ opacity: opacityAnim }, styles.titleContainer]}>
-          <Text style={styles.title}>
-            Gratulacje!
-          </Text>
-          <Text style={styles.subtitle}>
-            Ukończyłeś grę miejską
-          </Text>
+        <Animated.View style={[{ opacity: opacityAnim }]}>
+          <View className="items-center gap-2">
+            <Text className="text-3xl font-extrabold text-secondary text-center">
+              Gratulacje!
+            </Text>
+            <Text className="text-base text-gray-500 text-center">
+              Ukończyłeś grę miejską
+            </Text>
+          </View>
         </Animated.View>
 
         {/* Stats grid */}
-        <Animated.View
-          style={[{ opacity: opacityAnim }, styles.statsCard]}
-        >
-          {/* Points */}
-          <View style={styles.statsRow}>
-            <Text style={styles.statsLabel}>Zdobyte punkty</Text>
-            <View style={styles.pointsBadge}>
-              <Text style={styles.pointsBadgeText}>{points} pkt</Text>
+        <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>
+          <View className="w-full bg-gray-50 rounded-2xl p-5 gap-4">
+            {/* Points */}
+            <View className="flex-row items-center justify-between">
+              <Text className="text-sm text-gray-500">Zdobyte punkty</Text>
+              <View className="bg-primary rounded-xl px-4 py-1.5">
+                <Text className="text-white font-extrabold text-lg">{points} pkt</Text>
+              </View>
             </View>
+
+            {/* Tasks */}
+            <View className="flex-row items-center justify-between border-t border-gray-100 pt-4">
+              <Text className="text-sm text-gray-500">Ukończone zadania</Text>
+              <Text className="text-sm font-bold text-secondary">
+                {completed} / {total}
+              </Text>
+            </View>
+
+            {/* Time */}
+            {formattedTime ? (
+              <View className="flex-row items-center justify-between border-t border-gray-100 pt-4">
+                <Text className="text-sm text-gray-500">Czas gry</Text>
+                <Text className="text-sm font-bold text-secondary">{formattedTime}</Text>
+              </View>
+            ) : null}
+
+            {/* Rank */}
+            {finalRank > 0 ? (
+              <View className="flex-row items-center justify-between border-t border-gray-100 pt-4">
+                <Text className="text-sm text-gray-500">Twoje miejsce</Text>
+                <Text className="text-sm font-bold text-secondary">#{finalRank}</Text>
+              </View>
+            ) : null}
           </View>
-
-          {/* Tasks */}
-          <View style={styles.statsRowBordered}>
-            <Text style={styles.statsLabel}>Ukończone zadania</Text>
-            <Text style={styles.statsValue}>
-              {completed} / {total}
-            </Text>
-          </View>
-
-          {/* Time */}
-          {formattedTime ? (
-            <View style={styles.statsRowBordered}>
-              <Text style={styles.statsLabel}>Czas gry</Text>
-              <Text style={styles.statsValue}>{formattedTime}</Text>
-            </View>
-          ) : null}
-
-          {/* Rank */}
-          {finalRank > 0 ? (
-            <View style={styles.statsRowBordered}>
-              <Text style={styles.statsLabel}>Twoje miejsce</Text>
-              <Text style={styles.statsValue}>#{finalRank}</Text>
-            </View>
-          ) : null}
         </Animated.View>
       </ScrollView>
 
       {/* Bottom action */}
-      <View style={styles.bottomAction}>
+      <View className="px-6 pb-8">
         <TouchableOpacity
-          style={styles.returnButton}
+          className="bg-primary rounded-2xl py-4 items-center"
           onPress={handleReturn}
           activeOpacity={0.8}
         >
-          <Text style={styles.returnButtonText}>Wróć do menu</Text>
+          <Text className="text-white text-base font-bold">Wróć do menu</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 }
-
-const styles = StyleSheet.create((theme) => ({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-  },
-  scrollContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 32,
-    gap: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trophyCircle: {
-    width: 128,
-    height: 128,
-    borderRadius: 9999,
-    backgroundColor: theme.colors.amber[100],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trophyEmoji: {
-    fontSize: 72,
-  },
-  titleContainer: {
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-  statsCard: {
-    width: '100%',
-    backgroundColor: theme.colors.gray[50],
-    borderRadius: 16,
-    padding: 20,
-    gap: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statsRowBordered: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.gray[100],
-    paddingTop: 16,
-  },
-  statsLabel: {
-    fontSize: 14,
-    color: theme.colors.gray[500],
-  },
-  statsValue: {
-    fontSize: 14,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.secondary,
-  },
-  pointsBadge: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-  },
-  pointsBadgeText: {
-    color: '#FFFFFF',
-    fontWeight: theme.fontWeight.extrabold,
-    fontSize: 18,
-  },
-  bottomAction: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
-  },
-  returnButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  returnButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: theme.fontWeight.bold,
-  },
-}));
