@@ -25,7 +25,7 @@ export default function TabLayout(): React.JSX.Element {
           borderTopWidth: 1,
           paddingBottom: 4,
           paddingTop: 4,
-          height: 60,
+          height: 80,
         },
         tabBarLabelStyle: {
           fontSize: 11,
