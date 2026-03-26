@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 
 export interface AIVerificationResult {
   score: number;
@@ -91,7 +90,7 @@ const ProcessingDots = (): React.JSX.Element => {
   });
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+    <View className="flex-row items-center justify-center">
       <Animated.View style={dotStyle(dot1)} />
       <Animated.View style={dotStyle(dot2)} />
       <Animated.View style={dotStyle(dot3)} />
@@ -122,24 +121,27 @@ export const AIVerificationStatus = ({
     switch (status) {
       case 'uploading':
         return (
-          <View style={styles.gap3}>
-            <Text style={styles.statusLabel}>
+          <View className="gap-3">
+            <Text className="text-sm font-semibold text-gray-700 text-center">
               Przesyłanie...
             </Text>
-            <View style={styles.progressTrack}>
+            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
               <View
-                style={[styles.progressFill, { width: `${Math.min(progress, 100)}%` }]}
+                className="h-full bg-primary rounded-full"
+                style={{ width: `${Math.min(progress, 100)}%` }}
               />
             </View>
-            <Text style={styles.progressText}>{Math.round(progress)}%</Text>
+            <Text className="text-xs text-gray-500 text-center">
+              {Math.round(progress)}%
+            </Text>
           </View>
         );
 
       case 'processing':
         return (
-          <View style={styles.processingContainer}>
+          <View className="gap-4 items-center">
             <ProcessingDots />
-            <Text style={styles.statusLabel}>
+            <Text className="text-sm font-semibold text-gray-700 text-center">
               AI analizuje Twoją odpowiedź...
             </Text>
           </View>
@@ -159,18 +161,32 @@ export const AIVerificationStatus = ({
         const iconName = isCorrect ? 'checkmark-circle' as const : isPartial ? 'ellipse' as const : 'close-circle' as const;
         const iconColor = isCorrect ? '#22C55E' : isPartial ? '#F59E0B' : '#EF4444';
 
+        const containerClassName = `rounded-2xl border p-4 gap-4 ${isCorrect
+            ? 'bg-green-50 border-green-200'
+            : isPartial
+              ? 'bg-orange-50 border-orange-200'
+              : 'bg-red-50 border-red-200'
+          }`;
+
+        const headerLabelClassName = `text-lg font-extrabold ${isCorrect
+            ? 'text-green-700'
+            : isPartial
+              ? 'text-orange-600'
+              : 'text-red-600'
+          }`;
+
         return (
-          <View style={styles.completeContainer(isCorrect, isPartial)}>
-            <View style={styles.headerRow}>
-              <View style={styles.headerLeft}>
+          <View className={containerClassName}>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
                 <Ionicons name={iconName} size={20} color={iconColor} />
-                <Text style={styles.headerLabel(isCorrect, isPartial)}>{statusLabelText}</Text>
+                <Text className={headerLabelClassName}>{statusLabelText}</Text>
               </View>
               <ScoreCircle score={score} />
             </View>
 
             {feedback ? (
-              <Text style={styles.feedbackText}>{feedback}</Text>
+              <Text className="text-sm text-gray-700 leading-6">{feedback}</Text>
             ) : null}
           </View>
         );
@@ -178,18 +194,18 @@ export const AIVerificationStatus = ({
 
       case 'error':
         return (
-          <View style={styles.errorContainer}>
+          <View className="rounded-2xl border border-red-200 bg-red-50 p-4 gap-3 items-center">
             <Ionicons name="warning" size={20} color="#F59E0B" />
-            <Text style={styles.errorLabel}>
+            <Text className="text-sm font-semibold text-red-700 text-center">
               Wystąpił błąd podczas weryfikacji
             </Text>
             {onRetry ? (
               <TouchableOpacity
-                style={styles.retryButton}
+                className="bg-primary rounded-xl px-5 py-2.5"
                 onPress={onRetry}
                 activeOpacity={0.8}
               >
-                <Text style={styles.retryButtonText}>Spróbuj ponownie</Text>
+                <Text className="text-white font-bold text-sm">Spróbuj ponownie</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -201,104 +217,3 @@ export const AIVerificationStatus = ({
     <Animated.View style={{ opacity: fadeAnim }}>{renderContent()}</Animated.View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  gap3: {
-    gap: 12,
-  },
-  statusLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.gray[700],
-    textAlign: 'center',
-  },
-  progressTrack: {
-    height: 8,
-    backgroundColor: theme.colors.gray[200],
-    borderRadius: 9999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: theme.colors.primary,
-    borderRadius: 9999,
-  },
-  progressText: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-  processingContainer: {
-    gap: 16,
-    alignItems: 'center',
-  },
-  completeContainer: (isCorrect: boolean, isPartial: boolean) => ({
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 16,
-    gap: 16,
-    backgroundColor: isCorrect
-      ? theme.colors.green[50]
-      : isPartial
-        ? theme.colors.orange[50]
-        : theme.colors.red[50],
-    borderColor: isCorrect
-      ? theme.colors.green[200]
-      : isPartial
-        ? theme.colors.orange[200]
-        : theme.colors.red[200],
-  }),
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerIcon: {
-    fontSize: 24,
-  },
-  headerLabel: (isCorrect: boolean, isPartial: boolean) => ({
-    fontSize: 18,
-    fontWeight: '800' as const,
-    color: isCorrect
-      ? theme.colors.green[700]
-      : isPartial
-        ? theme.colors.orange[600]
-        : theme.colors.red[600],
-  }),
-  feedbackText: {
-    fontSize: 14,
-    color: theme.colors.gray[700],
-    lineHeight: 14 * 1.75,
-  },
-  errorContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: theme.colors.red[200],
-    backgroundColor: theme.colors.red[50],
-    padding: 16,
-    gap: 12,
-    alignItems: 'center',
-  },
-  errorLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.red[700],
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-}));

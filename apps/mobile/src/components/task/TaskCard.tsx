@@ -1,10 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
 import { Card } from '@/components/ui/Card';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import type { Task } from '@/services/api';
+import { TouchableOpacity, View, Text } from 'react-native';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -20,7 +19,7 @@ interface TaskCardProps {
   onPress?: (task: Task) => void;
 }
 
-export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element => {
+export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Element => {
   const isInteractive = task.status === 'available';
   const statusIcon = STATUS_ICONS[task.status];
 
@@ -28,25 +27,25 @@ export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element =>
     <TouchableOpacity
       onPress={() => isInteractive && onPress?.(task)}
       activeOpacity={isInteractive ? 0.7 : 1}
-      style={styles.touchable}
+      className="mb-3"
     >
-      <Card elevated style={styles.cardOpacity(task.status === 'locked')}>
-        <View style={styles.row}>
+      <Card elevated style={{ opacity: task.status === 'locked' ? 0.6 : 1 }}>
+        <View className="flex-row items-center gap-3">
           <Ionicons name={statusIcon.name} size={24} color={statusIcon.color} />
 
-          <View style={styles.infoContainer}>
+          <View className="flex-1">
             <Text
-              style={styles.title}
+              className="text-base font-semibold text-gray-900 mb-1"
               numberOfLines={2}
             >
               {task.title}
             </Text>
-            <View style={styles.badgeRow}>
+            <View className="flex-row items-center gap-2 flex-wrap">
               <TaskTypeBadge type={task.type} />
               {task.timeLimitSec ? (
-                <View style={styles.timeLimitRow}>
+                <View className="flex-row items-center gap-0.5">
                   <Ionicons name="timer-outline" size={12} color="#6B7280" />
-                  <Text style={styles.timeLimit}>
+                  <Text className="text-xs text-gray-500">
                     {Math.floor(task.timeLimitSec / 60)} min
                   </Text>
                 </View>
@@ -54,62 +53,12 @@ export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element =>
             </View>
           </View>
 
-          <View style={styles.pointsContainer}>
-            <Text style={styles.points}>{task.points}</Text>
-            <Text style={styles.pointsLabel}>pkt</Text>
+          <View className="items-center">
+            <Text className="text-xl font-bold text-primary">{task.points}</Text>
+            <Text className="text-xs text-gray-500">pkt</Text>
           </View>
         </View>
       </Card>
     </TouchableOpacity>
   );
-};
-
-const styles = StyleSheet.create((theme) => ({
-  touchable: {
-    marginBottom: 12,
-  },
-  cardOpacity: (locked: boolean) => ({
-    opacity: locked ? 0.6 : 1,
-  }),
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.gray[900],
-    marginBottom: 4,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  timeLimitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  timeLimit: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-  },
-  pointsContainer: {
-    alignItems: 'center',
-  },
-  points: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.colors.primary,
-  },
-  pointsLabel: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-  },
-}));
+});
