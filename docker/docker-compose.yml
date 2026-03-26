@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: citygame-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: citygame
+      POSTGRES_PASSWORD: citygame_dev
+      POSTGRES_DB: citygame
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: citygame-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+
+volumes:
+  pgdata:
+  redisdata:
