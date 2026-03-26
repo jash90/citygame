@@ -7,11 +7,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
+import { withUniwind } from 'uniwind';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '@/stores/gameStore';
 import { storageApi } from '@/services/api';
-import { withAlpha } from '@/lib/unistyles';
 import { MediaCapture } from './MediaCapture';
 import { AudioRecorder } from './AudioRecorder';
 import {
@@ -35,10 +34,10 @@ const TextTaskInput = ({
 }): React.JSX.Element => {
   const [value, setValue] = useState('');
   return (
-    <View style={styles.gap3}>
-      <Text style={styles.label}>Twoja odpowiedź:</Text>
+    <View className="gap-3">
+      <Text className="text-sm font-medium text-gray-700">Twoja odpowiedź:</Text>
       <TextInput
-        style={styles.textInput}
+        className="border border-gray-200 rounded-xl p-3 text-base text-gray-900 min-h-[100px]"
         placeholder="Wpisz odpowiedź..."
         multiline
         textAlignVertical="top"
@@ -74,14 +73,18 @@ const QRTaskInput = ({
   };
 
   return (
-    <View style={styles.gap3}>
+    <View className="gap-3">
       <TouchableOpacity
-        style={styles.scanButton(!!scanned)}
+        className={
+          scanned
+            ? 'border-2 border-dashed border-success rounded-xl p-8 items-center gap-3 bg-green-50'
+            : 'border-2 border-dashed border-primary/40 rounded-xl p-8 items-center gap-3 bg-primary/5'
+        }
         onPress={handleScan}
         activeOpacity={0.7}
       >
         <Ionicons name={scanned ? 'checkmark-circle' : 'qr-code-outline'} size={36} color={scanned ? '#22C55E' : '#FF6B35'} />
-        <Text style={styles.scanLabel}>
+        <Text className="text-sm font-medium text-gray-600">
           {scanned ? `Zeskanowano: ${scanned}` : 'Dotknij, aby zeskanować kod QR'}
         </Text>
       </TouchableOpacity>
@@ -106,25 +109,29 @@ const GPSTaskInput = ({
   };
 
   return (
-    <View style={styles.gap3}>
+    <View className="gap-3">
       {task.location ? (
-        <View style={styles.locationInfo}>
-          <Text style={styles.locationLabel}>Cel:</Text>
-          <Text style={styles.locationCoords}>
+        <View className="bg-gray-50 rounded-xl p-3">
+          <Text className="text-xs text-gray-500 mb-1">Cel:</Text>
+          <Text className="text-sm font-medium text-gray-700">
             {task.location.lat.toFixed(5)}, {task.location.lng.toFixed(5)}
           </Text>
-          <Text style={styles.locationRadius}>
+          <Text className="text-xs text-gray-500 mt-1">
             Promień: {task.location.radiusMeters} m
           </Text>
         </View>
       ) : null}
       <TouchableOpacity
-        style={styles.scanButton(verified)}
+        className={
+          verified
+            ? 'border-2 border-dashed border-success rounded-xl p-8 items-center gap-3 bg-green-50'
+            : 'border-2 border-dashed border-primary/40 rounded-xl p-8 items-center gap-3 bg-primary/5'
+        }
         onPress={handleCheck}
         activeOpacity={0.7}
       >
         <Ionicons name={verified ? 'checkmark-circle' : 'location'} size={36} color={verified ? '#22C55E' : '#FF6B35'} />
-        <Text style={styles.scanLabel}>
+        <Text className="text-sm font-medium text-gray-600">
           {verified
             ? 'Lokalizacja zweryfikowana!'
             : 'Dotknij, aby sprawdzić lokalizację GPS'}
@@ -202,7 +209,7 @@ const PhotoAITaskInput = ({
   };
 
   return (
-    <View style={styles.gap4}>
+    <View className="gap-4">
       {aiStatus === 'idle' || aiStatus === 'error' ? (
         <MediaCapture
           onCapture={(uri) => void handleCapture(uri)}
@@ -247,7 +254,7 @@ const AudioAITaskInput = ({
   };
 
   return (
-    <View style={styles.gap4}>
+    <View className="gap-4">
       {aiStatus === 'idle' || aiStatus === 'error' ? (
         <AudioRecorder
           onRecordingComplete={(uri) => void handleRecordingComplete(uri)}
@@ -288,7 +295,7 @@ export const TaskRenderer = ({
   const isSelfSubmitting = task.type === 'PHOTO_AI' || task.type === 'AUDIO_AI';
 
   return (
-    <View style={styles.gap4}>
+    <View className="gap-4">
       {isTextType && (
         <TextTaskInput onReady={(answer) => setReadyPayload({ answer })} />
       )}
@@ -320,7 +327,7 @@ export const TaskRenderer = ({
 
       {!isSelfSubmitting && (
         <TouchableOpacity
-          style={[styles.submitButton, (isSubmitting || !readyPayload) && styles.submitDisabled]}
+          className={`bg-primary rounded-xl py-4 items-center ${isSubmitting || !readyPayload ? 'opacity-50' : ''}`}
           onPress={handleSubmit}
           disabled={isSubmitting || !readyPayload}
           activeOpacity={0.8}
@@ -328,85 +335,10 @@ export const TaskRenderer = ({
           {isSubmitting ? (
             <ActivityIndicator color="white" size="small" />
           ) : (
-            <Text style={styles.submitText}>Wyślij odpowiedź</Text>
+            <Text className="text-white text-base font-bold">Wyślij odpowiedź</Text>
           )}
         </TouchableOpacity>
       )}
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  gap3: {
-    gap: 12,
-  },
-  gap4: {
-    gap: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.gray[700],
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: theme.colors.gray[200],
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    color: theme.colors.gray[900],
-    minHeight: 100,
-  },
-  scanButton: (active: boolean) => ({
-    borderWidth: 2,
-    borderStyle: 'dashed' as const,
-    borderRadius: 12,
-    padding: 32,
-    alignItems: 'center' as const,
-    gap: 12,
-    borderColor: active ? theme.colors.success : withAlpha(theme.colors.primary, 0.4),
-    backgroundColor: active ? theme.colors.green[50] : withAlpha(theme.colors.primary, 0.05),
-  }),
-  scanIcon: {
-    fontSize: 36,
-  },
-  scanLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.gray[600],
-  },
-  locationInfo: {
-    backgroundColor: theme.colors.gray[50],
-    borderRadius: 12,
-    padding: 12,
-  },
-  locationLabel: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-    marginBottom: 4,
-  },
-  locationCoords: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: theme.colors.gray[700],
-  },
-  locationRadius: {
-    fontSize: 12,
-    color: theme.colors.gray[500],
-    marginTop: 4,
-  },
-  submitButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitDisabled: {
-    opacity: 0.5,
-  },
-  submitText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-}));
