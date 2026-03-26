@@ -1,0 +1,166 @@
+import { Logger } from '@nestjs/common';
+import {
+  ConnectedSocket,
+  MessageBody,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
+import { RankEntry, TeamRankEntry } from './ranking.service';
+
+export interface RankingUpdatePayload {
+  gameId: string;
+  ranking: RankEntry[];
+}
+
+export interface PlayerCompletedTaskPayload {
+  gameId: string;
+  userId: string;
+  taskId: string;
+  pointsAwarded: number;
+  totalPoints: number;
+}
+
+export interface AiResultPayload {
+  attemptId: string;
+  userId: string;
+  status: string;
+  score?: number;
+  feedback?: string;
+}
+
+export interface ActivityPayload {
+  type: string;
+  playerName: string;
+  details: string;
+  points?: number;
+}
+
+export interface TeamUpdatePayload {
+  gameId: string;
+  teamId: string;
+  teamName: string;
+  ranking: TeamRankEntry[];
+}
+
+@WebSocketGateway({
+  namespace: '/ranking',
+  cors: {
+    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000,http://localhost:3002')
+      .split(',')
+      .map((o) => o.trim()),
+    credentials: true,
+  },
+})
+export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  @WebSocketServer()
+  server!: Server;
+
+  private readonly logger = new Logger(RankingGateway.name);
+
+  handleConnection(client: Socket): void {
+    this.logger.log(`Client connected to ranking gateway: ${client.id}`);
+  }
+
+  handleDisconnect(client: Socket): void {
+    this.logger.log(`Client disconnected from ranking gateway: ${client.id}`);
+  }
+
+  /**
+   * Client joins the ranking room for a specific game.
+   */
+  @SubscribeMessage('join-game')
+  handleJoinGame(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { gameId: string },
+  ): void {
+    const room = `game:${data.gameId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined room ${room}`);
+  }
+
+  /**
+   * Client leaves the ranking room for a specific game.
+   */
+  @SubscribeMessage('leave-game')
+  handleLeaveGame(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { gameId: string },
+  ): void {
+    const room = `game:${data.gameId}`;
+    void client.leave(room);
+    this.logger.log(`Client ${client.id} left room ${room}`);
+  }
+
+  /**
+   * Broadcast updated ranking to all clients watching a game.
+   * Called by PlayerService after a successful answer.
+   */
+  broadcastRankingUpdate(gameId: string, ranking: RankEntry[]): void {
+    const payload: RankingUpdatePayload = { gameId, ranking };
+    this.server.to(`game:${gameId}`).emit('ranking:update', payload);
+  }
+
+  /**
+   * Broadcast task completion event for real-time feed.
+   */
+  broadcastPlayerCompletedTask(payload: PlayerCompletedTaskPayload): void {
+    this.server
+      .to(`game:${payload.gameId}`)
+      .emit('player-completed-task', payload);
+  }
+
+  /**
+   * Broadcast the result of an AI verification to all clients in the game room.
+   * The mobile client uses this to display real-time feedback without polling.
+   */
+  broadcastAiResult(gameId: string, payload: AiResultPayload): void {
+    this.server.to(`game:${gameId}`).emit('ai:result', payload);
+  }
+
+  /**
+   * Broadcast a general activity event for admin monitoring and activity feeds.
+   * Covers: task completed, hint used, game joined, etc.
+   */
+  broadcastActivity(gameId: string, payload: ActivityPayload): void {
+    this.server.to(`game:${gameId}`).emit('activity', payload);
+  }
+
+  /**
+   * Broadcast team ranking update to all clients watching the game room
+   * and specifically to the team's private room.
+   */
+  broadcastTeamUpdate(gameId: string, payload: TeamUpdatePayload): void {
+    this.server.to(`game:${gameId}`).emit('team:ranking:update', payload);
+    this.server.to(`team:${payload.teamId}`).emit('team:ranking:update', payload);
+  }
+
+  /**
+   * Client joins the team room to receive notifications specific to their team.
+   */
+  @SubscribeMessage('join-team-room')
+  handleJoinTeamRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string },
+  ): void {
+    const room = `team:${data.teamId}`;
+    void client.join(room);
+    this.logger.log(`Client ${client.id} joined team room ${room}`);
+  }
+
+  /**
+   * Client leaves the team room.
+   */
+  @SubscribeMessage('leave-team-room')
+  handleLeaveTeamRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { teamId: string },
+  ): void {
+    const room = `team:${data.teamId}`;
+    void client.leave(room);
+    this.logger.log(`Client ${client.id} left team room ${room}`);
+  }
+}

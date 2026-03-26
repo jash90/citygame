@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum GameStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TaskType {
+  QR_SCAN
+  GPS_REACH
+  PHOTO_AI
+  AUDIO_AI
+  TEXT_EXACT
+  TEXT_AI
+  CIPHER
+  MIXED
+}
+
+enum UnlockMethod {
+  QR
+  GPS
+}
+
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+  TIMED_OUT
+}
+
+enum AttemptStatus {
+  PENDING
+  CORRECT
+  INCORRECT
+  PARTIAL
+  ERROR
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  displayName  String
+  avatarUrl    String?
+  role         UserRole  @default(PLAYER)
+  pushToken    String?
+  refreshToken String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  games           Game[]
+  sessions        GameSession[]
+  attempts        TaskAttempt[]
+  hintUsages      HintUsage[]
+  captainOf       Team[]       @relation("TeamCaptain")
+  teamMemberships TeamMember[]
+}
+
+model Game {
+  id            String     @id @default(uuid())
+  title         String
+  description   String
+  city          String
+  coverImageUrl String?
+  status        GameStatus @default(DRAFT)
+  settings      Json
+  creatorId     String
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  creator  User          @relation(fields: [creatorId], references: [id])
+  tasks    Task[]
+  sessions GameSession[]
+  teams    Team[]
+
+  @@index([status])
+  @@index([city])
+}
+
+model Task {
+  id           String       @id @default(uuid())
+  gameId       String
+  title        String
+  description  String
+  type         TaskType
+  unlockMethod UnlockMethod
+  orderIndex   Int
+  latitude     Float
+  longitude    Float
+  unlockConfig Json
+  verifyConfig Json
+  maxPoints    Int
+  timeLimitSec Int?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  game     Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  hints    Hint[]
+  attempts TaskAttempt[]
+
+  @@index([gameId, orderIndex])
+}
+
+model Hint {
+  id           String   @id @default(uuid())
+  taskId       String
+  orderIndex   Int
+  content      String
+  pointPenalty Int
+  createdAt    DateTime @default(now())
+
+  task   Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  usages HintUsage[]
+}
+
+model HintUsage {
+  id        String      @id @default(uuid())
+  hintId    String
+  userId    String
+  sessionId String
+  usedAt    DateTime    @default(now())
+
+  hint    Hint        @relation(fields: [hintId], references: [id])
+  user    User        @relation(fields: [userId], references: [id])
+  session GameSession @relation(fields: [sessionId], references: [id])
+
+  @@unique([hintId, userId, sessionId])
+}
+
+model GameSession {
+  id            String        @id @default(uuid())
+  gameId        String
+  userId        String
+  teamId        String?
+  status        SessionStatus @default(ACTIVE)
+  totalPoints   Int           @default(0)
+  startedAt     DateTime      @default(now())
+  completedAt   DateTime?
+  currentTaskId String?
+
+  game       Game          @relation(fields: [gameId], references: [id])
+  user       User          @relation(fields: [userId], references: [id])
+  team       Team?         @relation(fields: [teamId], references: [id])
+  attempts   TaskAttempt[]
+  hintUsages HintUsage[]
+
+  @@unique([gameId, userId])
+  @@index([gameId, totalPoints])
+  @@index([gameId, teamId])
+}
+
+model Team {
+  id         String   @id @default(uuid())
+  gameId     String
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  name       String
+  code       String   @unique
+  captainId  String
+  captain    User     @relation("TeamCaptain", fields: [captainId], references: [id])
+  maxMembers Int      @default(4)
+  createdAt  DateTime @default(now())
+
+  members  TeamMember[]
+  sessions GameSession[]
+
+  @@index([gameId])
+  @@index([code])
+}
+
+model TeamMember {
+  id       String   @id @default(uuid())
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+model TaskAttempt {
+  id            String        @id @default(uuid())
+  sessionId     String
+  taskId        String
+  userId        String
+  status        AttemptStatus @default(PENDING)
+  attemptNumber Int
+  submission    Json
+  aiResult      Json?
+  pointsAwarded Int           @default(0)
+  timeTakenSec  Int?
+  createdAt     DateTime      @default(now())
+
+  session GameSession @relation(fields: [sessionId], references: [id])
+  task    Task        @relation(fields: [taskId], references: [id])
+  user    User        @relation(fields: [userId], references: [id])
+
+  @@index([sessionId, taskId])
+}
