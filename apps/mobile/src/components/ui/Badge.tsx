@@ -1,7 +1,5 @@
 import React from 'react';
 import { View, Text } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
-import { withAlpha } from '@/lib/unistyles';
 import type { TaskType, TaskStatus } from '@/services/api';
 
 type BadgeVariant = 'default' | 'primary' | 'success' | 'warning' | 'error' | 'muted';
@@ -12,62 +10,41 @@ interface BadgeProps {
   size?: 'sm' | 'md';
 }
 
+const CONTAINER_VARIANT: Record<BadgeVariant, string> = {
+  default: 'bg-gray-100',
+  primary: 'bg-primary/15',
+  success: 'bg-green-100',
+  warning: 'bg-amber-100',
+  error: 'bg-red-100',
+  muted: 'bg-gray-50',
+};
+
+const TEXT_VARIANT: Record<BadgeVariant, string> = {
+  default: 'text-gray-700',
+  primary: 'text-primary',
+  success: 'text-green-700',
+  warning: 'text-amber-700',
+  error: 'text-red-700',
+  muted: 'text-gray-500',
+};
+
 export const Badge = ({
   label,
   variant = 'default',
   size = 'sm',
 }: BadgeProps): React.JSX.Element => {
+  const sizeClass = size === 'sm' ? 'px-2 py-0.5' : 'px-3 py-1';
+  const textSizeClass = size === 'sm' ? 'text-xs' : 'text-sm';
+
   return (
-    <View style={[styles.base, styles.containerSize(size), styles.containerVariant(variant)]}>
-      <Text style={[styles.text, styles.textSize(size), styles.textVariant(variant)]}>
+    <View className={`rounded-full items-center justify-center self-start ${sizeClass} ${CONTAINER_VARIANT[variant]}`}>
+      <Text className={`font-semibold ${textSizeClass} ${TEXT_VARIANT[variant]}`}>
         {label}
       </Text>
     </View>
   );
 };
 
-const styles = StyleSheet.create((theme) => ({
-  base: {
-    borderRadius: theme.borderRadius.full,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    alignSelf: 'flex-start' as const,
-  },
-  containerSize: (size: 'sm' | 'md') => ({
-    paddingHorizontal: size === 'sm' ? 8 : 12,
-    paddingVertical: size === 'sm' ? 2 : 4,
-  }),
-  containerVariant: (variant: BadgeVariant) => {
-    const colors: Record<BadgeVariant, string> = {
-      default: theme.colors.gray[100],
-      primary: withAlpha(theme.colors.primary, 0.15),
-      success: theme.colors.green[100],
-      warning: theme.colors.amber[100],
-      error: theme.colors.red[100],
-      muted: theme.colors.gray[50],
-    };
-    return { backgroundColor: colors[variant] };
-  },
-  text: {
-    fontWeight: theme.fontWeight.semibold,
-  },
-  textSize: (size: 'sm' | 'md') => ({
-    fontSize: size === 'sm' ? theme.fontSize.xs : theme.fontSize.sm,
-  }),
-  textVariant: (variant: BadgeVariant) => {
-    const colors: Record<BadgeVariant, string> = {
-      default: theme.colors.gray[700],
-      primary: theme.colors.primary,
-      success: theme.colors.green[700],
-      warning: theme.colors.amber[700],
-      error: theme.colors.red[700],
-      muted: theme.colors.gray[500],
-    };
-    return { color: colors[variant] };
-  },
-}));
-
-// Task type labels matching backend TaskType enum
 const TASK_TYPE_LABELS: Record<TaskType, string> = {
   QR_SCAN: 'Kod QR',
   GPS_REACH: 'GPS',
