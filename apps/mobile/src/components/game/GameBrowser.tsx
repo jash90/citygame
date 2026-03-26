@@ -6,19 +6,19 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StyleSheet } from 'react-native-unistyles';
 import { GameCard } from './GameCard';
 import { useGames, useStartGame, useGame } from '@/hooks/useGame';
 import type { Game } from '@/services/api';
+import { StyledSafeAreaView } from '@/lib/styled';
+import { Ionicons } from '@expo/vector-icons';
 
 const EmptyState = (): React.JSX.Element => (
-  <View style={styles.emptyState}>
-    <Text style={styles.emptyEmoji}>🗺️</Text>
-    <Text style={styles.emptyTitle}>
+  <View className="flex-1 items-center justify-center py-20 px-8">
+    <Ionicons name="map-outline" size={56} color="#6B7280" style={{ marginBottom: 16 }} />
+    <Text className="text-lg font-semibold text-gray-900 text-center mb-2">
       Brak dostępnych gier
     </Text>
-    <Text style={styles.emptySubtitle}>
+    <Text className="text-sm text-gray-500 text-center">
       Zajrzyj tu później — wkrótce pojawią się nowe miejskie przygody.
     </Text>
   </View>
@@ -42,19 +42,19 @@ export const GameBrowser = (): React.JSX.Element => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#FF6B35" />
       </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>
+    <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+      <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+        <Text className="text-2xl font-extrabold text-secondary">
           Wybierz grę
         </Text>
-        <Text style={styles.headerSubtitle}>
+        <Text className="text-sm text-gray-500 mt-0.5">
           Odkryj miejskie przygody w Twojej okolicy
         </Text>
       </View>
@@ -69,7 +69,7 @@ export const GameBrowser = (): React.JSX.Element => {
             isJoining={joiningGameId === item.id && startGame.isPending}
           />
         )}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
         ListEmptyComponent={<EmptyState />}
         refreshControl={
           <RefreshControl
@@ -80,64 +80,6 @@ export const GameBrowser = (): React.JSX.Element => {
         }
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </StyledSafeAreaView>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  emptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 32,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: theme.spacing.md,
-  },
-  emptyTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[900],
-    textAlign: 'center',
-    marginBottom: theme.spacing.sm,
-  },
-  emptySubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[500],
-    textAlign: 'center',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.gray[50],
-  },
-  header: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  headerTitle: {
-    fontSize: theme.fontSize['2xl'],
-    fontWeight: theme.fontWeight.extrabold,
-    color: theme.colors.secondary,
-  },
-  headerSubtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[500],
-    marginTop: 2,
-  },
-  listContent: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: 32,
-  },
-}));

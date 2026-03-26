@@ -1,8 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet } from 'react-native-unistyles';
-import { withAlpha } from '@/lib/unistyles';
 import type { Game } from '@/services/api';
 
 interface GameCardProps {
@@ -13,53 +11,54 @@ interface GameCardProps {
 
 export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): React.JSX.Element => {
   return (
-    <View style={styles.card}>
+    <View className="bg-white rounded-xl border border-gray-100 overflow-hidden mb-4 shadow-sm">
       {game.coverImageUrl ? (
         <Image
           source={{ uri: game.coverImageUrl }}
-          style={styles.coverImage}
+          className="w-full"
+          style={{ height: 160 }}
           resizeMode="cover"
         />
       ) : (
-        <View style={styles.coverPlaceholder}>
+        <View className="w-full items-center justify-center bg-primary/10" style={{ height: 160 }}>
           <Ionicons name="map-outline" size={48} color="#FF6B35" />
         </View>
       )}
-      <View style={styles.content}>
+      <View className="p-4 gap-3">
         <View>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text className="text-lg font-bold text-secondary" numberOfLines={1}>
             {game.name}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+          <View className="flex-row items-center gap-1 mt-0.5">
             <Ionicons name="location-outline" size={14} color="#6B7280" />
-            <Text style={styles.city}>{game.city}</Text>
+            <Text className="text-sm text-gray-500">{game.city}</Text>
           </View>
         </View>
         {game.description ? (
-          <Text style={styles.description} numberOfLines={3}>
+          <Text className="text-sm text-gray-600 leading-5" numberOfLines={3}>
             {game.description}
           </Text>
         ) : null}
-        <View style={styles.footer}>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row gap-3">
+            <View className="flex-row items-center gap-1">
               <Ionicons name="list-outline" size={14} color="#6B7280" />
-              <Text style={styles.statText}>{game.taskCount} zadań</Text>
+              <Text className="text-xs text-gray-500">{game.taskCount} zadań</Text>
             </View>
             {game.duration ? (
-              <View style={styles.statItem}>
+              <View className="flex-row items-center gap-1">
                 <Ionicons name="timer-outline" size={14} color="#6B7280" />
-                <Text style={styles.statText}>~{game.duration} min</Text>
+                <Text className="text-xs text-gray-500">~{game.duration} min</Text>
               </View>
             ) : null}
           </View>
           <TouchableOpacity
-            style={styles.joinButton(isJoining)}
+            className={`bg-primary rounded-lg px-5 py-2.5 ${isJoining ? 'opacity-50' : ''}`}
             onPress={() => onJoin(game)}
             disabled={isJoining}
             activeOpacity={0.8}
           >
-            <Text style={styles.joinButtonText}>
+            <Text className="text-white text-sm font-bold">
               {isJoining ? 'Dołączanie...' : 'Dołącz'}
             </Text>
           </TouchableOpacity>
@@ -68,78 +67,3 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: theme.borderRadius.xl,
-    borderWidth: 1,
-    borderColor: theme.colors.gray[100],
-    overflow: 'hidden',
-    marginBottom: theme.spacing.md,
-    ...theme.shadows.sm,
-  },
-  coverImage: {
-    width: '100%',
-    height: 160,
-  },
-  coverPlaceholder: {
-    width: '100%',
-    height: 160,
-    backgroundColor: withAlpha(theme.colors.primary, 0.1),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverEmoji: {
-    fontSize: 48,
-  },
-  content: {
-    padding: theme.spacing.md,
-    gap: 12,
-  },
-  title: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.secondary,
-  },
-  city: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[500],
-    marginTop: 2,
-  },
-  description: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[600],
-    lineHeight: 20,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.gray[500],
-  },
-  joinButton: (isJoining: boolean) => ({
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.lg,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    opacity: isJoining ? 0.5 : 1,
-  }),
-  joinButtonText: {
-    color: '#FFFFFF',
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.bold,
-  },
-}));
