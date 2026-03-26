@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
 
 interface LiveIndicatorProps {
   isLive: boolean;
@@ -35,35 +34,21 @@ export const LiveIndicator = ({ isLive }: LiveIndicatorProps): React.JSX.Element
   }, [isLive, pulseAnim]);
 
   return (
-    <View style={styles.container}>
+    <View className="flex-row items-center gap-1.5">
       <Animated.View
-        style={[
-          styles.dot(isLive),
-          { opacity: isLive ? pulseAnim : 1 },
-        ]}
+        style={{
+          width: 10,
+          height: 10,
+          borderRadius: 9999,
+          backgroundColor: isLive ? '#15803d' : '#9ca3af',
+          opacity: isLive ? pulseAnim : 1,
+        }}
       />
-      <Text style={styles.label(isLive)}>
+      <Text
+        className={`text-xs font-semibold ${isLive ? 'text-green-700' : 'text-gray-400'}`}
+      >
         {isLive ? 'Na żywo' : 'Rozłączono'}
       </Text>
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dot: (isLive: boolean) => ({
-    width: 10,
-    height: 10,
-    borderRadius: theme.borderRadius.full,
-    backgroundColor: isLive ? theme.colors.green[700] : theme.colors.gray[400],
-  }),
-  label: (isLive: boolean) => ({
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.semibold,
-    color: isLive ? theme.colors.green[700] : theme.colors.gray[400],
-  }),
-}));
