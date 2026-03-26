@@ -5,8 +5,6 @@ import {
   ActivityIndicator,
   type TouchableOpacityProps,
 } from 'react-native';
-import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { withAlpha } from '@/lib/unistyles';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -19,6 +17,32 @@ interface ButtonProps extends TouchableOpacityProps {
   fullWidth?: boolean;
 }
 
+const CONTAINER_VARIANT: Record<ButtonVariant, string> = {
+  primary: 'bg-primary',
+  secondary: 'bg-secondary',
+  outline: 'bg-transparent border-2 border-primary',
+  ghost: 'bg-transparent',
+};
+
+const CONTAINER_SIZE: Record<ButtonSize, string> = {
+  sm: 'px-3 py-2 rounded-lg',
+  md: 'px-5 py-3 rounded-xl',
+  lg: 'px-6 py-4 rounded-xl',
+};
+
+const TEXT_VARIANT: Record<ButtonVariant, string> = {
+  primary: 'text-white',
+  secondary: 'text-white',
+  outline: 'text-primary',
+  ghost: 'text-primary',
+};
+
+const TEXT_SIZE: Record<ButtonSize, string> = {
+  sm: 'text-sm font-semibold',
+  md: 'text-base font-semibold',
+  lg: 'text-lg font-bold',
+};
+
 export const Button = ({
   label,
   variant = 'primary',
@@ -26,22 +50,21 @@ export const Button = ({
   isLoading = false,
   fullWidth = false,
   disabled,
-  style,
   ...props
 }: ButtonProps): React.JSX.Element => {
-  const { theme } = useUnistyles();
   const isDisabled = disabled || isLoading;
+
+  const containerClass = [
+    'flex-row items-center justify-center',
+    CONTAINER_VARIANT[variant],
+    CONTAINER_SIZE[size],
+    fullWidth ? 'w-full' : 'self-start',
+    isDisabled ? 'opacity-50' : '',
+  ].join(' ');
 
   return (
     <TouchableOpacity
-      style={[
-        styles.base,
-        styles.containerVariant(variant),
-        styles.containerSize(size),
-        fullWidth ? styles.fullWidth : styles.selfStart,
-        isDisabled && styles.disabled,
-        style,
-      ]}
+      className={containerClass}
       disabled={isDisabled}
       activeOpacity={0.8}
       {...props}
@@ -49,63 +72,13 @@ export const Button = ({
       {isLoading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'secondary' ? '#FFFFFF' : theme.colors.primary}
-          style={styles.loader}
+          color={variant === 'primary' || variant === 'secondary' ? '#FFFFFF' : '#FF6B35'}
+          style={{ marginRight: 8 }}
         />
       ) : null}
-      <Text style={[styles.textSize(size), styles.textVariant(variant)]}>
+      <Text className={`${TEXT_SIZE[size]} ${TEXT_VARIANT[variant]}`}>
         {label}
       </Text>
     </TouchableOpacity>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  base: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  containerVariant: (variant: ButtonVariant) => {
-    const map = {
-      primary: { backgroundColor: theme.colors.primary },
-      secondary: { backgroundColor: theme.colors.secondary },
-      outline: {
-        backgroundColor: 'transparent',
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-      },
-      ghost: { backgroundColor: 'transparent' },
-    };
-    return map[variant];
-  },
-  containerSize: (size: ButtonSize) => {
-    const map = {
-      sm: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: theme.borderRadius.lg },
-      md: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: theme.borderRadius.xl },
-      lg: { paddingHorizontal: 24, paddingVertical: 16, borderRadius: theme.borderRadius.xl },
-    };
-    return map[size];
-  },
-  textVariant: (variant: ButtonVariant) => {
-    const map = {
-      primary: { color: '#FFFFFF' },
-      secondary: { color: '#FFFFFF' },
-      outline: { color: theme.colors.primary },
-      ghost: { color: theme.colors.primary },
-    };
-    return map[variant];
-  },
-  textSize: (size: ButtonSize) => {
-    const map = {
-      sm: { fontSize: theme.fontSize.sm, fontWeight: theme.fontWeight.semibold },
-      md: { fontSize: theme.fontSize.base, fontWeight: theme.fontWeight.semibold },
-      lg: { fontSize: theme.fontSize.lg, fontWeight: theme.fontWeight.bold },
-    };
-    return map[size];
-  },
-  fullWidth: { width: '100%' },
-  selfStart: { alignSelf: 'flex-start' },
-  disabled: { opacity: 0.5 },
-  loader: { marginRight: 8 },
-}));

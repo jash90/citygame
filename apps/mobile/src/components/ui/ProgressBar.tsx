@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Text } from 'react-native';
-import { StyleSheet } from 'react-native-unistyles';
+
 
 interface ProgressBarProps {
   progress: number; // 0 - 1
@@ -34,7 +34,10 @@ export const ProgressBar = ({
 
   return (
     <View>
-      <View style={[styles.track, { height }]}>
+      <View
+        className="w-full rounded-full overflow-hidden bg-gray-100"
+        style={{ height }}
+      >
         <Animated.View
           style={{
             height,
@@ -45,25 +48,10 @@ export const ProgressBar = ({
         />
       </View>
       {showLabel ? (
-        <Text style={styles.label}>
+        <Text className="text-xs text-gray-500 mt-1 text-right">
           {Math.round(clampedProgress * 100)}%
         </Text>
       ) : null}
     </View>
   );
 };
-
-const styles = StyleSheet.create((theme) => ({
-  track: {
-    width: '100%',
-    borderRadius: theme.borderRadius.full,
-    overflow: 'hidden',
-    backgroundColor: theme.colors.gray[100],
-  },
-  label: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.gray[500],
-    marginTop: 4,
-    textAlign: 'right',
-  },
-}));
