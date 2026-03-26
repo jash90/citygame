@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { withAlpha } from '@/lib/unistyles';
 import type { Game } from '@/services/api';
@@ -21,7 +22,7 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
         />
       ) : (
         <View style={styles.coverPlaceholder}>
-          <Text style={styles.coverEmoji}>🗺️</Text>
+          <Ionicons name="map-outline" size={48} color="#FF6B35" />
         </View>
       )}
       <View style={styles.content}>
@@ -29,7 +30,10 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
           <Text style={styles.title} numberOfLines={1}>
             {game.name}
           </Text>
-          <Text style={styles.city}>📍 {game.city}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 }}>
+            <Ionicons name="location-outline" size={14} color="#6B7280" />
+            <Text style={styles.city}>{game.city}</Text>
+          </View>
         </View>
         {game.description ? (
           <Text style={styles.description} numberOfLines={3}>
@@ -39,12 +43,12 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
         <View style={styles.footer}>
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statText}>📋</Text>
+              <Ionicons name="list-outline" size={14} color="#6B7280" />
               <Text style={styles.statText}>{game.taskCount} zadań</Text>
             </View>
             {game.duration ? (
               <View style={styles.statItem}>
-                <Text style={styles.statText}>⏱</Text>
+                <Ionicons name="timer-outline" size={14} color="#6B7280" />
                 <Text style={styles.statText}>~{game.duration} min</Text>
               </View>
             ) : null}

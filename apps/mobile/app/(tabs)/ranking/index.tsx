@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { Podium } from '@/components/ranking/Podium';
 import { RankItem } from '@/components/ranking/RankItem';
@@ -20,7 +21,7 @@ import type { RankEntry } from '@/services/api';
 
 const EmptyState = (): React.JSX.Element => (
   <View style={styles.emptyContainer}>
-    <Text style={styles.emptyEmoji}>🏆</Text>
+    <Ionicons name="trophy-outline" size={48} color="#9CA3AF" />
     <Text style={styles.emptyTitle}>
       Brak danych rankingu
     </Text>
@@ -40,15 +41,15 @@ export default function RankingScreen(): React.JSX.Element {
   const { isConnected } = useWebSocket(currentSession?.id);
 
   // Initial fetch via game-scoped ranking endpoint
-  const { isFetching, refetch } = useRanking(gameId);
+  const { data: rankingData, isFetching, refetch } = useRanking(gameId);
 
   // Sync query result into ranking store
-  const { data: rankingData } = useRanking(gameId);
   React.useEffect(() => {
     if (rankingData) {
       setRanking(rankingData);
     }
-  }, [rankingData, setRanking]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rankingData]);
 
   const podiumEntries = entries.slice(0, 3);
   const restEntries = entries.slice(3);

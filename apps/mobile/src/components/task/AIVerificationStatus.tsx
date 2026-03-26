@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 
 export interface AIVerificationResult {
@@ -155,13 +156,14 @@ export const AIVerificationStatus = ({
           : isPartial
             ? 'Częściowo poprawnie'
             : 'Niepoprawnie';
-        const icon = isCorrect ? '✅' : isPartial ? '🟡' : '❌';
+        const iconName = isCorrect ? 'checkmark-circle' as const : isPartial ? 'ellipse' as const : 'close-circle' as const;
+        const iconColor = isCorrect ? '#22C55E' : isPartial ? '#F59E0B' : '#EF4444';
 
         return (
           <View style={styles.completeContainer(isCorrect, isPartial)}>
             <View style={styles.headerRow}>
               <View style={styles.headerLeft}>
-                <Text style={styles.headerIcon}>{icon}</Text>
+                <Ionicons name={iconName} size={20} color={iconColor} />
                 <Text style={styles.headerLabel(isCorrect, isPartial)}>{statusLabelText}</Text>
               </View>
               <ScoreCircle score={score} />
@@ -177,7 +179,7 @@ export const AIVerificationStatus = ({
       case 'error':
         return (
           <View style={styles.errorContainer}>
-            <Text style={styles.headerIcon}>⚠️</Text>
+            <Ionicons name="warning" size={20} color="#F59E0B" />
             <Text style={styles.errorLabel}>
               Wystąpił błąd podczas weryfikacji
             </Text>

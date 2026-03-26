@@ -1,15 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { Card } from '@/components/ui/Card';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import type { Task } from '@/services/api';
 
-const STATUS_ICONS: Record<Task['status'], string> = {
-  locked: '🔒',
-  available: '▶️',
-  completed: '✅',
-  failed: '❌',
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const STATUS_ICONS: Record<Task['status'], { name: IoniconsName; color: string }> = {
+  locked: { name: 'lock-closed', color: '#9CA3AF' },
+  available: { name: 'play-circle', color: '#FF6B35' },
+  completed: { name: 'checkmark-circle', color: '#22C55E' },
+  failed: { name: 'close-circle', color: '#EF4444' },
 };
 
 interface TaskCardProps {
@@ -19,6 +22,7 @@ interface TaskCardProps {
 
 export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element => {
   const isInteractive = task.status === 'available';
+  const statusIcon = STATUS_ICONS[task.status];
 
   return (
     <TouchableOpacity
@@ -28,7 +32,7 @@ export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element =>
     >
       <Card elevated style={styles.cardOpacity(task.status === 'locked')}>
         <View style={styles.row}>
-          <Text style={styles.statusIcon}>{STATUS_ICONS[task.status]}</Text>
+          <Ionicons name={statusIcon.name} size={24} color={statusIcon.color} />
 
           <View style={styles.infoContainer}>
             <Text
@@ -40,9 +44,12 @@ export const TaskCard = ({ task, onPress }: TaskCardProps): React.JSX.Element =>
             <View style={styles.badgeRow}>
               <TaskTypeBadge type={task.type} />
               {task.timeLimitSec ? (
-                <Text style={styles.timeLimit}>
-                  ⏱ {Math.floor(task.timeLimitSec / 60)} min
-                </Text>
+                <View style={styles.timeLimitRow}>
+                  <Ionicons name="timer-outline" size={12} color="#6B7280" />
+                  <Text style={styles.timeLimit}>
+                    {Math.floor(task.timeLimitSec / 60)} min
+                  </Text>
+                </View>
               ) : null}
             </View>
           </View>
@@ -69,9 +76,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     gap: 12,
   },
-  statusIcon: {
-    fontSize: 24,
-  },
   infoContainer: {
     flex: 1,
   },
@@ -86,6 +90,11 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     gap: 8,
     flexWrap: 'wrap',
+  },
+  timeLimitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
   },
   timeLimit: {
     fontSize: 12,

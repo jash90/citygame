@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { StyleSheet } from 'react-native-unistyles';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/stores/authStore';
@@ -17,17 +18,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/services/api';
 import { QUERY_KEYS } from '@/lib/constants';
 
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
 const StatCard = ({
   label,
   value,
-  emoji,
+  icon,
+  iconColor,
 }: {
   label: string;
   value: string | number;
-  emoji: string;
+  icon: IoniconsName;
+  iconColor: string;
 }): React.JSX.Element => (
   <Card style={styles.statCard}>
-    <Text style={styles.statEmoji}>{emoji}</Text>
+    <Ionicons name={icon} size={24} color={iconColor} />
     <Text style={styles.statValue}>{value}</Text>
     <Text style={styles.statLabel}>{label}</Text>
   </Card>
@@ -104,24 +109,28 @@ export default function ProfileScreen(): React.JSX.Element {
                   <StatCard
                     label="Rozegranych gier"
                     value={stats.gamesPlayed}
-                    emoji="🎮"
+                    icon="game-controller"
+                    iconColor="#6366F1"
                   />
                   <StatCard
                     label="Łączne punkty"
                     value={stats.totalPoints}
-                    emoji="⭐"
+                    icon="star"
+                    iconColor="#F59E0B"
                   />
                 </View>
                 <View style={styles.statsRow}>
                   <StatCard
                     label="Ukończonych zadań"
                     value={stats.completedTasks}
-                    emoji="✅"
+                    icon="checkmark-circle"
+                    iconColor="#22C55E"
                   />
                   <StatCard
                     label="Globalny ranking"
                     value={`#${stats.rank}`}
-                    emoji="🏆"
+                    icon="trophy"
+                    iconColor="#FF6B35"
                   />
                 </View>
               </View>

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import { useGameStore } from '@/stores/gameStore';
 
@@ -70,7 +71,7 @@ export default function GameSummaryScreen(): React.JSX.Element {
           }}
         >
           <View style={styles.trophyCircle}>
-            <Text style={styles.trophyEmoji}>🏆</Text>
+            <Ionicons name="trophy" size={64} color="#FFD700" />
           </View>
         </Animated.View>
 

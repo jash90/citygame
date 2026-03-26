@@ -1,18 +1,21 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
 import { Marker } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet } from 'react-native-unistyles';
 import type { Task } from '@/services/api';
 
-const TASK_TYPE_ICONS: Partial<Record<Task['type'], string>> = {
-  QR_SCAN: '◻️',
-  GPS_REACH: '📍',
-  PHOTO_AI: '📷',
-  AUDIO_AI: '🎙️',
-  TEXT_EXACT: '✏️',
-  TEXT_AI: '✏️',
-  CIPHER: '🔐',
-  MIXED: '🧩',
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const TASK_TYPE_ICONS: Partial<Record<Task['type'], IoniconsName>> = {
+  QR_SCAN: 'qr-code-outline',
+  GPS_REACH: 'navigate',
+  PHOTO_AI: 'camera',
+  AUDIO_AI: 'mic',
+  TEXT_EXACT: 'pencil',
+  TEXT_AI: 'pencil',
+  CIPHER: 'lock-closed',
+  MIXED: 'cube',
 };
 
 const STATUS_COLORS: Record<Task['status'], string> = {
@@ -31,7 +34,7 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
   if (!task.location) return null;
 
   const pinColor = STATUS_COLORS[task.status];
-  const icon = TASK_TYPE_ICONS[task.type] ?? '📌';
+  const icon = TASK_TYPE_ICONS[task.type] ?? 'location';
 
   return (
     <Marker
@@ -46,7 +49,7 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
         <View
           style={[styles.pinCircle, { backgroundColor: pinColor }]}
         >
-          <Text style={styles.pinIcon}>{icon}</Text>
+          <Ionicons name={icon} size={18} color="#FFFFFF" />
         </View>
         <View
           style={{
@@ -78,8 +81,5 @@ const styles = StyleSheet.create((theme) => ({
     borderWidth: 2,
     borderColor: '#FFFFFF',
     ...theme.shadows.md,
-  },
-  pinIcon: {
-    fontSize: theme.fontSize.base,
   },
 }));
