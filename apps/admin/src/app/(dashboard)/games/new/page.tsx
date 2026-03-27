@@ -11,13 +11,13 @@ import { api } from '@/lib/api';
 import type { CreateGameDto, Game } from '@citygame/shared';
 
 const createGameSchema = z.object({
-  title: z.string().min(1, 'Tytuł jest wymagany'),
-  description: z.string().min(1, 'Opis jest wymagany'),
-  city: z.string().min(1, 'Miasto jest wymagane'),
+  title: z.string().min(3, 'Tytuł musi mieć min. 3 znaki').max(120, 'Tytuł może mieć maks. 120 znaków'),
+  description: z.string().min(10, 'Opis musi mieć min. 10 znaków'),
+  city: z.string().min(2, 'Miasto musi mieć min. 2 znaki').max(80, 'Miasto może mieć maks. 80 znaków'),
   coverImageUrl: z.string().url('Nieprawidłowy URL').optional().or(z.literal('')),
   settings: z.object({
-    maxPlayers: z.coerce.number().min(1).optional(),
-    timeLimitMinutes: z.coerce.number().min(1).optional(),
+    maxPlayers: z.coerce.number().min(1, 'Min. 1 gracz').max(200, 'Maks. 200 graczy').optional(),
+    timeLimitMinutes: z.coerce.number().min(5, 'Min. 5 minut').max(1440, 'Maks. 1440 minut (24h)').optional(),
     allowLateJoin: z.boolean().optional(),
   }),
 });
@@ -64,9 +64,10 @@ export default function NewGamePage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: CreateGameDto) => api.post<Game>('/api/games', data),
+    mutationFn: (data: CreateGameDto) => api.post<Game>('/api/admin/games', data),
     onSuccess: (game) => {
       queryClient.invalidateQueries({ queryKey: ['games'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-games'] });
       router.push(`/games/${game.id}`);
     },
   });
