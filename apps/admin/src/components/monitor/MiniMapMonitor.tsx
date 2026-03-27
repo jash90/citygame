@@ -17,8 +17,9 @@ interface MiniMapMonitorProps {
 }
 
 function normalizeTo(value: number, min: number, max: number): number {
-  if (max === min) return 50;
-  return ((value - min) / (max - min)) * 100;
+  const range = max - min;
+  if (range < 0.0001) return 50;
+  return Math.max(2, Math.min(98, ((value - min) / range) * 100));
 }
 
 export function MiniMapMonitor({ tasks, bounds }: MiniMapMonitorProps) {

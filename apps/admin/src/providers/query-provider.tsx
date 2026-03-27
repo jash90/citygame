@@ -14,7 +14,8 @@ export function QueryProvider({ children }: QueryProviderProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 30 * 1000, // 30s
+            staleTime: 15 * 1000, // 15s
+            refetchOnWindowFocus: true,
             retry: (failureCount, error) => {
               // Nie powtarzaj błędów klienckich (4xx)
               if (error instanceof Error && /HTTP [4]\d{2}|Unauthorized/.test(error.message)) {
