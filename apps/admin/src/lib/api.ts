@@ -5,15 +5,61 @@ function getToken(): string | null {
   return localStorage.getItem('accessToken');
 }
 
-let isRedirecting = false;
+function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('refreshToken');
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+export async function tryRefreshToken(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return false;
+
+    const json = await res.json();
+    const data = json.data ?? json;
+
+    if (data.accessToken) {
+      localStorage.setItem('accessToken', data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem('refreshToken', data.refreshToken);
+      }
+      // Update cached role from new token payload
+      try {
+        const parts = data.accessToken.split('.');
+        if (parts.length === 3) {
+          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (base64.length % 4) base64 += '=';
+          const payload = JSON.parse(atob(base64));
+          if (payload?.role) {
+            localStorage.setItem('userRole', payload.role);
+          }
+        }
+      } catch {
+        // Ignore parse errors — token is still saved
+      }
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 function handleUnauthorized(): never {
-  if (typeof window !== 'undefined' && !isRedirecting) {
-    isRedirecting = true;
+  if (typeof window !== 'undefined') {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     window.location.href = '/login';
-    // Reset flag after navigation starts, in case page doesn't fully reload
-    setTimeout(() => { isRedirecting = false; }, 2000);
   }
   throw new Error('Unauthorized');
 }
@@ -21,6 +67,7 @@ function handleUnauthorized(): never {
 async function request<T>(
   path: string,
   options: RequestInit = {},
+  _isRetry = false,
 ): Promise<T> {
   const token = getToken();
 
@@ -41,6 +88,23 @@ async function request<T>(
     headers,
     signal: controller.signal,
   }).finally(() => clearTimeout(timeoutId));
+
+  if (response.status === 401 && !_isRetry) {
+    // Deduplicate concurrent refresh attempts
+    if (!refreshPromise) {
+      refreshPromise = tryRefreshToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+
+    const refreshed = await refreshPromise;
+
+    if (refreshed) {
+      return request<T>(path, options, true);
+    }
+
+    handleUnauthorized();
+  }
 
   if (response.status === 401) {
     handleUnauthorized();
