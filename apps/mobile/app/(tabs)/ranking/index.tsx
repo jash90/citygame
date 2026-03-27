@@ -17,6 +17,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useRanking } from '@/hooks/useGame';
 import type { RankEntry } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
+import { colors } from '@/lib/theme';
 
 
 const EmptyState = (): React.JSX.Element => (
@@ -77,7 +78,7 @@ export default function RankingScreen(): React.JSX.Element {
 
       {isFetching && entries.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -104,7 +105,7 @@ export default function RankingScreen(): React.JSX.Element {
             <RefreshControl
               refreshing={isFetching}
               onRefresh={() => void refetch()}
-              tintColor="#FF6B35"
+              tintColor={colors.primary}
             />
           }
           showsVerticalScrollIndicator={false}

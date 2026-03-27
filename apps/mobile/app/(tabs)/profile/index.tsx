@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/services/api';
 import { QUERY_KEYS } from '@/lib/constants';
 import { StyledSafeAreaView } from '@/lib/styled';
+import { colors } from '@/lib/theme';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -79,7 +80,7 @@ export default function ProfileScreen(): React.JSX.Element {
       >
         {isLoading ? (
           <View className="py-10 items-center">
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : (
           <>
@@ -131,7 +132,7 @@ export default function ProfileScreen(): React.JSX.Element {
                     label="Globalny ranking"
                     value={`#${stats.rank}`}
                     icon="trophy"
-                    iconColor="#FF6B35"
+                    iconColor={colors.primary}
                   />
                 </View>
               </View>

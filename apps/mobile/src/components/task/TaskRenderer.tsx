@@ -18,6 +18,7 @@ import {
   type AIVerificationStatusProps,
 } from './AIVerificationStatus';
 import type { Task, TaskSubmission } from '@/services/api';
+import { colors } from '@/lib/theme';
 
 interface TaskRendererProps {
   task: Task;
@@ -83,7 +84,7 @@ const QRTaskInput = ({
         onPress={handleScan}
         activeOpacity={0.7}
       >
-        <Ionicons name={scanned ? 'checkmark-circle' : 'qr-code-outline'} size={36} color={scanned ? '#22C55E' : '#FF6B35'} />
+        <Ionicons name={scanned ? 'checkmark-circle' : 'qr-code-outline'} size={36} color={scanned ? colors.success : colors.primary} />
         <Text className="text-sm font-medium text-gray-600">
           {scanned ? `Zeskanowano: ${scanned}` : 'Dotknij, aby zeskanować kod QR'}
         </Text>
@@ -130,7 +131,7 @@ const GPSTaskInput = ({
         onPress={handleCheck}
         activeOpacity={0.7}
       >
-        <Ionicons name={verified ? 'checkmark-circle' : 'location'} size={36} color={verified ? '#22C55E' : '#FF6B35'} />
+        <Ionicons name={verified ? 'checkmark-circle' : 'location'} size={36} color={verified ? colors.success : colors.primary} />
         <Text className="text-sm font-medium text-gray-600">
           {verified
             ? 'Lokalizacja zweryfikowana!'

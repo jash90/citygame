@@ -11,6 +11,7 @@ import { withUniwind } from 'uniwind';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView } from 'expo-camera';
 import { useCamera } from '@/hooks/useCamera';
+import { colors } from '@/lib/theme';
 
 export interface MediaCaptureProps {
   onCapture: (imageUri: string) => void;
@@ -36,7 +37,7 @@ export const MediaCapture = ({
   if (isLoading) {
     return (
       <View className="items-center justify-center py-10">
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -68,7 +69,7 @@ export const MediaCapture = ({
         <View style={{ height: previewHeight, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000', width: '100%' }}>
           <Image source={{ uri: capturedUri }} style={RNStyleSheet.absoluteFillObject} resizeMode="cover" />
           <View style={{ ...RNStyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text className="text-white font-semibold text-sm">Przesyłanie zdjęcia...</Text>
           </View>
         </View>
@@ -142,15 +143,15 @@ export const MediaCapture = ({
 
       <View className="items-center py-2">
         <TouchableOpacity
-          style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: '#FF6B35', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}
+          style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: colors.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}
           onPress={() => void handleCapture()}
           disabled={capturing}
           activeOpacity={0.8}
         >
           {capturing ? (
-            <ActivityIndicator color="#FF6B35" size="small" />
+            <ActivityIndicator color={colors.primary} size="small" />
           ) : (
-            <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#FF6B35' }} />
+            <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primary }} />
           )}
         </TouchableOpacity>
       </View>

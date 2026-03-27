@@ -17,6 +17,7 @@ import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
 import { useSubmitTask, useUnlockTask, useHint } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import type { TaskSubmission, HintResult } from '@/services/api';
+import { colors } from '@/lib/theme';
 
 // ── Countdown timer ───────────────────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ const HintsPanel = ({
         activeOpacity={0.8}
       >
         {hintMutation.isPending ? (
-          <ActivityIndicator size="small" color="#FF6B35" />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
           <View className="flex-row items-center gap-1.5">
             <Ionicons name="bulb-outline" size={16} color="#6B7280" />
@@ -237,7 +238,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
     if (tasks.length === 0) {
       return (
         <StyledSafeAreaView className="flex-1 bg-surface items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </StyledSafeAreaView>
       );
     }
@@ -343,11 +344,11 @@ export default function TaskDetailScreen(): React.JSX.Element {
                   className="flex-row items-center gap-2 py-2"
                   onPress={() => setShowHints((prev) => !prev)}
                 >
-                  <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
+                  <Ionicons name="bulb-outline" size={16} color={colors.primary} />
                   <Text className="text-sm font-semibold text-primary">
                     Podpowiedzi
                   </Text>
-                  <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
+                  <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
                 </TouchableOpacity>
                 {showHints ? (
                   <HintsPanel gameId={gameId} taskId={task.id} />

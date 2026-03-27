@@ -10,6 +10,7 @@ import { GameBrowser } from '@/components/game/GameBrowser';
 import { useLocation } from '@/hooks/useLocation';
 import { useGameStore } from '@/stores/gameStore';
 import type { Task } from '@/services/api';
+import { colors } from '@/lib/theme';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
@@ -93,7 +94,7 @@ export default function MapScreen(): React.JSX.Element {
           className="w-12 h-12 bg-surface rounded-full items-center justify-center shadow-md"
           activeOpacity={0.8}
         >
-          <Ionicons name="locate" size={22} color="#FF6B35" />
+          <Ionicons name="locate" size={22} color={colors.primary} />
         </TouchableOpacity>
       </StyledSafeAreaView>
     </View>

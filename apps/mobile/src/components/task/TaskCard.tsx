@@ -4,14 +4,15 @@ import { Card } from '@/components/ui/Card';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import type { Task } from '@/services/api';
 import { TouchableOpacity, View, Text } from 'react-native';
+import { colors } from '@/lib/theme';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const STATUS_ICONS: Record<Task['status'], { name: IoniconsName; color: string }> = {
-  locked: { name: 'lock-closed', color: '#9CA3AF' },
-  available: { name: 'play-circle', color: '#FF6B35' },
-  completed: { name: 'checkmark-circle', color: '#22C55E' },
-  failed: { name: 'close-circle', color: '#EF4444' },
+  locked: { name: 'lock-closed', color: colors.muted },
+  available: { name: 'play-circle', color: colors.primary },
+  completed: { name: 'checkmark-circle', color: colors.success },
+  failed: { name: 'close-circle', color: colors.error },
 };
 
 interface TaskCardProps {

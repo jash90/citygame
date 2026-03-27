@@ -4,6 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useGameStore } from '@/stores/gameStore';
+import { colors } from '@/lib/theme';
 
 const OVERLAY_SIZE = 260;
 
@@ -90,7 +91,7 @@ export default function QRScannerModal(): React.JSX.Element {
               width: OVERLAY_SIZE,
               height: OVERLAY_SIZE,
               borderWidth: 2,
-              borderColor: '#FF6B35',
+              borderColor: colors.primary,
               borderRadius: 12,
             }}
           />

@@ -16,6 +16,7 @@ import { useTasks } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import type { Task } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
+import { colors } from '@/lib/theme';
 
 
 const EmptyState = (): React.JSX.Element => (
@@ -66,7 +67,7 @@ export default function TasksScreen(): React.JSX.Element {
       {/* Task list */}
       {isFetching && tasks.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
         <FlatList
@@ -81,7 +82,7 @@ export default function TasksScreen(): React.JSX.Element {
             <RefreshControl
               refreshing={isFetching}
               onRefresh={() => void refetch()}
-              tintColor="#FF6B35"
+              tintColor={colors.primary}
             />
           }
           showsVerticalScrollIndicator={false}

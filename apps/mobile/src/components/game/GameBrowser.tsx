@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import { useGames, useStartGame, useGame } from '@/hooks/useGame';
 import type { Game } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/lib/theme';
+import { defaultGameId } from '@/lib/brand';
 
 const EmptyState = (): React.JSX.Element => (
   <View className="flex-1 items-center justify-center py-20 px-8">
@@ -28,8 +30,22 @@ export const GameBrowser = (): React.JSX.Element => {
   const { data: games, isLoading, isFetching, refetch } = useGames();
   const startGame = useStartGame();
   const [joiningGameId, setJoiningGameId] = useState<string | null>(null);
+  const autoJoinAttempted = useRef(false);
 
   useGame(joiningGameId ?? '');
+
+  // Auto-join the brand's default game if configured
+  useEffect(() => {
+    if (!defaultGameId || autoJoinAttempted.current) return;
+    if (isLoading || !games) return;
+
+    autoJoinAttempted.current = true;
+    const game = games.find((g) => g.id === defaultGameId);
+    if (game) {
+      handleJoin(game);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [games, isLoading]);
 
   const handleJoin = (game: Game): void => {
     setJoiningGameId(game.id);
@@ -40,10 +56,10 @@ export const GameBrowser = (): React.JSX.Element => {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || (defaultGameId && !autoJoinAttempted.current)) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -75,7 +91,7 @@ export const GameBrowser = (): React.JSX.Element => {
           <RefreshControl
             refreshing={isFetching}
             onRefresh={() => void refetch()}
-            tintColor="#FF6B35"
+            tintColor={colors.primary}
           />
         }
         showsVerticalScrollIndicator={false}

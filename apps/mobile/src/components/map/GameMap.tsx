@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet as RNStyleSheet } from 'react-native';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { useLocationStore } from '@/stores/locationStore';
+import { colors } from '@/lib/theme';
 
 interface GameMapProps {
   initialRegion?: Region;
@@ -67,7 +68,7 @@ export const GameMap = ({
                   width: 16,
                   height: 16,
                   borderRadius: 9999,
-                  backgroundColor: '#FF6B35',
+                  backgroundColor: colors.primary,
                   borderWidth: 2,
                   borderColor: '#FFFFFF',
                   shadowColor: '#000',
