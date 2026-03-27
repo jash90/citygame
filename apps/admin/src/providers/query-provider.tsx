@@ -15,7 +15,13 @@ export function QueryProvider({ children }: QueryProviderProps) {
         defaultOptions: {
           queries: {
             staleTime: 30 * 1000, // 30s
-            retry: 1,
+            retry: (failureCount, error) => {
+              // Nie powtarzaj błędów klienckich (4xx)
+              if (error instanceof Error && /HTTP [4]\d{2}|Unauthorized/.test(error.message)) {
+                return false;
+              }
+              return failureCount < 1;
+            },
           },
         },
       }),

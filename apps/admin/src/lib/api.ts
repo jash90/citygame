@@ -5,8 +5,11 @@ function getToken(): string | null {
   return localStorage.getItem('accessToken');
 }
 
+let isRedirecting = false;
+
 function handleUnauthorized(): never {
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !isRedirecting) {
+    isRedirecting = true;
     localStorage.removeItem('accessToken');
     window.location.href = '/login';
   }
@@ -28,10 +31,14 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
 
   if (response.status === 401) {
     handleUnauthorized();
@@ -81,7 +88,7 @@ export const api = {
 
 // ─── Admin-specific helpers ────────────────────────────────────────────────
 
-import type { Game, Task, GameSession } from '@citygame/shared';
+import type { Game, Task, GameSession, UserListItem, UserRole, SystemInfo } from '@citygame/shared';
 
 export interface GameStats {
   totalSessions: number;
@@ -124,5 +131,36 @@ export const adminApi = {
     params: GenerateTaskContentParams,
   ): Promise<GenerateTaskContentResult> {
     return api.post(`/api/admin/games/${gameId}/generate-task-content`, params);
+  },
+
+  /** GET /api/admin/users — paginated user list */
+  getUsers(params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    role?: string;
+  }): Promise<{
+    items: UserListItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    if (params?.search) qs.set('search', params.search);
+    if (params?.role) qs.set('role', params.role);
+    return api.get(`/api/admin/users?${qs.toString()}`);
+  },
+
+  /** PATCH /api/admin/users/:id/role — change user role */
+  updateUserRole(userId: string, role: UserRole): Promise<UserListItem> {
+    return api.patch(`/api/admin/users/${userId}/role`, { role });
+  },
+
+  /** GET /api/admin/system/info — system information */
+  getSystemInfo(): Promise<SystemInfo> {
+    return api.get('/api/admin/system/info');
   },
 };

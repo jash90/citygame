@@ -88,10 +88,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   }, []);
 
   const onEvent = useCallback(<T>(event: string, handler: (data: T) => void) => {
-    const socket = socketRef.current;
-    socket?.on(event, handler);
+    socketRef.current?.on(event, handler);
     return () => {
-      socket?.off(event, handler);
+      socketRef.current?.off(event, handler);
     };
   }, []);
 

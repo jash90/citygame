@@ -30,7 +30,7 @@ const navItems: NavItem[] = [
     icon: <Gamepad2 size={20} />,
   },
   {
-    href: '#',
+    href: '/settings',
     label: 'Ustawienia',
     icon: <Settings size={20} />,
   },

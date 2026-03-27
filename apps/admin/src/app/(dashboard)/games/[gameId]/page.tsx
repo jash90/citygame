@@ -7,6 +7,7 @@ import { ArrowLeft, Edit, Activity, BarChart3, Loader2, Calendar, MapPin, Users,
 import { api } from '@/lib/api';
 import type { Game } from '@citygame/shared';
 import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
+import { GameSettingsEditor } from '@/components/game/GameSettingsEditor';
 
 // The admin endpoint returns _count.tasks instead of a top-level taskCount field.
 interface GameDetailResponse extends Game {
@@ -116,35 +117,7 @@ export default function GameDetailPage() {
       </div>
 
       {/* Settings */}
-      {game.settings && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">
-            Ustawienia
-          </h3>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
-            <div>
-              <dt className="text-gray-500">Maks. gracze</dt>
-              <dd className="font-medium text-gray-800 mt-0.5">
-                {game.settings.maxPlayers ?? 'Brak limitu'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Limit czasu</dt>
-              <dd className="font-medium text-gray-800 mt-0.5">
-                {game.settings.timeLimitMinutes
-                  ? `${game.settings.timeLimitMinutes} min`
-                  : 'Brak limitu'}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-gray-500">Dołączanie po starcie</dt>
-              <dd className="font-medium text-gray-800 mt-0.5">
-                {game.settings.allowLateJoin ? 'Tak' : 'Nie'}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      )}
+      <GameSettingsEditor gameId={game.id} settings={game.settings ?? {}} />
     </div>
   );
 }

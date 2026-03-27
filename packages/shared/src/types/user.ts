@@ -28,3 +28,16 @@ export interface RegisterDto {
   password: string;
   displayName: string;
 }
+
+export interface UserListItem {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string;
+  role: UserRole;
+  createdAt: string;
+}
+
+export interface UpdateUserRoleDto {
+  role: UserRole;
+}

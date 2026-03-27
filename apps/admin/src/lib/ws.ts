@@ -28,7 +28,8 @@ export function connectRankingSocket(): Socket {
 }
 
 export function disconnectRankingSocket(): void {
-  if (rankingSocket?.connected) {
+  if (rankingSocket) {
     rankingSocket.disconnect();
+    rankingSocket = null;
   }
 }

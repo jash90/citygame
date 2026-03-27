@@ -78,7 +78,7 @@ function generatePlayerActivity(
   period: AnalyticsPeriod,
 ): PlayerActivityDataPoint[] {
   const days = period === '7d' ? 7 : period === '30d' ? 30 : 14;
-  const baseCompletions = stats.totalTaskCompletions;
+  const baseCompletions = stats.totalTaskCompletions ?? 0;
   const totalSessions = stats.totalSessions || 3;
 
   return Array.from({ length: days }, (_, i) => {
@@ -178,12 +178,7 @@ function generateTopPlayers(
   tasksCount: number,
 ): TopPlayer[] {
   if (sessions.length === 0) {
-    // Fallback mock data for Kraków game (3 players)
-    return [
-      { rank: 1, name: 'Anna K.', score: tasksCount * 92, tasksCompleted: tasksCount, timeMinutes: 48, lastActive: 'Dziś' },
-      { rank: 2, name: 'Marek W.', score: tasksCount * 80, tasksCompleted: tasksCount - 1, timeMinutes: 61, lastActive: 'Wczoraj' },
-      { rank: 3, name: 'Zofia P.', score: tasksCount * 67, tasksCompleted: tasksCount - 2, timeMinutes: 74, lastActive: '3 dni temu' },
-    ];
+    return [];
   }
 
   const mockNames = ['Anna K.', 'Marek W.', 'Zofia P.', 'Piotr N.', 'Ewa S.', 'Jan M.', 'Katarzyna B.'];
@@ -262,9 +257,9 @@ function transformToAnalytics(
     completionRate,
     averageScore,
     averageTimeMinutes,
-    // Trends — placeholder values; extend when backend exposes historical comparison
-    playersTrend: 12,
-    completionRateTrend: -3,
+    // Trends — placeholder; extend when backend exposes historical comparison
+    playersTrend: 0,
+    completionRateTrend: 0,
 
     playerActivity: generatePlayerActivity(stats, period),
     taskFunnel: generateTaskFunnel(tasks, totalPlayers),
@@ -284,13 +279,13 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod) {
   });
 
   const statsQuery = useQuery({
-    queryKey: ['analytics', gameId, 'stats'],
+    queryKey: ['analytics', gameId, 'stats', period],
     queryFn: () => adminApi.getGameStats(gameId),
     staleTime: 30_000,
   });
 
   const sessionsQuery = useQuery({
-    queryKey: ['analytics', gameId, 'sessions'],
+    queryKey: ['analytics', gameId, 'sessions', period],
     queryFn: () => adminApi.getGameSessions(gameId),
     staleTime: 30_000,
   });
