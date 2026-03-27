@@ -1,20 +1,37 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, Eye, Edit, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { pluralizePl } from '@/lib/pluralize';
 import type { Game } from '@citygame/shared';
 import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
 
+interface GamesResponse {
+  items: Game[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export default function GamesPage() {
-  const { data: games, isLoading, error } = useQuery<Game[]>({
-    queryKey: ['games'],
-    queryFn: async () => {
-      const res = await api.get<{ items: Game[] }>('/api/admin/games');
-      return Array.isArray(res) ? res : res?.items ?? [];
-    },
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading, error } = useQuery<GamesResponse>({
+    queryKey: ['games', page],
+    queryFn: () => api.get(`/api/admin/games?page=${page}&limit=20`),
   });
+
+  const games = data?.items ?? [];
+
+  useEffect(() => {
+    if (data && data.items.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [data, page]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,7 +61,7 @@ export default function GamesPage() {
           <div className="py-12 text-center text-red-600 text-sm">
             Błąd ładowania gier. Spróbuj ponownie.
           </div>
-        ) : !games?.length ? (
+        ) : !games.length ? (
           <div className="py-16 text-center text-gray-500">
             <p className="text-sm">Brak gier. Utwórz pierwszą.</p>
           </div>
@@ -96,6 +113,31 @@ export default function GamesPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {data && data.totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>
+            Strona {data.page} z {data.totalPages} ({pluralizePl(data.total, 'gra', 'gry', 'gier')})
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Poprzednia
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+              disabled={page >= data.totalPages}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+            >
+              Następna
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

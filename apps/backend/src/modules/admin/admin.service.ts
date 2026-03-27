@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, SessionStatus, UserRole } from '@prisma/client';
+
 import { PrismaService } from '../../prisma/prisma.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
@@ -61,37 +62,39 @@ export class AdminService {
       throw new BadRequestException('Cannot change your own role');
     }
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId } });
 
-    if (!user) {
-      throw new NotFoundException(`User ${userId} not found`);
-    }
-
-    if (user.role === UserRole.ADMIN && role === UserRole.PLAYER) {
-      const adminCount = await this.prisma.user.count({
-        where: { role: UserRole.ADMIN },
-      });
-      if (adminCount <= 1) {
-        throw new BadRequestException(
-          'Cannot demote the last admin. Promote another user first.',
-        );
+      if (!user) {
+        throw new NotFoundException(`User ${userId} not found`);
       }
-    }
 
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: { role },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        avatarUrl: true,
-        role: true,
-        createdAt: true,
-      },
+      if (user.role === UserRole.ADMIN && role === UserRole.PLAYER) {
+        const adminCount = await tx.user.count({
+          where: { role: UserRole.ADMIN },
+        });
+        if (adminCount <= 1) {
+          throw new BadRequestException(
+            'Cannot demote the last admin. Promote another user first.',
+          );
+        }
+      }
+
+      return tx.user.update({
+        where: { id: userId },
+        data: { role },
+        select: {
+          id: true,
+          email: true,
+          displayName: true,
+          avatarUrl: true,
+          role: true,
+          createdAt: true,
+        },
+      });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
-
-    return updated;
   }
 
   async getSystemInfo() {
@@ -118,7 +121,7 @@ export class AdminService {
       sessionCount,
       activeSessionCount,
       dbHealthy,
-      version: process.env.npm_package_version ?? '1.0.0',
+      version: process.env.APP_VERSION ?? process.env.npm_package_version ?? '1.0.0',
     };
   }
 
@@ -143,7 +146,7 @@ export class AdminService {
       this.prisma.game.findMany({
         orderBy: { createdAt: 'desc' },
         take: 10,
-        select: { id: true, title: true, status: true, createdAt: true },
+        select: { id: true, title: true, status: true, createdAt: true, updatedAt: true },
       }),
       this.prisma.gameSession.findMany({
         orderBy: { startedAt: 'desc' },
@@ -152,6 +155,7 @@ export class AdminService {
           id: true,
           status: true,
           startedAt: true,
+          completedAt: true,
           user: { select: { displayName: true } },
           game: { select: { title: true } },
         },
@@ -160,7 +164,7 @@ export class AdminService {
 
     const activity: Array<{
       id: string;
-      type: 'game_created' | 'game_published' | 'session_completed' | 'player_joined';
+      type: 'game_created' | 'game_published' | 'game_archived' | 'session_completed' | 'session_abandoned' | 'session_timed_out' | 'player_joined';
       label: string;
       detail: string;
       timestamp: string;
@@ -169,20 +173,31 @@ export class AdminService {
     for (const game of recentGames) {
       activity.push({
         id: `game-${game.id}`,
-        type: game.status === 'PUBLISHED' ? 'game_published' : 'game_created',
+        type: game.status === 'PUBLISHED' ? 'game_published' : game.status === 'ARCHIVED' ? 'game_archived' : 'game_created',
         label: game.title,
-        detail: game.status === 'PUBLISHED' ? 'Gra opublikowana' : 'Nowa gra utworzona',
-        timestamp: game.createdAt.toISOString(),
+        detail: game.status === 'PUBLISHED' ? 'Gra opublikowana' : game.status === 'ARCHIVED' ? 'Gra zarchiwizowana' : 'Nowa gra utworzona',
+        timestamp: (game.status === 'DRAFT' ? game.createdAt : game.updatedAt).toISOString(),
       });
     }
 
     for (const session of recentSessions) {
+      const sessionType =
+        session.status === 'COMPLETED' ? 'session_completed' as const
+        : session.status === 'ABANDONED' ? 'session_abandoned' as const
+        : session.status === 'TIMED_OUT' ? 'session_timed_out' as const
+        : 'player_joined' as const;
+
+      // For terminal states use completedAt if available, otherwise startedAt
+      const ts = sessionType === 'player_joined'
+        ? session.startedAt
+        : (session.completedAt ?? session.startedAt);
+
       activity.push({
         id: `session-${session.id}`,
-        type: session.status === 'COMPLETED' ? 'session_completed' : 'player_joined',
+        type: sessionType,
         label: session.user.displayName,
         detail: session.game.title,
-        timestamp: session.startedAt.toISOString(),
+        timestamp: ts.toISOString(),
       });
     }
 
