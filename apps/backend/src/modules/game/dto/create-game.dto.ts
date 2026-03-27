@@ -1,4 +1,35 @@
-import { IsJSON, IsObject, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class GameSettingsDto {
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  maxPlayers?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(1440)
+  timeLimitMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  allowLateJoin?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  minTeamSize?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  maxTeamSize?: number;
+}
 
 export class CreateGameDto {
   @IsString()
@@ -19,6 +50,7 @@ export class CreateGameDto {
   @IsUrl()
   coverImageUrl?: string;
 
-  @IsObject()
-  settings!: Record<string, unknown>;
+  @ValidateNested()
+  @Type(() => GameSettingsDto)
+  settings!: GameSettingsDto;
 }
