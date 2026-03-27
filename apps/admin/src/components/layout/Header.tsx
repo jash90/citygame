@@ -1,7 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, User } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface HeaderProps {
   title: string;
@@ -9,8 +11,29 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   const router = useRouter();
+  const [userName, setUserName] = useState('Admin');
 
-  const handleLogout = () => {
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (token) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload.email) setUserName(payload.email);
+        }
+      }
+    } catch {
+      // keep default
+    }
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout', {});
+    } catch {
+      // Ignoruj błąd — wyloguj lokalnie niezależnie
+    }
     localStorage.removeItem('accessToken');
     router.push('/login');
   };
@@ -25,7 +48,7 @@ export function Header({ title }: HeaderProps) {
           <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#FF6B35] text-white">
             <User size={16} />
           </div>
-          <span className="hidden sm:inline font-medium">Admin</span>
+          <span className="hidden sm:inline font-medium">{userName}</span>
         </div>
 
         {/* Logout */}
