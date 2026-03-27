@@ -1,25 +1,3 @@
-export const colors = {
-  primary: '#FF6B35',
-  primaryDark: '#E55A25',
-  primaryLight: '#FF8C5A',
-  secondary: '#1a1a2e',
-  secondaryDark: '#0d0d1a',
-  secondaryLight: '#2d2d4e',
-  surface: '#FFFFFF',
-  surfaceDark: '#F5F5F5',
-  muted: '#9CA3AF',
-  mutedDark: '#6B7280',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  success: '#22C55E',
-  warning: '#F59E0B',
-  error: '#EF4444',
-  gold: '#FFD700',
-  silver: '#C0C0C0',
-  bronze: '#CD7F32',
-  tabBar: '#FFFFFF',
-  tabBarActive: '#FF6B35',
-  tabBarInactive: '#9CA3AF',
-  border: '#E5E7EB',
-  overlay: 'rgba(0,0,0,0.5)',
-} as const;
+import { brandColors } from './brand';
+
+export const colors = { ...brandColors } as const;

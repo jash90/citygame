@@ -1,3 +1,8 @@
+import Constants from 'expo-constants';
+import { brandName } from './brand';
+
+const extra = Constants.expoConfig?.extra ?? {};
+
 export const API_URL: string =
   process.env.EXPO_PUBLIC_API_URL || "";
 
@@ -5,10 +10,10 @@ export const WS_URL: string =
   process.env.EXPO_PUBLIC_WS_URL || "";
 
 export const SECURE_STORE_KEYS = {
-  ACCESS_TOKEN: 'citygame_access_token',
-  REFRESH_TOKEN: 'citygame_refresh_token',
-  USER: 'citygame_user',
-  PROFILE: 'citygame_profile',
+  ACCESS_TOKEN: `${brandName}_access_token`,
+  REFRESH_TOKEN: `${brandName}_refresh_token`,
+  USER: `${brandName}_user`,
+  PROFILE: `${brandName}_profile`,
 } as const;
 
 export const RANKING_WS_NAMESPACE = '/ranking';

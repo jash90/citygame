@@ -4,18 +4,43 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "development": {
+    "citygame:development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "BRAND": "citygame"
+      }
     },
-    "preview": {
-      "distribution": "internal"
+    "citygame:preview": {
+      "distribution": "internal",
+      "env": {
+        "BRAND": "citygame"
+      }
     },
-    "production": {
-      "autoIncrement": true
+    "citygame:production": {
+      "autoIncrement": true,
+      "env": {
+        "BRAND": "citygame"
+      }
+    },
+    "adventura:development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "BRAND": "adventura"
+      }
+    },
+    "adventura:preview": {
+      "distribution": "internal",
+      "env": {
+        "BRAND": "adventura"
+      }
+    },
+    "adventura:production": {
+      "autoIncrement": true,
+      "env": {
+        "BRAND": "adventura"
+      }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }
