@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -15,7 +16,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <Header title="CityGame Admin" />
 
         <main className="flex-1 p-6 overflow-auto">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

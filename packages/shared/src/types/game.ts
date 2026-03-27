@@ -8,6 +8,10 @@ export interface GameSettings {
   maxPlayers?: number;
   timeLimitMinutes?: number;
   allowLateJoin?: boolean;
+  allowHints?: boolean;
+  teamMode?: boolean;
+  minTeamSize?: number;
+  maxTeamSize?: number;
 }
 
 export interface Game {

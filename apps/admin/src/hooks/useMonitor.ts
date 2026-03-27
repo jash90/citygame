@@ -49,6 +49,8 @@ type MonitorAction =
   | { type: 'ADD_AI_ERROR'; payload: AIErrorEntry }
   | { type: 'REMOVE_AI_ERROR'; payload: { id: string } }
   | { type: 'SET_STATS'; payload: Partial<MonitorStats> }
+  | { type: 'INCREMENT_COMPLETIONS' }
+  | { type: 'INCREMENT_PLAYERS' }
   | { type: 'TICK_ELAPSED' };
 
 function monitorReducer(state: MonitorState, action: MonitorAction): MonitorState {
@@ -86,6 +88,18 @@ function monitorReducer(state: MonitorState, action: MonitorAction): MonitorStat
 
     case 'SET_STATS':
       return { ...state, stats: { ...state.stats, ...action.payload } };
+
+    case 'INCREMENT_COMPLETIONS':
+      return {
+        ...state,
+        stats: { ...state.stats, totalCompletions: state.stats.totalCompletions + 1 },
+      };
+
+    case 'INCREMENT_PLAYERS':
+      return {
+        ...state,
+        stats: { ...state.stats, activePlayers: state.stats.activePlayers + 1 },
+      };
 
     case 'TICK_ELAPSED':
       return {
@@ -174,10 +188,10 @@ export function useMonitor({
       });
 
       if (event.action === 'task_completed') {
-        dispatch({ type: 'SET_STATS', payload: { totalCompletions: state.stats.totalCompletions + 1 } });
+        dispatch({ type: 'INCREMENT_COMPLETIONS' });
       }
       if (event.action === 'game_joined') {
-        dispatch({ type: 'SET_STATS', payload: { activePlayers: state.stats.activePlayers + 1 } });
+        dispatch({ type: 'INCREMENT_PLAYERS' });
       }
     });
 

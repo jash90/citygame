@@ -21,3 +21,12 @@ export interface PresignedUrlResponse {
   fileUrl: string;
   key: string;
 }
+
+export interface SystemInfo {
+  userCount: number;
+  gameCount: number;
+  sessionCount: number;
+  activeSessionCount: number;
+  dbHealthy: boolean;
+  version: string;
+}
