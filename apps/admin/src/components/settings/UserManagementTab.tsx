@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -23,35 +23,63 @@ const roleBadge: Record<string, { label: string; cls: string }> = {
 export function UserManagementTab() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
+  // Debounce search input — 300ms delay
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Reset confirmation state when filters change
+  useEffect(() => {
+    setConfirmingId(null);
+  }, [debouncedSearch, roleFilter, page]);
+
   const params = new URLSearchParams();
   params.set('page', String(page));
   params.set('limit', '20');
-  if (search) params.set('search', search);
+  if (debouncedSearch) params.set('search', debouncedSearch);
   if (roleFilter) params.set('role', roleFilter);
 
   const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: ['admin-users', page, search, roleFilter],
+    queryKey: ['admin-users', page, debouncedSearch, roleFilter],
     queryFn: () => api.get(`/api/admin/users?${params.toString()}`),
   });
+
+  // Auto-correct page if current page is empty (e.g. users deleted by another admin)
+  useEffect(() => {
+    if (data && data.items.length === 0 && page > 1) {
+      setPage((p) => Math.max(1, p - 1));
+    }
+  }, [data, page]);
 
   const roleMutation = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
       api.patch(`/api/admin/users/${userId}/role`, { role }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users', page, search, roleFilter] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setConfirmingId(null);
     },
   });
 
   const handleRoleToggle = (user: UserListItem) => {
     // Ochrona przed zmianą własnej roli
-    const currentUserId = typeof window !== 'undefined'
-      ? JSON.parse(atob(localStorage.getItem('accessToken')?.split('.')[1] ?? 'e30='))?.sub
-      : null;
+    let currentUserId: string | null = null;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+      if (token) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          currentUserId = JSON.parse(atob(parts[1]))?.sub ?? null;
+        }
+      }
+    } catch {
+      // Token uszkodzony — nie blokujemy zmiany roli
+    }
     if (user.id === currentUserId) return;
 
     const newRole = user.role === UserRole.ADMIN ? UserRole.PLAYER : UserRole.ADMIN;
@@ -127,8 +155,8 @@ export function UserManagementTab() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0">
-                          {user.avatarUrl ? (
-                            <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) ? (
+                            <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
                           ) : (
                             <UserIcon size={14} />
                           )}

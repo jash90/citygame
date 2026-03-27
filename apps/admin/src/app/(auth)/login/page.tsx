@@ -29,7 +29,16 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      const { accessToken } = await api.post<AuthTokens>('/api/auth/login', data);
+      const res = await api.post<AuthTokens & { user: { role: string } }>('/api/auth/login', data);
+      const { accessToken, user } = res;
+
+      if (user?.role !== 'ADMIN') {
+        setError('root', {
+          message: 'Brak uprawnień administratora',
+        });
+        return;
+      }
+
       localStorage.setItem('accessToken', accessToken);
       router.push('/dashboard');
     } catch (err) {
