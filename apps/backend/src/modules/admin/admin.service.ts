@@ -56,7 +56,11 @@ export class AdminService {
     };
   }
 
-  async updateUserRole(userId: string, role: UserRole) {
+  async updateUserRole(userId: string, role: UserRole, requestingAdminId: string) {
+    if (userId === requestingAdminId) {
+      throw new BadRequestException('Cannot change your own role');
+    }
+
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (!user) {
@@ -135,15 +139,15 @@ export class AdminService {
   }
 
   async getRecentActivity() {
-    const [recentGames, recentSessions] = await Promise.all([
+    const [recentGames, recentSessions] = await this.prisma.$transaction([
       this.prisma.game.findMany({
         orderBy: { createdAt: 'desc' },
-        take: 5,
+        take: 10,
         select: { id: true, title: true, status: true, createdAt: true },
       }),
       this.prisma.gameSession.findMany({
         orderBy: { startedAt: 'desc' },
-        take: 5,
+        take: 10,
         select: {
           id: true,
           status: true,
