@@ -39,6 +39,13 @@ export function UserManagementTab() {
     setConfirmingId(null);
   }, [debouncedSearch, roleFilter, page]);
 
+  // Auto-reset confirmation after 5 seconds
+  useEffect(() => {
+    if (!confirmingId) return;
+    const timer = setTimeout(() => setConfirmingId(null), 5000);
+    return () => clearTimeout(timer);
+  }, [confirmingId]);
+
   const params = new URLSearchParams();
   params.set('page', String(page));
   params.set('limit', '20');

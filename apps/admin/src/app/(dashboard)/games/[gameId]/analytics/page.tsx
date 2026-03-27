@@ -63,7 +63,8 @@ export default function AnalyticsPage() {
   const { gameId } = useParams<{ gameId: string }>();
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
 
-  const { data, game, isLoading, error } = useAnalytics(gameId, period);
+  const analytics = useAnalytics(gameId, period);
+  const { data, game, isLoading, error } = analytics;
 
   if (isLoading) {
     return (
@@ -134,6 +135,13 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {analytics.isSimulated && (
+        <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
+          <span className="font-medium">Dane demonstracyjne</span>
+          <span className="text-amber-600">— wykresy i statystyki są generowane na podstawie szacunków, nie rzeczywistych danych.</span>
+        </div>
+      )}
 
       {/* Row 1 — Key metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

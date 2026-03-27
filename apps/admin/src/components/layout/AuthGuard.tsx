@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
@@ -8,18 +8,45 @@ interface AuthGuardProps {
   children: React.ReactNode;
 }
 
+function isTokenValid(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.exp) return false;
+    // Add 10s buffer to avoid edge-case race with API calls
+    return payload.exp * 1000 > Date.now() + 10_000;
+  } catch {
+    return false;
+  }
+}
+
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
-  useEffect(() => {
+  const checkAuth = useCallback(() => {
     const token = localStorage.getItem('accessToken');
-    if (!token) {
+    if (!token || !isTokenValid(token)) {
+      localStorage.removeItem('accessToken');
       router.replace('/login');
-    } else {
+      return false;
+    }
+    return true;
+  }, [router]);
+
+  useEffect(() => {
+    if (checkAuth()) {
       setChecked(true);
     }
-  }, [router]);
+
+    // Re-check token validity every 30 seconds
+    const interval = setInterval(() => {
+      checkAuth();
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [checkAuth]);
 
   if (!checked) {
     return (

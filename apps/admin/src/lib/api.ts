@@ -12,6 +12,8 @@ function handleUnauthorized(): never {
     isRedirecting = true;
     localStorage.removeItem('accessToken');
     window.location.href = '/login';
+    // Reset flag after navigation starts, in case page doesn't fully reload
+    setTimeout(() => { isRedirecting = false; }, 2000);
   }
   throw new Error('Unauthorized');
 }

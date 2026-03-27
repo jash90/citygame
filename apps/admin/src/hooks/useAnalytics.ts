@@ -311,5 +311,6 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod) {
     game: gameQuery.data,
     isLoading,
     error,
+    isSimulated: true,
   };
 }
