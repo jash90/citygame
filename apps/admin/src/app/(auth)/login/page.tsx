@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MapPin, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { isTokenExpired } from '@/lib/jwt';
 import type { AuthTokens } from '@citygame/shared';
 
 const loginSchema = z.object({
@@ -17,6 +19,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token && !isTokenExpired(token)) {
+      const role = localStorage.getItem('userRole');
+      if (role === 'ADMIN') router.replace('/dashboard');
+    }
+  }, [router]);
 
   const {
     register,
@@ -40,6 +50,10 @@ export default function LoginPage() {
       }
 
       localStorage.setItem('accessToken', accessToken);
+      if (res.refreshToken) {
+        localStorage.setItem('refreshToken', res.refreshToken);
+      }
+      localStorage.setItem('userRole', user.role);
       router.push('/dashboard');
     } catch (err) {
       setError('root', {

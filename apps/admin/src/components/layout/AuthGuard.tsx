@@ -3,44 +3,60 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { isTokenExpired } from '@/lib/jwt';
+import { tryRefreshToken } from '@/lib/api';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-}
-
-function isTokenValid(token: string): boolean {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    const payload = JSON.parse(atob(parts[1]));
-    if (!payload.exp) return false;
-    // Add 10s buffer to avoid edge-case race with API calls
-    return payload.exp * 1000 > Date.now() + 10_000;
-  } catch {
-    return false;
-  }
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
-  const checkAuth = useCallback(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token || !isTokenValid(token)) {
-      localStorage.removeItem('accessToken');
-      router.replace('/login');
-      return false;
-    }
-    return true;
+  const clearAndRedirect = useCallback(() => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userRole');
+    router.replace('/login');
   }, [router]);
 
-  useEffect(() => {
-    if (checkAuth()) {
-      setChecked(true);
+  const checkAuth = useCallback(async () => {
+    const accessToken = localStorage.getItem('accessToken');
+
+    if (accessToken && !isTokenExpired(accessToken)) {
+      const role = localStorage.getItem('userRole');
+      if (role && role !== 'ADMIN') {
+        clearAndRedirect();
+        return false;
+      }
+      return true;
     }
 
-    // Re-check token validity every 30 seconds
+    // Access token expired or missing — try refresh
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (refreshToken) {
+      const refreshed = await tryRefreshToken();
+      if (refreshed) {
+        // Re-check role after refresh — tryRefreshToken updates userRole from JWT
+        const updatedRole = localStorage.getItem('userRole');
+        if (updatedRole && updatedRole !== 'ADMIN') {
+          clearAndRedirect();
+          return false;
+        }
+        return true;
+      }
+    }
+
+    clearAndRedirect();
+    return false;
+  }, [clearAndRedirect]);
+
+  useEffect(() => {
+    checkAuth().then((valid) => {
+      if (valid) setChecked(true);
+    });
+
     const interval = setInterval(() => {
       checkAuth();
     }, 30_000);
