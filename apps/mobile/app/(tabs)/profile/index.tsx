@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { NetworkError } from '@/shared/components/NetworkError';
@@ -15,6 +16,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { profileApi } from '@/features/profile/services/profile.api';
 import { QUERY_KEYS } from '@/shared/lib/constants';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
+import { colors } from '@/shared/lib/theme';
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, profile: cachedProfile, setProfile } = useAuthStore();
@@ -64,7 +66,7 @@ export default function ProfileScreen(): React.JSX.Element {
       >
         {isLoading ? (
           <View className="py-10 items-center">
-            <ActivityIndicator size="large" color="#FF6B35" />
+            <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : isError ? (
           <NetworkError

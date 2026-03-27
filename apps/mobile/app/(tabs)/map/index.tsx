@@ -12,6 +12,7 @@ import { useProgress } from '@/features/game/hooks/useGameQueries';
 import { useGameStore } from '@/features/game/stores/gameStore';
 import { useGameTimer } from '@/features/game/hooks/useGameTimer';
 import type { Task } from '@/shared/types/api.types';
+import { colors } from '@/shared/lib/theme';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
@@ -169,7 +170,7 @@ export default function MapScreen(): React.JSX.Element {
               activeOpacity={0.8}
               onPress={() => setShowJournal(true)}
             >
-              <Ionicons name="book" size={20} color="#FF6B35" />
+              <Ionicons name="book" size={20} color={colors.primary} />
               {collectedClues.length > 0 ? (
                 <View className="absolute -top-1 -right-1 bg-primary rounded-full w-5 h-5 items-center justify-center">
                   <Text className="text-white text-[10px] font-bold">{collectedClues.length}</Text>
@@ -182,7 +183,7 @@ export default function MapScreen(): React.JSX.Element {
             activeOpacity={0.8}
             onPress={() => mapRef.current?.centerOnUser()}
           >
-            <Ionicons name="locate" size={22} color="#FF6B35" />
+            <Ionicons name="locate" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
       </StyledSafeAreaView>

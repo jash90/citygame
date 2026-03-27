@@ -13,6 +13,8 @@ import { useGames, useStartGame, useGame, useActiveSession } from '@/features/ga
 import type { Game } from '@/shared/types/api.types';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/shared/lib/theme';
+import { defaultGameId } from '@/shared/lib/brand';
 
 const EmptyState = (): React.JSX.Element => (
   <View className="flex-1 items-center justify-center py-20 px-8">
@@ -68,7 +70,7 @@ export const GameBrowser = (): React.JSX.Element => {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#FF6B35" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }

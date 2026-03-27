@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Text } from 'react-native';
+import { colors } from '@/lib/theme';
 
 
 interface ProgressBarProps {
@@ -13,7 +14,7 @@ export const ProgressBar = ({
   progress,
   showLabel = false,
   height = 8,
-  color = '#FF6B35',
+  color = colors.primary,
 }: ProgressBarProps): React.JSX.Element => {
   const animatedWidth = useRef(new Animated.Value(0)).current;
 

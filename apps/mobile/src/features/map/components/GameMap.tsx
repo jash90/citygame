@@ -2,6 +2,7 @@ import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { Platform, View, StyleSheet as RNStyleSheet } from 'react-native';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { useLocationStore } from '@/features/map/stores/locationStore';
+import { colors } from '@/shared/lib/theme';
 
 interface GameMapProps {
   initialRegion?: Region;
@@ -87,7 +88,7 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
                     width: 16,
                     height: 16,
                     borderRadius: 8,
-                    backgroundColor: '#FF6B35',
+                    backgroundColor: colors.primary,
                     borderWidth: 2,
                     borderColor: '#FFFFFF',
                     ...(Platform.OS === 'ios'
@@ -105,8 +106,8 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
                 <Circle
                   center={{ latitude: location.lat, longitude: location.lng }}
                   radius={accuracy}
-                  fillColor="rgba(255,107,53,0.1)"
-                  strokeColor="rgba(255,107,53,0.3)"
+                  fillColor={`${colors.primary}1A`}
+                  strokeColor={`${colors.primary}4D`}
                   strokeWidth={1}
                 />
               ) : null}

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '@/lib/theme';
 
 export interface AIVerificationResult {
   score: number;
@@ -83,7 +84,7 @@ const ProcessingDots = (): React.JSX.Element => {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#FF6B35',
+    backgroundColor: colors.primary,
     marginHorizontal: 4,
     opacity: anim,
     transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],

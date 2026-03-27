@@ -3,6 +3,7 @@ import { Platform, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import type { Task } from '@/shared/types/api.types';
+import { colors } from '@/shared/lib/theme';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -18,10 +19,10 @@ const TASK_TYPE_ICONS: Partial<Record<Task['type'], IoniconsName>> = {
 };
 
 const STATUS_COLORS: Record<Task['status'], string> = {
-  locked: '#9CA3AF',
-  available: '#FF6B35',
-  completed: '#22C55E',
-  failed: '#EF4444',
+  locked: colors.muted,
+  available: colors.primary,
+  completed: colors.success,
+  failed: colors.error,
 };
 
 interface TaskPinProps {

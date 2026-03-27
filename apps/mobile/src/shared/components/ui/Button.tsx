@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   type TouchableOpacityProps,
 } from 'react-native';
+import { colors } from '@/lib/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -72,7 +73,7 @@ export const Button = ({
       {isLoading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'secondary' ? '#FFFFFF' : '#FF6B35'}
+          color={variant === 'primary' || variant === 'secondary' ? colors.surface : colors.primary}
           style={{ marginRight: 8 }}
         />
       ) : null}

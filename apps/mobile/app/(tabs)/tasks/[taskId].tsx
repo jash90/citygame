@@ -17,6 +17,7 @@ import { CountdownTimer } from '@/features/task/components/CountdownTimer';
 import { HintsPanel } from '@/features/task/components/HintsPanel';
 import { useTaskDetail } from '@/features/task/hooks/useTaskDetail';
 import { useGameStore } from '@/features/game/stores/gameStore';
+import { colors } from '@/shared/lib/theme';
 
 export default function TaskDetailScreen(): React.JSX.Element {
   const { taskId, from } = useLocalSearchParams<{
@@ -47,7 +48,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
     if (tasks.length === 0) {
       return (
         <StyledSafeAreaView className="flex-1 bg-surface items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </StyledSafeAreaView>
       );
     }
@@ -155,15 +156,11 @@ export default function TaskDetailScreen(): React.JSX.Element {
                   className="flex-row items-center gap-2 py-2"
                   onPress={() => setShowHints((prev) => !prev)}
                 >
-                  <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
+                  <Ionicons name="bulb-outline" size={16} color={colors.primary} />
                   <Text className="text-sm font-semibold text-primary">
                     Podpowiedzi
                   </Text>
-                  <Ionicons
-                    name={showHints ? 'chevron-up' : 'chevron-down'}
-                    size={16}
-                    color="#FF6B35"
-                  />
+                  <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color={colors.primary} />
                 </TouchableOpacity>
                 {showHints ? (
                   <HintsPanel

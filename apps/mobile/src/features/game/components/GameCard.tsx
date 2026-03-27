@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Game } from '@/shared/types/api.types';
+import { colors } from '@/shared/lib/theme';
 
 interface GameCardProps {
   game: Game;
@@ -87,7 +88,7 @@ export const GameCard = ({
         />
       ) : (
         <View className="w-full items-center justify-center bg-primary/10" style={{ height: 160 }}>
-          <Ionicons name="map-outline" size={48} color="#FF6B35" />
+          <Ionicons name="map-outline" size={48} color={colors.primary} />
         </View>
       )}
 

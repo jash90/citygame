@@ -16,6 +16,7 @@ import { useGameStore } from '@/features/game/stores/gameStore';
 import { useGameTimer } from '@/features/game/hooks/useGameTimer';
 import type { Task } from '@/shared/types/api.types';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
+import { colors } from '@/shared/lib/theme';
 
 
 const EmptyState = (): React.JSX.Element => (
@@ -89,7 +90,7 @@ export default function TasksScreen(): React.JSX.Element {
       {/* Task list */}
       {isLoading && tasks.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#FF6B35" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : isError && tasks.length === 0 ? (
         <NetworkError
@@ -109,7 +110,7 @@ export default function TasksScreen(): React.JSX.Element {
             <RefreshControl
               refreshing={isFetching}
               onRefresh={() => void refetch()}
-              tintColor="#FF6B35"
+              tintColor={colors.primary}
             />
           }
           showsVerticalScrollIndicator={false}
