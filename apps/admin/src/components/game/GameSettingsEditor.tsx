@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -20,13 +20,20 @@ const gameSettingsSchema = z.object({
 }).refine(
   (data) => {
     if (!data.teamMode) return true;
-    if (data.minTeamSize === '' || data.maxTeamSize === '') return true;
     if (typeof data.minTeamSize === 'number' && typeof data.maxTeamSize === 'number') {
       return data.minTeamSize <= data.maxTeamSize;
     }
+    // When teamMode is on, at least one size should be set
     return true;
   },
   { message: 'Min. rozmiar drużyny nie może być większy niż maks.', path: ['minTeamSize'] },
+).refine(
+  (data) => {
+    if (!data.teamMode) return true;
+    // Require team sizes when team mode is enabled
+    return data.minTeamSize !== '' && data.maxTeamSize !== '';
+  },
+  { message: 'Rozmiary drużyny są wymagane w trybie drużynowym', path: ['maxTeamSize'] },
 );
 
 type SettingsFormValues = z.infer<typeof gameSettingsSchema>;
@@ -64,6 +71,21 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
       maxTeamSize: settings.maxTeamSize ?? '',
     },
   });
+
+  // Sync form with external settings changes
+  useEffect(() => {
+    if (!editing) {
+      reset({
+        maxPlayers: settings.maxPlayers ?? '',
+        timeLimitMinutes: settings.timeLimitMinutes ?? '',
+        allowLateJoin: settings.allowLateJoin ?? false,
+        allowHints: settings.allowHints ?? true,
+        teamMode: settings.teamMode ?? false,
+        minTeamSize: settings.minTeamSize ?? '',
+        maxTeamSize: settings.maxTeamSize ?? '',
+      });
+    }
+  }, [settings, editing, reset]);
 
   const teamMode = watch('teamMode');
 

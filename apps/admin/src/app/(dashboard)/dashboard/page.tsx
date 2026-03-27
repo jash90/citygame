@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { GameTable } from '@/components/dashboard/GameTable';
+import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
 import type { Game } from '@citygame/shared';
 
 interface DashboardStats {
@@ -38,6 +39,7 @@ const ACTIVITY_LABELS: Record<RecentActivity['type'], string> = {
 
 function formatRelativeTime(timestamp: string): string {
   const diff = Date.now() - new Date(timestamp).getTime();
+  if (diff < 0) return 'przed chwilą';
   const minutes = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
   if (minutes < 1) return 'przed chwilą';
@@ -84,7 +86,7 @@ export default function DashboardPage() {
     activeSessions: stats?.activeSessions ?? 0,
   };
 
-  const isLoading = gamesLoading && statsLoading;
+  const isLoading = gamesLoading || statsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,14 +130,17 @@ export default function DashboardPage() {
       {/* Two-column lower area */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Games table */}
+        <ErrorBoundary>
         <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm">
           <div className="px-5 py-4 border-b border-gray-100">
             <h3 className="text-base font-semibold text-gray-800">Ostatnie gry</h3>
           </div>
           <GameTable />
         </div>
+        </ErrorBoundary>
 
         {/* Recent activity sidebar */}
+        <ErrorBoundary>
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
             <Clock size={15} className="text-[#FF6B35]" />
@@ -168,6 +173,7 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
+        </ErrorBoundary>
       </div>
     </div>
   );
