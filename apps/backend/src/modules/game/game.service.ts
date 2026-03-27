@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -101,6 +102,41 @@ export class GameService {
   }
 
   /**
+   * Player-facing: find a published game without sensitive task details.
+   */
+  async findOnePublic(id: string) {
+    const game = await this.prisma.game.findUnique({
+      where: { id, status: GameStatus.PUBLISHED },
+      include: {
+        creator: { select: { id: true, displayName: true } },
+        tasks: {
+          orderBy: { orderIndex: 'asc' },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            type: true,
+            unlockMethod: true,
+            orderIndex: true,
+            latitude: true,
+            longitude: true,
+            maxPoints: true,
+            timeLimitSec: true,
+          },
+        },
+        _count: { select: { tasks: true, sessions: true } },
+      },
+    });
+
+    if (!game) {
+      throw new NotFoundException(`Game ${id} not found`);
+    }
+
+    const { _count, ...rest } = game;
+    return { ...rest, taskCount: _count.tasks, playerCount: _count.sessions };
+  }
+
+  /**
    * Create a new game draft. CreatorId comes from the authenticated user.
    */
   async create(dto: CreateGameDto, creatorId: string): Promise<Game> {
@@ -152,7 +188,7 @@ export class GameService {
   }
 
   /**
-   * Delete a game. Cascades to tasks via Prisma schema.
+   * Delete a game. Blocked if sessions exist (no cascade on GameSession).
    */
   async delete(id: string, requesterId: string, isAdmin: boolean): Promise<void> {
     const game = await this.findOne(id);
@@ -161,7 +197,19 @@ export class GameService {
       throw new ForbiddenException('You do not own this game');
     }
 
-    await this.prisma.game.delete({ where: { id } });
+    await this.prisma.$transaction(async (tx) => {
+      const sessionCount = await tx.gameSession.count({
+        where: { gameId: id },
+      });
+
+      if (sessionCount > 0) {
+        throw new BadRequestException(
+          `Cannot delete game with ${sessionCount} existing session(s). Archive it instead.`,
+        );
+      }
+
+      await tx.game.delete({ where: { id } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   /**
@@ -213,47 +261,53 @@ export class GameService {
   async getGameStats(gameId: string) {
     await this.findOne(gameId);
 
-    const [sessions, tasks] = await Promise.all([
-      this.prisma.gameSession.findMany({
+    const [sessionStats, totalAttempts, tasks, correctByTask] = await Promise.all([
+      this.prisma.gameSession.groupBy({
+        by: ['status'],
         where: { gameId },
-        select: { status: true },
+        _count: true,
+      }),
+      this.prisma.taskAttempt.count({
+        where: { task: { gameId } },
       }),
       this.prisma.task.findMany({
         where: { gameId },
         select: {
           id: true,
           title: true,
-          attempts: {
-            select: { status: true },
-          },
+          _count: { select: { attempts: true } },
         },
+      }),
+      this.prisma.taskAttempt.groupBy({
+        by: ['taskId'],
+        where: { task: { gameId }, status: AttemptStatus.CORRECT },
+        _count: true,
       }),
     ]);
 
-    const totalSessions = sessions.length;
-    const activeSessions = sessions.filter((s) => s.status === SessionStatus.ACTIVE).length;
-    const completedSessions = sessions.filter((s) => s.status === SessionStatus.COMPLETED).length;
+    const totalSessions = sessionStats.reduce((sum, s) => sum + s._count, 0);
+    const activeSessions =
+      sessionStats.find((s) => s.status === SessionStatus.ACTIVE)?._count ?? 0;
+    const completedSessions =
+      sessionStats.find((s) => s.status === SessionStatus.COMPLETED)?._count ?? 0;
 
-    const totalAttempts = tasks.reduce((sum: number, t) => sum + t.attempts.length, 0);
+    const correctMap = new Map(correctByTask.map((c) => [c.taskId, c._count]));
+
+    const taskCompletionRates = tasks.map((t) => ({
+      taskId: t.id,
+      title: t.title,
+      completedCount: correctMap.get(t.id) ?? 0,
+      totalAttempts: t._count.attempts,
+    }));
 
     const avgCompletionRate =
-      tasks.length > 0
-        ? tasks.reduce((sum: number, t) => {
-            const correct = t.attempts.filter((a) => a.status === AttemptStatus.CORRECT).length;
-            const total = t.attempts.length;
-            return sum + (total > 0 ? correct / total : 0);
-          }, 0) / tasks.length
+      taskCompletionRates.length > 0
+        ? taskCompletionRates.reduce(
+            (sum, r) =>
+              sum + (r.totalAttempts > 0 ? r.completedCount / r.totalAttempts : 0),
+            0,
+          ) / taskCompletionRates.length
         : 0;
-
-    const taskCompletionRates = tasks.map((t) => {
-      const completedCount = t.attempts.filter((a) => a.status === AttemptStatus.CORRECT).length;
-      return {
-        taskId: t.id,
-        title: t.title,
-        completedCount,
-        totalAttempts: t.attempts.length,
-      };
-    });
 
     return {
       totalSessions,
@@ -263,6 +317,80 @@ export class GameService {
       avgCompletionRate: Math.round(avgCompletionRate * 100) / 100,
       taskCompletionRates,
     };
+  }
+
+  /**
+   * Revert a PUBLISHED game back to DRAFT. Blocked if active sessions exist.
+   */
+  async unpublish(
+    id: string,
+    requesterId: string,
+    isAdmin: boolean,
+  ): Promise<GameWithCounts> {
+    const game = await this.findOne(id);
+
+    if (!isAdmin && game.creatorId !== requesterId) {
+      throw new ForbiddenException('You do not own this game');
+    }
+
+    if (game.status !== GameStatus.PUBLISHED) {
+      throw new ForbiddenException(
+        `Can only unpublish PUBLISHED games, current status: ${game.status}`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const activeSessions = await tx.gameSession.count({
+        where: { gameId: id, status: SessionStatus.ACTIVE },
+      });
+
+      if (activeSessions > 0) {
+        throw new BadRequestException(
+          `Cannot unpublish game with ${activeSessions} active session(s)`,
+        );
+      }
+
+      const updated = await tx.game.update({
+        where: { id },
+        data: { status: GameStatus.DRAFT },
+        include: {
+          creator: { select: { id: true, displayName: true } },
+          _count: { select: { tasks: true, sessions: true } },
+        },
+      });
+
+      return this.mapCounts(updated);
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  }
+
+  /**
+   * Archive a game (any non-ARCHIVED status).
+   */
+  async archive(
+    id: string,
+    requesterId: string,
+    isAdmin: boolean,
+  ): Promise<GameWithCounts> {
+    const game = await this.findOne(id);
+
+    if (!isAdmin && game.creatorId !== requesterId) {
+      throw new ForbiddenException('You do not own this game');
+    }
+
+    if (game.status === GameStatus.ARCHIVED) {
+      throw new ForbiddenException('Game is already archived');
+    }
+
+    const updated = await this.prisma.game.update({
+      where: { id },
+      data: { status: GameStatus.ARCHIVED },
+      include: {
+        creator: { select: { id: true, displayName: true } },
+        _count: { select: { tasks: true, sessions: true } },
+      },
+    });
+
+    return this.mapCounts(updated);
   }
 
   // ── Private helpers ──────────────────────────────────────────────────────────

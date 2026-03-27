@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -45,7 +46,7 @@ export class GameController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id')
-  adminFindOne(@Param('id') id: string) {
+  adminFindOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.gameService.findOne(id);
   }
 
@@ -53,7 +54,7 @@ export class GameController {
   @Roles(UserRole.ADMIN)
   @Patch('api/admin/games/:id')
   adminUpdate(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateGameDto,
     @CurrentUser() user: CurrentUserPayload,
   ) {
@@ -64,7 +65,7 @@ export class GameController {
   @Roles(UserRole.ADMIN)
   @Delete('api/admin/games/:id')
   adminDelete(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.gameService.delete(id, user.id, true);
@@ -74,7 +75,7 @@ export class GameController {
   @Roles(UserRole.ADMIN)
   @Patch('api/admin/games/:id/publish')
   adminPublish(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
     return this.gameService.publish(id, user.id, true);
@@ -82,15 +83,35 @@ export class GameController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @Patch('api/admin/games/:id/unpublish')
+  adminUnpublish(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.gameService.unpublish(id, user.id, true);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('api/admin/games/:id/archive')
+  adminArchive(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.gameService.archive(id, user.id, true);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id/sessions')
-  adminGetSessions(@Param('id') id: string) {
+  adminGetSessions(@Param('id', ParseUUIDPipe) id: string) {
     return this.gameService.getGameSessions(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id/stats')
-  adminGetStats(@Param('id') id: string) {
+  adminGetStats(@Param('id', ParseUUIDPipe) id: string) {
     return this.gameService.getGameStats(id);
   }
 
@@ -102,7 +123,7 @@ export class GameController {
   }
 
   @Get('api/games/:id')
-  findOne(@Param('id') id: string) {
-    return this.gameService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gameService.findOnePublic(id);
   }
 }

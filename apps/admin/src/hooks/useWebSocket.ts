@@ -17,11 +17,14 @@ interface UseWebSocketReturn {
   leaveGame: (gameId: string) => void;
   emit: (event: string, data?: unknown) => void;
   onEvent: <T>(event: string, handler: (data: T) => void) => () => void;
+  /** Increments when socket (re)connects so consumers can re-register listeners. */
+  connectEpoch: number;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const { autoConnect = true } = options;
   const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+  const [connectEpoch, setConnectEpoch] = useState(0);
   const socketRef = useRef<Socket | null>(null);
   // Reconnect attempt counter for backoff
   const reconnectAttempts = useRef(0);
@@ -38,6 +41,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     const handleConnect = () => {
       setStatus('connected');
+      setConnectEpoch((e) => e + 1);
       reconnectAttempts.current = 0;
     };
 
@@ -101,5 +105,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     leaveGame,
     emit,
     onEvent,
+    connectEpoch,
   };
 }

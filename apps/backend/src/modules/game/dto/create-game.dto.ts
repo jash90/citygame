@@ -1,5 +1,20 @@
-import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, Validate, ValidateNested, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
 import { Type } from 'class-transformer';
+
+@ValidatorConstraint({ name: 'teamSizeRange', async: false })
+class TeamSizeConstraint implements ValidatorConstraintInterface {
+  validate(_value: unknown, args: ValidationArguments) {
+    const obj = args.object as GameSettingsDto;
+    if (obj.minTeamSize != null && obj.maxTeamSize != null) {
+      return obj.minTeamSize <= obj.maxTeamSize;
+    }
+    return true;
+  }
+
+  defaultMessage() {
+    return 'minTeamSize must be less than or equal to maxTeamSize';
+  }
+}
 
 class GameSettingsDto {
   @IsOptional()
@@ -28,6 +43,7 @@ class GameSettingsDto {
   @IsInt()
   @Min(1)
   @Max(20)
+  @Validate(TeamSizeConstraint)
   maxTeamSize?: number;
 }
 

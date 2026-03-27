@@ -149,7 +149,7 @@ export function useMonitor({
     },
   });
 
-  const { status, joinGame, leaveGame, onEvent } = useWebSocket();
+  const { status, joinGame, leaveGame, onEvent, connectEpoch } = useWebSocket();
 
   // Elapsed timer tick
   useEffect(() => {
@@ -222,8 +222,7 @@ export function useMonitor({
       offAiError();
       offPlayerCount();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onEvent]);
+  }, [onEvent, connectEpoch]);
 
   const retryAIError = useCallback((errorId: string) => {
     dispatch({ type: 'REMOVE_AI_ERROR', payload: { id: errorId } });
