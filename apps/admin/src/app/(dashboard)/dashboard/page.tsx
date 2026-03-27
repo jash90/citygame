@@ -6,7 +6,6 @@ import { api } from '@/lib/api';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { GameTable } from '@/components/dashboard/GameTable';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
-import type { Game } from '@citygame/shared';
 
 interface DashboardStats {
   activeGames: number;
@@ -17,7 +16,7 @@ interface DashboardStats {
 
 interface RecentActivity {
   id: string;
-  type: 'game_created' | 'game_published' | 'session_completed' | 'player_joined';
+  type: 'game_created' | 'game_published' | 'game_archived' | 'session_completed' | 'session_abandoned' | 'session_timed_out' | 'player_joined';
   label: string;
   detail: string;
   timestamp: string;
@@ -26,14 +25,20 @@ interface RecentActivity {
 const ACTIVITY_COLORS: Record<RecentActivity['type'], string> = {
   game_created: 'bg-blue-100 text-blue-700',
   game_published: 'bg-green-100 text-green-700',
+  game_archived: 'bg-gray-100 text-gray-700',
   session_completed: 'bg-purple-100 text-purple-700',
+  session_abandoned: 'bg-yellow-100 text-yellow-700',
+  session_timed_out: 'bg-red-100 text-red-600',
   player_joined: 'bg-orange-100 text-[#FF6B35]',
 };
 
 const ACTIVITY_LABELS: Record<RecentActivity['type'], string> = {
   game_created: 'Nowa gra',
   game_published: 'Opublikowano',
+  game_archived: 'Zarchiwizowano',
   session_completed: 'Ukończono',
+  session_abandoned: 'Porzucono',
+  session_timed_out: 'Czas minął',
   player_joined: 'Nowy gracz',
 };
 
@@ -42,51 +47,36 @@ function formatRelativeTime(timestamp: string): string {
   if (diff < 0) return 'przed chwilą';
   const minutes = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
   if (minutes < 1) return 'przed chwilą';
   if (minutes < 60) return `${minutes} min temu`;
   if (hours < 24) return `${hours} godz. temu`;
+  if (days === 1) return 'wczoraj';
+  if (days < 7) return `${days} dni temu`;
   return new Date(timestamp).toLocaleDateString('pl-PL');
 }
 
 export default function DashboardPage() {
-  const { data: games = [], isLoading: gamesLoading } = useQuery<Game[]>({
-    queryKey: ['games'],
-    queryFn: async () => {
-      const res = await api.get<{ items: Game[] }>('/api/admin/games');
-      return Array.isArray(res) ? res : res?.items ?? [];
-    },
-  });
-
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+  const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
     queryFn: () => api.get<DashboardStats>('/api/admin/stats'),
-    // Fallback: derive from games list if endpoint not yet available
-    placeholderData: {
-      activeGames: 0,
-      totalPlayers: 0,
-      totalTasks: 0,
-      activeSessions: 0,
-    },
   });
 
   const { data: recentActivity = [] } = useQuery<RecentActivity[]>({
     queryKey: ['dashboard-activity'],
     queryFn: () => api.get<RecentActivity[]>('/api/admin/activity'),
-    // Don't throw if this endpoint doesn't exist yet
     retry: false,
+    refetchInterval: 30_000,
   });
 
-  // Derive stats from games data as fallback
-  const derivedStats = {
-    activeGames: stats?.activeGames ?? games.filter((g) => g.status === 'PUBLISHED').length,
-    totalPlayers:
-      stats?.totalPlayers ?? games.reduce((sum, g) => sum + (g.playerCount ?? 0), 0),
-    totalTasks:
-      stats?.totalTasks ?? games.reduce((sum, g) => sum + (g.taskCount ?? 0), 0),
+  const isLoading = statsLoading;
+
+  const displayStats = {
+    activeGames: stats?.activeGames ?? 0,
+    totalPlayers: stats?.totalPlayers ?? 0,
+    totalTasks: stats?.totalTasks ?? 0,
     activeSessions: stats?.activeSessions ?? 0,
   };
-
-  const isLoading = gamesLoading || statsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -95,36 +85,43 @@ export default function DashboardPage() {
         <p className="text-gray-500 text-sm mt-1">Przegląd platformy CityGame</p>
       </div>
 
+      {/* Stats error */}
+      {statsError && (
+        <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          Nie udało się załadować statystyk
+        </div>
+      )}
+
       {/* Stats grid */}
       <ErrorBoundary>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatsCard
           icon={<Gamepad2 size={20} />}
           label="Aktywne gry"
-          value={isLoading ? '—' : derivedStats.activeGames}
-          trend={derivedStats.activeGames > 0 ? 1 : 0}
-          trendLabel={derivedStats.activeGames > 0 ? 'opublikowane' : 'brak danych'}
+          value={isLoading ? '—' : displayStats.activeGames}
+          trend={0}
+          trendLabel="opublikowane"
         />
         <StatsCard
           icon={<Users size={20} />}
           label="Gracze"
-          value={isLoading ? '—' : derivedStats.totalPlayers}
-          trend={derivedStats.totalPlayers > 0 ? 1 : 0}
-          trendLabel={derivedStats.totalPlayers > 0 ? 'zarejestrowani' : 'brak danych'}
+          value={isLoading ? '—' : displayStats.totalPlayers}
+          trend={0}
+          trendLabel="zarejestrowani"
         />
         <StatsCard
           icon={<ListChecks size={20} />}
           label="Zadania"
-          value={isLoading ? '—' : derivedStats.totalTasks}
+          value={isLoading ? '—' : displayStats.totalTasks}
           trend={0}
-          trendLabel={derivedStats.totalTasks > 0 ? 'we wszystkich grach' : 'brak danych'}
+          trendLabel="we wszystkich grach"
         />
         <StatsCard
           icon={<Activity size={20} />}
           label="Aktywne sesje"
-          value={isLoading ? '—' : derivedStats.activeSessions}
-          trend={derivedStats.activeSessions > 0 ? 1 : 0}
-          trendLabel={derivedStats.activeSessions > 0 ? 'trwa teraz' : 'brak sesji'}
+          value={isLoading ? '—' : displayStats.activeSessions}
+          trend={0}
+          trendLabel={displayStats.activeSessions > 0 ? 'trwa teraz' : 'brak sesji'}
         />
       </div>
       </ErrorBoundary>

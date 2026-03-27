@@ -9,9 +9,9 @@ import { GameStatusBadge } from './GameStatusBadge';
 
 export function GameTable() {
   const { data: games, isLoading, error } = useQuery<Game[]>({
-    queryKey: ['games'],
+    queryKey: ['admin-games', 'dashboard'],
     queryFn: async () => {
-      const res = await api.get<{ items: Game[] }>('/api/admin/games');
+      const res = await api.get<{ items: Game[] }>('/api/admin/games?limit=5');
       return Array.isArray(res) ? res : res?.items ?? [];
     },
   });

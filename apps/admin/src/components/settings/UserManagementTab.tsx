@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { api } from '@/lib/api';
+import { parseJwtPayload } from '@/lib/jwt';
 import { UserRole } from '@citygame/shared';
 import type { UserListItem } from '@citygame/shared';
 
@@ -28,6 +29,14 @@ export function UserManagementTab() {
   const [page, setPage] = useState(1);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) { setCurrentUserId(null); return; }
+    setCurrentUserId((parseJwtPayload(token)?.sub as string) ?? null);
+  }, []);
+
   // Debounce search input — 300ms delay
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -49,7 +58,11 @@ export function UserManagementTab() {
   const params = new URLSearchParams();
   params.set('page', String(page));
   params.set('limit', '20');
-  if (debouncedSearch) params.set('search', debouncedSearch);
+  if (debouncedSearch) {
+    // Strip SQL LIKE wildcards to prevent unexpected matching
+    const sanitized = debouncedSearch.replace(/[%_]/g, '');
+    if (sanitized) params.set('search', sanitized);
+  }
   if (roleFilter) params.set('role', roleFilter);
 
   const { data, isLoading } = useQuery<UsersResponse>({
@@ -74,19 +87,6 @@ export function UserManagementTab() {
   });
 
   const handleRoleToggle = (user: UserListItem) => {
-    // Ochrona przed zmianą własnej roli
-    let currentUserId: string | null = null;
-    try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-      if (token) {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          currentUserId = JSON.parse(atob(parts[1]))?.sub ?? null;
-        }
-      }
-    } catch {
-      // Token uszkodzony — nie blokujemy zmiany roli
-    }
     if (user.id === currentUserId) return;
 
     const newRole = user.role === UserRole.ADMIN ? UserRole.PLAYER : UserRole.ADMIN;
@@ -161,11 +161,16 @@ export function UserManagementTab() {
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0">
-                          {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) ? (
-                            <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <UserIcon size={14} />
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0 relative overflow-hidden">
+                          <UserIcon size={14} />
+                          {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) && (
+                            <img
+                              src={user.avatarUrl}
+                              alt=""
+                              className="absolute inset-0 w-8 h-8 rounded-full object-cover"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                            />
                           )}
                         </div>
                         <span className="font-medium text-gray-800">{user.displayName}</span>
@@ -182,23 +187,28 @@ export function UserManagementTab() {
                       {new Date(user.createdAt).toLocaleDateString('pl-PL')}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleRoleToggle(user)}
-                        disabled={roleMutation.isPending && roleMutation.variables?.userId === user.id}
-                        className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
-                          isConfirming
-                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                            : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
-                        } disabled:opacity-50`}
-                      >
-                        {roleMutation.isPending && roleMutation.variables?.userId === user.id ? (
-                          <Loader2 size={12} className="animate-spin inline" />
-                        ) : isConfirming ? (
-                          `Potwierdź → ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
-                        ) : (
-                          `Zmień na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
-                        )}
-                      </button>
+                      {user.id === currentUserId ? (
+                        <span className="text-xs text-gray-400 italic">Ty</span>
+                      ) : (
+                        <button
+                          onClick={() => handleRoleToggle(user)}
+                          disabled={roleMutation.isPending && roleMutation.variables?.userId === user.id}
+                          aria-label={`Zmień rolę użytkownika ${user.displayName} na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`}
+                          className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                            isConfirming
+                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                              : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+                          } disabled:opacity-50`}
+                        >
+                          {roleMutation.isPending && roleMutation.variables?.userId === user.id ? (
+                            <Loader2 size={12} className="animate-spin inline" />
+                          ) : isConfirming ? (
+                            `Potwierdź → ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                          ) : (
+                            `Zmień na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                          )}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

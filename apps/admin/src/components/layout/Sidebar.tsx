@@ -60,8 +60,9 @@ export function Sidebar() {
       <nav className="flex-1 px-2 py-4 space-y-1">
         {navItems.map((item) => {
           const isActive =
-            item.href !== '#' &&
-            (pathname === item.href || pathname.startsWith(item.href + '/'));
+            item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : item.href !== '#' && (pathname === item.href || pathname.startsWith(item.href + '/'));
 
           return (
             <Link

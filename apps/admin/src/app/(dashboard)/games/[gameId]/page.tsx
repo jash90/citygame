@@ -9,9 +9,8 @@ import type { Game } from '@citygame/shared';
 import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
 import { GameSettingsEditor } from '@/components/game/GameSettingsEditor';
 
-// The admin endpoint returns _count.tasks instead of a top-level taskCount field.
 interface GameDetailResponse extends Game {
-  _count?: { tasks?: number; sessions?: number };
+  tasks?: unknown[];
 }
 
 export default function GameDetailPage() {
@@ -92,12 +91,12 @@ export default function GameDetailPage() {
           {
             icon: <ListChecks size={18} />,
             label: 'Zadania',
-            value: game.taskCount ?? game._count?.tasks ?? 0,
+            value: game.taskCount ?? 0,
           },
           {
             icon: <Users size={18} />,
             label: 'Gracze',
-            value: game.playerCount ?? game._count?.sessions ?? 0,
+            value: game.playerCount ?? 0,
           },
           {
             icon: <Calendar size={18} />,
