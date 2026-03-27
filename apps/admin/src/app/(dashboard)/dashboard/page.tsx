@@ -96,6 +96,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
+      <ErrorBoundary>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatsCard
           icon={<Gamepad2 size={20} />}
@@ -126,6 +127,7 @@ export default function DashboardPage() {
           trendLabel={derivedStats.activeSessions > 0 ? 'trwa teraz' : 'brak sesji'}
         />
       </div>
+      </ErrorBoundary>
 
       {/* Two-column lower area */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
