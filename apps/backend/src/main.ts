@@ -8,8 +8,19 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Support comma-separated origins from env, plus sensible defaults
+  // Supports exact matches and wildcard patterns (e.g., *.vercel.app)
   const rawOrigins = process.env.CORS_ORIGIN ?? 'http://localhost:3000,http://localhost:3002';
   const allowedOrigins = rawOrigins.split(',').map((o) => o.trim());
+
+  const matchesOrigin = (origin: string): boolean => {
+    return allowedOrigins.some((pattern) => {
+      if (pattern.startsWith('*.')) {
+        const suffix = pattern.slice(1); // e.g. ".vercel.app"
+        return origin.endsWith(suffix) || origin === `https://${pattern.slice(2)}`;
+      }
+      return pattern === origin;
+    });
+  };
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -18,7 +29,7 @@ async function bootstrap() {
         callback(null, true);
         return;
       }
-      if (allowedOrigins.includes(origin)) {
+      if (matchesOrigin(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin ${origin} not allowed`));
