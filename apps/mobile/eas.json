@@ -1,0 +1,43 @@
+{
+  "cli": {
+    "version": ">= 15.0.0"
+  },
+  "build": {
+    "citygame:development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "BRAND": "citygame"
+      }
+    },
+    "citygame:preview": {
+      "distribution": "internal",
+      "env": {
+        "BRAND": "citygame"
+      }
+    },
+    "citygame:production": {
+      "env": {
+        "BRAND": "citygame"
+      }
+    },
+    "adventura:development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "BRAND": "adventura"
+      }
+    },
+    "adventura:preview": {
+      "distribution": "internal",
+      "env": {
+        "BRAND": "adventura"
+      }
+    },
+    "adventura:production": {
+      "env": {
+        "BRAND": "adventura"
+      }
+    }
+  }
+}
