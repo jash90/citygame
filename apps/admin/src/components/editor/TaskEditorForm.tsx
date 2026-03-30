@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, ChevronDown } from 'lucide-react';
 import { TaskType, UnlockMethod } from '@citygame/shared';
 import type { Task, CreateTaskDto } from '@citygame/shared';
 import { TaskTypeSelector } from './TaskTypeSelector';
@@ -34,6 +34,11 @@ const baseSchema = z.object({
   qrHash: z.string().optional(),
   // GPS radius
   gpsRadius: z.coerce.number().optional(),
+  // Story context fields (serialized to JSON as storyContext)
+  characterName: z.string().optional(),
+  locationIntro: z.string().optional(),
+  taskNarrative: z.string().optional(),
+  clueRevealed: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof baseSchema>;
@@ -154,8 +159,23 @@ export function TaskEditorForm({
       answerHash: '',
       qrHash: '',
       gpsRadius: 50,
+      ...(() => {
+        try {
+          const ctx = (task as any)?.storyContext ? JSON.parse((task as any).storyContext) : {};
+          return {
+            characterName: ctx.characterName ?? '',
+            locationIntro: ctx.locationIntro ?? '',
+            taskNarrative: ctx.taskNarrative ?? '',
+            clueRevealed: ctx.clueRevealed ?? '',
+          };
+        } catch {
+          return { characterName: '', locationIntro: '', taskNarrative: '', clueRevealed: '' };
+        }
+      })(),
     },
   });
+
+  const [storyContextOpen, setStoryContextOpen] = useState(false);
 
   const [hints, setHints] = useState<HintItem[]>(() =>
     (task?.hints ?? []).map((h, i) => ({
@@ -255,6 +275,18 @@ export function TaskEditorForm({
             radiusMeters: data.gpsRadius ?? 50,
           };
 
+    // Serialize story context fields into a JSON string
+    const hasStoryContext =
+      data.characterName || data.locationIntro || data.taskNarrative || data.clueRevealed;
+    const storyContext = hasStoryContext
+      ? JSON.stringify({
+          characterName: data.characterName || undefined,
+          locationIntro: data.locationIntro || undefined,
+          taskNarrative: data.taskNarrative || undefined,
+          clueRevealed: data.clueRevealed || undefined,
+        })
+      : undefined;
+
     onSubmit({
       title: data.title,
       description: data.description,
@@ -267,7 +299,8 @@ export function TaskEditorForm({
       timeLimitSec: data.timeLimitSec,
       unlockConfig,
       verifyConfig,
-    });
+      ...(storyContext ? { storyContext } : {}),
+    } as any);
   };
 
   return (
@@ -319,6 +352,57 @@ export function TaskEditorForm({
           className={`${inputClass(errors.description?.message)} resize-none`}
         />
       </Field>
+
+      {/* Story context — collapsible */}
+      <div className="flex flex-col gap-3 pt-2 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={() => setStoryContextOpen((v) => !v)}
+          className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-[#FF6B35] transition-colors"
+        >
+          <ChevronDown
+            size={14}
+            className={`transition-transform ${storyContextOpen ? 'rotate-0' : '-rotate-90'}`}
+          />
+          Kontekst fabularny
+        </button>
+
+        {storyContextOpen && (
+          <div className="flex flex-col gap-3">
+            <Field label="Nazwa postaci">
+              <input
+                {...register('characterName')}
+                placeholder="np. Stary Kronikarz"
+                className={inputClass()}
+              />
+            </Field>
+            <Field label="Wprowadzenie do lokacji">
+              <textarea
+                {...register('locationIntro')}
+                rows={2}
+                placeholder="Narracja gdy gracz dociera do lokacji..."
+                className={`${inputClass()} resize-none`}
+              />
+            </Field>
+            <Field label="Narracja zadania">
+              <textarea
+                {...register('taskNarrative')}
+                rows={2}
+                placeholder="Kontekst fabularny przed zadaniem..."
+                className={`${inputClass()} resize-none`}
+              />
+            </Field>
+            <Field label="Odkryta wskazówka">
+              <textarea
+                {...register('clueRevealed')}
+                rows={2}
+                placeholder="Wskazówka odkryta po wykonaniu zadania..."
+                className={`${inputClass()} resize-none`}
+              />
+            </Field>
+          </div>
+        )}
+      </div>
 
       {/* Points + time */}
       <div className="grid grid-cols-2 gap-3">

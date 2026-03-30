@@ -64,7 +64,7 @@ export const useLocation = (): UseLocationReturn => {
       watcherRef.current?.remove();
       headingWatcherRef.current?.remove();
     };
-  }, [setLocation, setHeading, setPermission]);
+  }, [hasPermission, setLocation, setHeading, setPermission]);
 
   return { location, heading, accuracy, hasPermission, requestPermission };
 };

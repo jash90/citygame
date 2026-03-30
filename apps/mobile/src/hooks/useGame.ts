@@ -93,10 +93,12 @@ export const useUnlockTask = () => {
     mutationFn: ({
       gameId,
       taskId,
+      unlockData,
     }: {
       gameId: string;
       taskId: string;
-    }) => gamesApi.unlockTask(gameId, taskId),
+      unlockData?: Record<string, unknown>;
+    }) => gamesApi.unlockTask(gameId, taskId, unlockData),
     onSuccess: (result, variables) => {
       if (result.unlocked) {
         updateTaskStatus(variables.taskId, 'available');

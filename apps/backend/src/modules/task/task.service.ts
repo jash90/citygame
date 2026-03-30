@@ -80,6 +80,7 @@ export class TaskService {
         verifyConfig: dto.verifyConfig as Prisma.InputJsonValue,
         maxPoints: dto.maxPoints,
         timeLimitSec: dto.timeLimitSec,
+        storyContext: dto.storyContext,
       },
     });
   }
@@ -115,6 +116,7 @@ export class TaskService {
     if (dto.verifyConfig !== undefined) data.verifyConfig = dto.verifyConfig as Prisma.InputJsonValue;
     if (dto.maxPoints !== undefined) data.maxPoints = dto.maxPoints;
     if (dto.timeLimitSec !== undefined) data.timeLimitSec = dto.timeLimitSec;
+    if (dto.storyContext !== undefined) data.storyContext = dto.storyContext;
 
     return this.prisma.task.update({ where: { id: taskId }, data });
   }

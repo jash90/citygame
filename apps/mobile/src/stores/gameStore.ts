@@ -14,6 +14,7 @@ interface GameState {
   tasks: Task[];
   progress: GameProgress | null;
   completedTaskIds: Set<string>;
+  collectedClues: string[];
   lastScannedQR: string | null;
   lastAiResult: AiResult | null;
   // Actions
@@ -23,6 +24,7 @@ interface GameState {
   updateTaskStatus: (taskId: string, status: Task['status']) => void;
   updateProgress: (progress: GameProgress) => void;
   markTaskCompleted: (taskId: string) => void;
+  addClue: (clue: string) => void;
   setLastScannedQR: (code: string | null) => void;
   setLastAiResult: (result: AiResult) => void;
   clearLastAiResult: () => void;
@@ -35,6 +37,7 @@ const initialState = {
   tasks: [],
   progress: null,
   completedTaskIds: new Set<string>(),
+  collectedClues: [],
   lastScannedQR: null,
   lastAiResult: null,
 };
@@ -69,6 +72,9 @@ export const useGameStore = create<GameState>((set) => ({
       };
     }),
 
+  addClue: (clue) =>
+    set((state) => ({ collectedClues: [...state.collectedClues, clue] })),
+
   setLastScannedQR: (code) => set({ lastScannedQR: code }),
 
   setLastAiResult: (result) => set({ lastAiResult: result }),
@@ -79,5 +85,6 @@ export const useGameStore = create<GameState>((set) => ({
     set({
       ...initialState,
       completedTaskIds: new Set<string>(),
+      collectedClues: [],
     }),
 }));

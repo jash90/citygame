@@ -7,12 +7,13 @@ import { StyledSafeAreaView } from '@/lib/styled';
 
 export default function TaskResultModal(): React.JSX.Element {
   const router = useRouter();
-  const { success, points, feedback, aiScore, isAiTask } = useLocalSearchParams<{
+  const { success, points, feedback, aiScore, isAiTask, clue } = useLocalSearchParams<{
     success: string;
     points: string;
     feedback: string;
     aiScore?: string;
     isAiTask?: string;
+    clue?: string;
   }>();
 
   const isSuccess = success === '1';
@@ -101,6 +102,24 @@ export default function TaskResultModal(): React.JSX.Element {
                 <Text className="text-base text-gray-600 text-center leading-7 mt-2">
                   {feedback}
                 </Text>
+              ) : null}
+
+              {/* Clue revealed (narrative games) */}
+              {clue ? (
+                <View
+                  className="w-full rounded-2xl p-4 mt-4 border border-amber-200/50"
+                  style={{ backgroundColor: '#1a1a2e' }}
+                >
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <Ionicons name="key-outline" size={14} color="#D4A574" />
+                    <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#D4A574' }}>
+                      Odkryty fragment
+                    </Text>
+                  </View>
+                  <Text className="text-sm italic leading-6" style={{ color: '#E8D5B7' }}>
+                    „{clue}"
+                  </Text>
+                </View>
               ) : null}
             </View>
           </Animated.View>

@@ -148,6 +148,7 @@ interface BackendTask {
   longitude: number;
   unlockConfig: Record<string, unknown>;
   timeLimitSec?: number | null;
+  storyContext?: string | null;
   [key: string]: unknown;
 }
 
@@ -160,6 +161,7 @@ function mapGame(bg: BackendGame): Game {
     coverImageUrl: bg.coverImageUrl,
     taskCount: bg.taskCount,
     duration: bg.settings?.timeLimitMinutes ?? 0,
+    narrative: bg.settings?.narrative as NarrativeSettings | undefined,
     tasks: bg.tasks?.map(mapTask),
   };
 }
@@ -175,6 +177,8 @@ function mapTask(bt: BackendTask): Task {
     order: bt.orderIndex,
     timeLimitSec: bt.timeLimitSec ?? undefined,
     requiresUnlock: bt.unlockMethod === 'GPS' || bt.unlockMethod === 'QR',
+    unlockMethod: (bt.unlockMethod as 'GPS' | 'QR' | 'NONE') ?? 'NONE',
+    storyContext: bt.storyContext ?? undefined,
     location: {
       lat: bt.latitude,
       lng: bt.longitude,
@@ -263,11 +267,20 @@ export interface Task {
   order: number;
   timeLimitSec?: number;
   requiresUnlock?: boolean;
+  unlockMethod?: 'GPS' | 'QR' | 'NONE';
+  storyContext?: string;
   location?: {
     lat: number;
     lng: number;
     radiusMeters: number;
   };
+}
+
+export interface NarrativeSettings {
+  isNarrative?: boolean;
+  theme?: string;
+  prologue?: string;
+  epilogue?: string;
 }
 
 export interface Game {
@@ -278,6 +291,7 @@ export interface Game {
   coverImageUrl?: string;
   taskCount: number;
   duration: number;
+  narrative?: NarrativeSettings;
   tasks?: Task[];
 }
 

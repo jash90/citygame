@@ -17,6 +17,12 @@ const gameSettingsSchema = z.object({
   teamMode: z.boolean().optional(),
   minTeamSize: z.coerce.number().min(2).optional().or(z.literal('')),
   maxTeamSize: z.coerce.number().min(2).optional().or(z.literal('')),
+  narrative: z.object({
+    isNarrative: z.boolean().optional(),
+    theme: z.string().optional(),
+    prologue: z.string().optional(),
+    epilogue: z.string().optional(),
+  }).optional(),
 }).refine(
   (data) => {
     if (!data.teamMode) return true;
@@ -69,6 +75,12 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
       teamMode: settings.teamMode ?? false,
       minTeamSize: settings.minTeamSize ?? '',
       maxTeamSize: settings.maxTeamSize ?? '',
+      narrative: {
+        isNarrative: (settings as any).narrative?.isNarrative ?? false,
+        theme: (settings as any).narrative?.theme ?? '',
+        prologue: (settings as any).narrative?.prologue ?? '',
+        epilogue: (settings as any).narrative?.epilogue ?? '',
+      },
     },
   });
 
@@ -83,15 +95,22 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
         teamMode: settings.teamMode ?? false,
         minTeamSize: settings.minTeamSize ?? '',
         maxTeamSize: settings.maxTeamSize ?? '',
+        narrative: {
+          isNarrative: (settings as any).narrative?.isNarrative ?? false,
+          theme: (settings as any).narrative?.theme ?? '',
+          prologue: (settings as any).narrative?.prologue ?? '',
+          epilogue: (settings as any).narrative?.epilogue ?? '',
+        },
       });
     }
   }, [settings, editing, reset]);
 
   const teamMode = watch('teamMode');
+  const isNarrative = watch('narrative.isNarrative');
 
   const mutation = useMutation({
     mutationFn: (data: SettingsFormValues) => {
-      const cleaned: GameSettings = {
+      const cleaned: GameSettings & { narrative?: { isNarrative?: boolean; theme?: string; prologue?: string; epilogue?: string } } = {
         maxPlayers: data.maxPlayers === '' ? undefined : Number(data.maxPlayers),
         timeLimitMinutes: data.timeLimitMinutes === '' ? undefined : Number(data.timeLimitMinutes),
         allowLateJoin: data.allowLateJoin,
@@ -99,6 +118,14 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
         teamMode: data.teamMode,
         minTeamSize: data.teamMode && data.minTeamSize !== '' ? Number(data.minTeamSize) : undefined,
         maxTeamSize: data.teamMode && data.maxTeamSize !== '' ? Number(data.maxTeamSize) : undefined,
+        narrative: data.narrative?.isNarrative
+          ? {
+              isNarrative: true,
+              theme: data.narrative.theme || undefined,
+              prologue: data.narrative.prologue || undefined,
+              epilogue: data.narrative.epilogue || undefined,
+            }
+          : { isNarrative: false },
       };
       return api.patch(`/api/admin/games/${gameId}`, { settings: cleaned });
     },
@@ -167,6 +194,20 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
               <dt className="text-gray-500">Rozmiar drużyny</dt>
               <dd className="font-medium text-gray-800 mt-0.5">
                 {settings.minTeamSize ?? 2}–{settings.maxTeamSize ?? 4}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-gray-500">Tryb narracyjny</dt>
+            <dd className="font-medium text-gray-800 mt-0.5">
+              {(settings as any).narrative?.isNarrative ? 'Tak' : 'Nie'}
+            </dd>
+          </div>
+          {(settings as any).narrative?.isNarrative && (settings as any).narrative?.theme && (
+            <div>
+              <dt className="text-gray-500">Temat</dt>
+              <dd className="font-medium text-gray-800 mt-0.5">
+                {(settings as any).narrative.theme}
               </dd>
             </div>
           )}
@@ -294,6 +335,50 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
             </div>
           </div>
         )}
+
+        {/* Narrative mode */}
+        <div className="mt-4 pt-4 border-t border-gray-100">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              {...register('narrative.isNarrative')}
+              type="checkbox"
+              className="w-4 h-4 accent-[#FF6B35]"
+            />
+            <span className="text-sm text-gray-700">Tryb narracyjny</span>
+          </label>
+
+          {isNarrative && (
+            <div className="flex flex-col gap-3 mt-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600">Temat</label>
+                <input
+                  {...register('narrative.theme')}
+                  type="text"
+                  placeholder="np. Średniowieczna zagadka"
+                  className={inputClass()}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600">Prolog</label>
+                <textarea
+                  {...register('narrative.prologue')}
+                  rows={3}
+                  placeholder="Tekst wprowadzający do gry..."
+                  className={`${inputClass()} resize-none`}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-gray-600">Epilog</label>
+                <textarea
+                  {...register('narrative.epilogue')}
+                  rows={3}
+                  placeholder="Tekst kończący grę..."
+                  className={`${inputClass()} resize-none`}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </fieldset>
     </form>
   );

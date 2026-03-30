@@ -88,6 +88,13 @@ export interface UnlockGpsConfig {
 
 export type TaskUnlockConfig = UnlockQrConfig | UnlockGpsConfig;
 
+export interface TaskStoryContext {
+  locationIntro?: string;
+  taskNarrative?: string;
+  clueRevealed?: string;
+  characterName?: string;
+}
+
 export interface Task {
   id: string;
   gameId: string;
@@ -102,6 +109,7 @@ export interface Task {
   verifyConfig: VerifyConfig;
   maxPoints: number;
   timeLimitSec?: number;
+  storyContext?: string;
   hints?: Hint[];
 }
 
@@ -125,6 +133,7 @@ export interface CreateTaskDto {
   verifyConfig: VerifyConfig;
   maxPoints: number;
   timeLimitSec?: number;
+  storyContext?: string;
 }
 
 export interface UpdateTaskDto extends Partial<CreateTaskDto> {}
