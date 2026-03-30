@@ -57,4 +57,8 @@ export class CreateTaskDto {
   @IsInt()
   @Min(10)
   timeLimitSec?: number;
+
+  @IsOptional()
+  @IsString()
+  storyContext?: string;
 }

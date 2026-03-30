@@ -105,6 +105,7 @@ model Task {
   verifyConfig Json
   maxPoints    Int
   timeLimitSec Int?
+  storyContext String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

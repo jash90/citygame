@@ -14,8 +14,10 @@ import { StyledSafeAreaView } from '@/lib/styled';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import { TaskRenderer } from '@/components/task/TaskRenderer';
 import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
+import { StoryContextCard } from '@/components/task/StoryContextCard';
 import { useSubmitTask, useUnlockTask, useHint } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
+import { useLocationStore } from '@/stores/locationStore';
 import type { TaskSubmission, HintResult } from '@/services/api';
 
 // ── Countdown timer ───────────────────────────────────────────────────────────
@@ -138,12 +140,18 @@ export default function TaskDetailScreen(): React.JSX.Element {
   routerRef.current = router;
   const [showHints, setShowHints] = useState(false);
 
-  const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult } = useGameStore();
+  const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult, addClue } = useGameStore();
   const submitMutation = useSubmitTask();
   const unlockMutation = useUnlockTask();
 
   const task = tasks.find((t) => t.id === taskId);
   const gameId = currentGame?.id ?? '';
+
+  // Parse story context if present
+  const storyContext = task?.storyContext ? (() => {
+    try { return JSON.parse(task.storyContext!) as Record<string, string>; }
+    catch { return null; }
+  })() : null;
 
   // Task needs to be unlocked before showing the input form
   const isLocked = task?.status === 'locked';
@@ -181,8 +189,19 @@ export default function TaskDetailScreen(): React.JSX.Element {
 
   const handleUnlock = (): void => {
     if (!task || !gameId) return;
+
+    let unlockData: Record<string, unknown> | undefined;
+    if (task.unlockMethod === 'GPS') {
+      const playerLocation = useLocationStore.getState().location;
+      if (!playerLocation) {
+        Alert.alert('Brak lokalizacji', 'Włącz GPS i spróbuj ponownie.');
+        return;
+      }
+      unlockData = { latitude: playerLocation.lat, longitude: playerLocation.lng };
+    }
+
     unlockMutation.mutate(
-      { gameId, taskId: task.id },
+      { gameId, taskId: task.id, unlockData },
       {
         onSuccess: (result) => {
           if (!result.unlocked) {
@@ -208,6 +227,31 @@ export default function TaskDetailScreen(): React.JSX.Element {
       const isSuccess =
         attempt.status === 'CORRECT' || attempt.status === 'PARTIAL';
 
+      // Collect clue from story context on success
+      if (isSuccess && storyContext?.clueRevealed) {
+        addClue(storyContext.clueRevealed);
+      }
+
+      // Check if all tasks are now completed
+      const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
+      const completedAfter = new Set(currentCompleted);
+      if (isSuccess) completedAfter.add(task.id);
+      const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
+
+      if (allDone) {
+        router.replace({
+          pathname: '/game-summary' as never,
+          params: {
+            totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
+            tasksCompleted: String(completedAfter.size),
+            totalTasks: String(allTasks.length),
+            timeTakenSec: '0',
+            rank: '0',
+          },
+        });
+        return;
+      }
+
       router.push({
         pathname: '/(modals)/task-result' as never,
         params: {
@@ -219,6 +263,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
               : attempt.status === 'PARTIAL'
                 ? 'Częściowo poprawna odpowiedź.'
                 : 'Niestety, to nie ta odpowiedź.',
+          clue: isSuccess && storyContext?.clueRevealed ? storyContext.clueRevealed : '',
         },
       });
     } catch {
@@ -289,6 +334,11 @@ export default function TaskDetailScreen(): React.JSX.Element {
             </Text>
           </View>
         </View>
+
+        {/* Story context (narrative games) */}
+        {storyContext ? (
+          <StoryContextCard context={storyContext} />
+        ) : null}
 
         {/* Description */}
         <View className="bg-surface rounded-2xl p-4 border border-gray-100">

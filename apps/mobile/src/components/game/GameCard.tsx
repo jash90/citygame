@@ -26,9 +26,17 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
       )}
       <View className="p-4 gap-3">
         <View>
-          <Text className="text-lg font-bold text-secondary" numberOfLines={1}>
-            {game.name}
-          </Text>
+          <View className="flex-row items-center gap-2">
+            <Text className="text-lg font-bold text-secondary flex-1" numberOfLines={1}>
+              {game.name}
+            </Text>
+            {game.narrative?.isNarrative ? (
+              <View className="flex-row items-center gap-1 rounded-full px-2.5 py-1" style={{ backgroundColor: '#1a1a2e' }}>
+                <Ionicons name="book" size={10} color="#D4A574" />
+                <Text className="text-[10px] font-semibold" style={{ color: '#D4A574' }}>Historia</Text>
+              </View>
+            ) : null}
+          </View>
           <View className="flex-row items-center gap-1 mt-0.5">
             <Ionicons name="location-outline" size={14} color="#6B7280" />
             <Text className="text-sm text-gray-500">{game.city}</Text>

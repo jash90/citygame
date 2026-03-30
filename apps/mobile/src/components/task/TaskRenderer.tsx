@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { withUniwind } from 'uniwind';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '@/stores/gameStore';
+import { useLocationStore } from '@/stores/locationStore';
 import { storageApi } from '@/services/api';
 import { MediaCapture } from './MediaCapture';
 import { AudioRecorder } from './AudioRecorder';
@@ -100,12 +101,17 @@ const GPSTaskInput = ({
   onReady: (coords: { latitude: number; longitude: number }) => void;
 }): React.JSX.Element => {
   const [verified, setVerified] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const playerLocation = useLocationStore((s) => s.location);
 
   const handleCheck = (): void => {
-    const lat = task.location?.lat ?? 0;
-    const lng = task.location?.lng ?? 0;
+    if (!playerLocation) {
+      setError('Brak sygnału GPS. Upewnij się, że lokalizacja jest włączona.');
+      return;
+    }
+    setError(null);
     setVerified(true);
-    onReady({ latitude: lat, longitude: lng });
+    onReady({ latitude: playerLocation.lat, longitude: playerLocation.lng });
   };
 
   return (
@@ -119,6 +125,11 @@ const GPSTaskInput = ({
           <Text className="text-xs text-gray-500 mt-1">
             Promień: {task.location.radiusMeters} m
           </Text>
+        </View>
+      ) : null}
+      {error ? (
+        <View className="bg-red-50 rounded-xl p-3">
+          <Text className="text-sm text-red-600">{error}</Text>
         </View>
       ) : null}
       <TouchableOpacity

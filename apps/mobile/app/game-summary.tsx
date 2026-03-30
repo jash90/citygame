@@ -16,7 +16,8 @@ export default function GameSummaryScreen(): React.JSX.Element {
       rank: string;
     }>();
 
-  const { reset } = useGameStore();
+  const { reset, currentGame, collectedClues } = useGameStore();
+  const isNarrative = currentGame?.narrative?.isNarrative;
 
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -78,13 +79,48 @@ export default function GameSummaryScreen(): React.JSX.Element {
         <Animated.View style={[{ opacity: opacityAnim }]}>
           <View className="items-center gap-2">
             <Text className="text-3xl font-extrabold text-secondary text-center">
-              Gratulacje!
+              {isNarrative ? 'Rękopis odnaleziony!' : 'Gratulacje!'}
             </Text>
             <Text className="text-base text-gray-500 text-center">
-              Ukończyłeś grę miejską
+              {isNarrative ? 'Rozwiązałeś zagadkę kronikarza' : 'Ukończyłeś grę miejską'}
             </Text>
           </View>
         </Animated.View>
+
+        {/* Narrative epilogue */}
+        {isNarrative && currentGame?.narrative?.epilogue ? (
+          <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>
+            <View
+              className="w-full rounded-2xl p-5 border border-amber-200/50"
+              style={{ backgroundColor: '#1a1a2e' }}
+            >
+              <View className="flex-row items-center gap-2 mb-3">
+                <Ionicons name="book" size={14} color="#D4A574" />
+                <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#D4A574' }}>
+                  Epilog
+                </Text>
+              </View>
+              <Text className="text-sm leading-6" style={{ color: '#E8D5B7' }}>
+                {currentGame.narrative.epilogue}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* Collected clues */}
+        {isNarrative && collectedClues.length > 0 ? (
+          <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>
+            <View className="w-full bg-gray-50 rounded-2xl p-5">
+              <Text className="text-sm font-bold text-secondary mb-3">Zebrane fragmenty</Text>
+              {collectedClues.map((clue, i) => (
+                <View key={i} className="flex-row gap-2 mb-2">
+                  <Text className="text-xs font-bold text-primary">{i + 1}.</Text>
+                  <Text className="flex-1 text-xs italic text-gray-600">„{clue}"</Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
 
         {/* Stats grid */}
         <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>

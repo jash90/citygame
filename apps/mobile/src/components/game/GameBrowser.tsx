@@ -7,6 +7,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { GameCard } from './GameCard';
+import { GamePrologueModal } from './GamePrologueModal';
 import { useGames, useStartGame, useGame } from '@/hooks/useGame';
 import type { Game } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
@@ -28,12 +29,18 @@ export const GameBrowser = (): React.JSX.Element => {
   const { data: games, isLoading, isFetching, refetch } = useGames();
   const startGame = useStartGame();
   const [joiningGameId, setJoiningGameId] = useState<string | null>(null);
+  const [prologueGame, setPrologueGame] = useState<Game | null>(null);
 
   useGame(joiningGameId ?? '');
 
   const handleJoin = (game: Game): void => {
     setJoiningGameId(game.id);
     startGame.mutate(game.id, {
+      onSuccess: () => {
+        if (game.narrative?.isNarrative && game.narrative.prologue) {
+          setPrologueGame(game);
+        }
+      },
       onError: () => {
         setJoiningGameId(null);
       },
@@ -80,6 +87,14 @@ export const GameBrowser = (): React.JSX.Element => {
         }
         showsVerticalScrollIndicator={false}
       />
+      {prologueGame?.narrative ? (
+        <GamePrologueModal
+          visible={!!prologueGame}
+          narrative={prologueGame.narrative}
+          gameName={prologueGame.name}
+          onStart={() => setPrologueGame(null)}
+        />
+      ) : null}
     </StyledSafeAreaView>
   );
 };
