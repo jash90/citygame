@@ -5,8 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronDown, ChevronUp, Activity, CheckCircle, MapPin, Loader2 } from 'lucide-react';
-import { api, adminApi } from '@/lib/api';
-import type { Game } from '@citygame/shared';
+import { adminApi } from '@/lib/api';
+import type { Game, Task } from '@citygame/shared';
 import { useMonitor } from '@/hooks/useMonitor';
 import { GameTimer } from '@/components/monitor/GameTimer';
 import { PlayerActivityFeed } from '@/components/monitor/PlayerActivityFeed';
@@ -18,10 +18,10 @@ export default function MonitorPage() {
   const { gameId } = useParams<{ gameId: string }>();
   const [mapExpanded, setMapExpanded] = useState(true);
 
-  // Fetch base game info
-  const { data: game, isLoading: gameLoading } = useQuery<Game>({
+  // Fetch base game info with tasks
+  const { data: game, isLoading: gameLoading } = useQuery<Game & { tasks: Task[] }>({
     queryKey: ['games', gameId],
-    queryFn: () => api.get<Game>(`/api/games/${gameId}`),
+    queryFn: () => adminApi.getGame(gameId),
   });
 
   // Fetch sessions for player count baseline
@@ -46,31 +46,29 @@ export default function MonitorPage() {
     initialPlayerCount: sessions.length,
   });
 
-  // Seed task progress from game data when available
+  // Seed task progress from real game tasks
   useEffect(() => {
-    if (!game || taskProgress.length > 0) return;
-    // If we have real task data from adminApi we'd use it; seed with game.taskCount placeholder
-    const count = game.taskCount ?? 0;
-    if (count === 0) return;
+    if (!game?.tasks?.length || taskProgress.length > 0) return;
+    const totalPlayers = Math.max(sessions.length, 1);
     setTaskProgress(
-      Array.from({ length: count }, (_, i) => ({
-        taskId: `task-placeholder-${i}`,
-        title: `Zadanie ${i + 1}`,
-        type: 'QR_SCAN',
+      game.tasks.map((t) => ({
+        taskId: t.id,
+        title: t.title,
+        type: t.type,
         completions: 0,
-        total: Math.max(game.playerCount ?? 1, 1),
+        total: totalPlayers,
       })),
     );
-  }, [game, taskProgress.length, setTaskProgress]);
+  }, [game, taskProgress.length, sessions.length, setTaskProgress]);
 
-  // Task locations derived from sessions or empty for MVP
-  const taskLocations = taskProgress
-    .filter((t) => !t.taskId.startsWith('task-placeholder'))
+  // Task locations derived from real task coordinates
+  const taskLocations = (game?.tasks ?? [])
+    .filter((t) => t.latitude !== 0 || t.longitude !== 0)
     .map((t) => ({
-      taskId: t.taskId,
+      taskId: t.id,
       title: t.title,
-      latitude: 0,
-      longitude: 0,
+      latitude: t.latitude,
+      longitude: t.longitude,
       activePlayerCount: 0,
     }));
 

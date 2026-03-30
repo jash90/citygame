@@ -172,25 +172,31 @@ export function useMonitor({
   // Subscribe to WebSocket events
   useEffect(() => {
     const offActivity = onEvent<{
-      id: string;
+      id?: string;
       playerName: string;
-      action: ActivityEntry['action'];
+      type: string;
+      action?: ActivityEntry['action'];
       details: string;
       points?: number;
-      timestamp: string;
+      timestamp?: string;
     }>('activity', (event) => {
+      const action = (event.action ?? event.type) as ActivityEntry['action'];
       dispatch({
         type: 'ADD_ACTIVITY',
         payload: {
-          ...event,
-          timestamp: new Date(event.timestamp),
+          id: event.id ?? crypto.randomUUID(),
+          playerName: event.playerName,
+          action,
+          details: event.details,
+          points: event.points,
+          timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
         },
       });
 
-      if (event.action === 'task_completed') {
+      if (action === 'task_completed') {
         dispatch({ type: 'INCREMENT_COMPLETIONS' });
       }
-      if (event.action === 'game_joined') {
+      if (action === 'game_joined') {
         dispatch({ type: 'INCREMENT_PLAYERS' });
       }
     });

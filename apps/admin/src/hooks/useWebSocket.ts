@@ -80,11 +80,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   }, [autoConnect]);
 
   const joinGame = useCallback((gameId: string) => {
-    socketRef.current?.emit('watch_game', { gameId });
+    socketRef.current?.emit('join-game', { gameId });
   }, []);
 
   const leaveGame = useCallback((gameId: string) => {
-    socketRef.current?.emit('unwatch_game', { gameId });
+    socketRef.current?.emit('leave-game', { gameId });
   }, []);
 
   const emit = useCallback((event: string, data?: unknown) => {

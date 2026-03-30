@@ -126,7 +126,11 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
    * Covers: task completed, hint used, game joined, etc.
    */
   broadcastActivity(gameId: string, payload: ActivityPayload): void {
-    this.server.to(`game:${gameId}`).emit('activity', payload);
+    this.server.to(`game:${gameId}`).emit('activity', {
+      ...payload,
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**
