@@ -73,8 +73,6 @@ export const useSubmitTask = () => {
     onSuccess: (attempt, variables) => {
       if (attempt.status === 'CORRECT' || attempt.status === 'PARTIAL') {
         markTaskCompleted(variables.taskId);
-      } else {
-        updateTaskStatus(variables.taskId, 'failed');
       }
       void queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.GAME(variables.gameId),
