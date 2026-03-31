@@ -12,7 +12,12 @@ import { GameTimer } from '@/components/monitor/GameTimer';
 import { PlayerActivityFeed } from '@/components/monitor/PlayerActivityFeed';
 import { TaskProgressBars } from '@/components/monitor/TaskProgressBars';
 import { AIErrorPanel } from '@/components/monitor/AIErrorPanel';
-import { MiniMapMonitor } from '@/components/monitor/MiniMapMonitor';
+import dynamic from 'next/dynamic';
+
+const LiveMapMonitor = dynamic(
+  () => import('@/components/monitor/LiveMapMonitor').then((m) => m.LiveMapMonitor),
+  { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-gray-400 text-sm">Ładowanie mapy…</div> },
+);
 
 export default function MonitorPage() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -36,6 +41,7 @@ export default function MonitorPage() {
     activities,
     taskProgress,
     aiErrors,
+    playerLocations,
     stats,
     connectionStatus,
     retryAIError,
@@ -157,7 +163,7 @@ export default function MonitorPage() {
         </div>
       </div>
 
-      {/* Collapsible map section */}
+      {/* Collapsible live map section */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
         <button
           type="button"
@@ -165,14 +171,19 @@ export default function MonitorPage() {
           className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 w-full text-left hover:bg-gray-50 transition-colors"
         >
           <MapPin size={15} className="text-[#FF6B35]" />
-          <span className="text-sm font-semibold text-gray-700">Mini Mapa</span>
+          <span className="text-sm font-semibold text-gray-700">Mapa live</span>
+          {playerLocations.length > 0 && (
+            <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              {playerLocations.length} graczy
+            </span>
+          )}
           <span className="ml-auto text-gray-400">
             {mapExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </span>
         </button>
         {mapExpanded && (
-          <div style={{ height: '240px' }}>
-            <MiniMapMonitor tasks={taskLocations} />
+          <div style={{ height: '360px' }}>
+            <LiveMapMonitor tasks={taskLocations} players={playerLocations} />
           </div>
         )}
       </div>

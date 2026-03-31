@@ -123,6 +123,7 @@ export class GameService {
             maxPoints: true,
             timeLimitSec: true,
             storyContext: true,
+            _count: { select: { hints: true } },
           },
         },
         _count: { select: { tasks: true, sessions: true } },

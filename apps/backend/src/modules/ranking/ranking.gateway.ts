@@ -37,6 +37,7 @@ export interface ActivityPayload {
   playerName: string;
   details: string;
   points?: number;
+  taskId?: string;
 }
 
 export interface TeamUpdatePayload {
@@ -44,6 +45,16 @@ export interface TeamUpdatePayload {
   teamId: string;
   teamName: string;
   ranking: TeamRankEntry[];
+}
+
+export interface PlayerLocationPayload {
+  gameId: string;
+  userId: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  accuracy?: number | null;
 }
 
 @WebSocketGateway({
@@ -61,12 +72,30 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   private readonly logger = new Logger(RankingGateway.name);
 
+  /** In-memory store of live player locations per game. */
+  private readonly playerLocations = new Map<
+    string, // gameId
+    Map<string, PlayerLocationPayload> // userId → location
+  >();
+
   handleConnection(client: Socket): void {
     this.logger.log(`Client connected to ranking gateway: ${client.id}`);
   }
 
   handleDisconnect(client: Socket): void {
     this.logger.log(`Client disconnected from ranking gateway: ${client.id}`);
+
+    // Clean up player location data when a client disconnects
+    const userId = (client as Socket & { _locationUserId?: string })._locationUserId;
+    const gameId = (client as Socket & { _locationGameId?: string })._locationGameId;
+    if (userId && gameId) {
+      const gameLocs = this.playerLocations.get(gameId);
+      if (gameLocs) {
+        gameLocs.delete(userId);
+        if (gameLocs.size === 0) this.playerLocations.delete(gameId);
+        this.broadcastPlayerLocations(gameId);
+      }
+    }
   }
 
   /**
@@ -131,6 +160,58 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
     });
+  }
+
+  /**
+   * Receive live location updates from mobile players and rebroadcast
+   * the full player location set to admin clients watching the game room.
+   */
+  @SubscribeMessage('location:update')
+  handleLocationUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      gameId: string;
+      userId: string;
+      displayName: string;
+      latitude: number;
+      longitude: number;
+      heading?: number | null;
+      accuracy?: number | null;
+    },
+  ): void {
+    if (!data.gameId || !data.userId) return;
+
+    // Store reference on socket for cleanup on disconnect
+    (client as Socket & { _locationUserId?: string })._locationUserId = data.userId;
+    (client as Socket & { _locationGameId?: string })._locationGameId = data.gameId;
+
+    let gameLocs = this.playerLocations.get(data.gameId);
+    if (!gameLocs) {
+      gameLocs = new Map();
+      this.playerLocations.set(data.gameId, gameLocs);
+    }
+
+    gameLocs.set(data.userId, {
+      gameId: data.gameId,
+      userId: data.userId,
+      displayName: data.displayName,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      heading: data.heading,
+      accuracy: data.accuracy,
+    });
+
+    this.broadcastPlayerLocations(data.gameId);
+  }
+
+  /**
+   * Broadcast all known player locations to admin clients watching a game.
+   */
+  broadcastPlayerLocations(gameId: string): void {
+    const gameLocs = this.playerLocations.get(gameId);
+    const players = gameLocs ? Array.from(gameLocs.values()) : [];
+    this.server.to(`game:${gameId}`).emit('player:locations', { gameId, players });
   }
 
   /**

@@ -387,7 +387,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
             ) : null}
 
             {/* Hints */}
-            {currentSession && (
+            {currentSession && task.hintCount > 0 && (
               <View>
                 <TouchableOpacity
                   className="flex-row items-center gap-2 py-2"

@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useCallback,
   type ReactNode,
 } from 'react';
 import { io, type Socket } from 'socket.io-client';
@@ -11,6 +12,7 @@ import { WS_URL, RANKING_WS_NAMESPACE } from '@/lib/constants';
 import { useAuthStore } from '@/stores/authStore';
 import { useRankingStore } from '@/stores/rankingStore';
 import { useGameStore, type AiResult } from '@/stores/gameStore';
+import { useLocationStore } from '@/stores/locationStore';
 import type { RankingEntry } from '@/services/api';
 
 interface WebSocketContextValue {
@@ -90,13 +92,42 @@ export const WebSocketProvider = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, tokens?.accessToken]);
 
-  const joinGame = (sessionId: string): void => {
-    socketRef.current?.emit('game:join', { sessionId });
-  };
+  // Broadcast live location to backend every 5 seconds while in a game
+  const activeGameRef = useRef<string | null>(null);
+  const currentGameId = useGameStore((s) => s.currentGame?.id ?? null);
 
-  const leaveGame = (sessionId: string): void => {
+  useEffect(() => {
+    if (!isConnected || !currentGameId) return;
+    activeGameRef.current = currentGameId;
+
+    const intervalId = setInterval(() => {
+      const loc = useLocationStore.getState().location;
+      const heading = useLocationStore.getState().heading;
+      const accuracy = useLocationStore.getState().accuracy;
+      const user = useAuthStore.getState().user;
+      if (!loc || !user || !activeGameRef.current) return;
+
+      socketRef.current?.emit('location:update', {
+        gameId: activeGameRef.current,
+        userId: user.id,
+        displayName: user.displayName ?? user.email,
+        latitude: loc.lat,
+        longitude: loc.lng,
+        heading,
+        accuracy,
+      });
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [isConnected, currentGameId]);
+
+  const joinGame = useCallback((sessionId: string): void => {
+    socketRef.current?.emit('game:join', { sessionId });
+  }, []);
+
+  const leaveGame = useCallback((sessionId: string): void => {
     socketRef.current?.emit('game:leave', { sessionId });
-  };
+  }, []);
 
   return (
     <WebSocketContext.Provider

@@ -149,6 +149,7 @@ interface BackendTask {
   unlockConfig: Record<string, unknown>;
   timeLimitSec?: number | null;
   storyContext?: string | null;
+  _count?: { hints: number };
   [key: string]: unknown;
 }
 
@@ -179,6 +180,7 @@ function mapTask(bt: BackendTask): Task {
     requiresUnlock: bt.unlockMethod === 'GPS' || bt.unlockMethod === 'QR',
     unlockMethod: (bt.unlockMethod as 'GPS' | 'QR' | 'NONE') ?? 'NONE',
     storyContext: bt.storyContext ?? undefined,
+    hintCount: bt._count?.hints ?? 0,
     location: {
       lat: bt.latitude,
       lng: bt.longitude,
@@ -269,6 +271,7 @@ export interface Task {
   requiresUnlock?: boolean;
   unlockMethod?: 'GPS' | 'QR' | 'NONE';
   storyContext?: string;
+  hintCount: number;
   location?: {
     lat: number;
     lng: number;
