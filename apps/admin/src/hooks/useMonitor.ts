@@ -29,6 +29,15 @@ export interface AIErrorEntry {
   timestamp: Date;
 }
 
+export interface PlayerLocation {
+  userId: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  accuracy?: number | null;
+}
+
 export interface MonitorStats {
   activePlayers: number;
   totalCompletions: number;
@@ -39,6 +48,7 @@ interface MonitorState {
   activities: ActivityEntry[];
   taskProgress: TaskProgressEntry[];
   aiErrors: AIErrorEntry[];
+  playerLocations: PlayerLocation[];
   stats: MonitorStats;
 }
 
@@ -49,6 +59,7 @@ type MonitorAction =
   | { type: 'ADD_AI_ERROR'; payload: AIErrorEntry }
   | { type: 'REMOVE_AI_ERROR'; payload: { id: string } }
   | { type: 'SET_STATS'; payload: Partial<MonitorStats> }
+  | { type: 'SET_PLAYER_LOCATIONS'; payload: PlayerLocation[] }
   | { type: 'INCREMENT_COMPLETIONS' }
   | { type: 'INCREMENT_PLAYERS' }
   | { type: 'TICK_ELAPSED' };
@@ -89,6 +100,9 @@ function monitorReducer(state: MonitorState, action: MonitorAction): MonitorStat
     case 'SET_STATS':
       return { ...state, stats: { ...state.stats, ...action.payload } };
 
+    case 'SET_PLAYER_LOCATIONS':
+      return { ...state, playerLocations: action.payload };
+
     case 'INCREMENT_COMPLETIONS':
       return {
         ...state,
@@ -125,6 +139,7 @@ interface UseMonitorReturn {
   activities: ActivityEntry[];
   taskProgress: TaskProgressEntry[];
   aiErrors: AIErrorEntry[];
+  playerLocations: PlayerLocation[];
   stats: MonitorStats;
   connectionStatus: ConnectionStatus;
   retryAIError: (errorId: string) => void;
@@ -140,6 +155,7 @@ export function useMonitor({
     activities: [],
     taskProgress: [],
     aiErrors: [],
+    playerLocations: [],
     stats: {
       activePlayers: initialPlayerCount,
       totalCompletions: 0,
@@ -178,6 +194,7 @@ export function useMonitor({
       action?: ActivityEntry['action'];
       details: string;
       points?: number;
+      taskId?: string;
       timestamp?: string;
     }>('activity', (event) => {
       const action = (event.action ?? event.type) as ActivityEntry['action'];
@@ -195,6 +212,9 @@ export function useMonitor({
 
       if (action === 'task_completed') {
         dispatch({ type: 'INCREMENT_COMPLETIONS' });
+        if (event.taskId) {
+          dispatch({ type: 'INCREMENT_TASK', payload: { taskId: event.taskId } });
+        }
       }
       if (action === 'game_joined') {
         dispatch({ type: 'INCREMENT_PLAYERS' });
@@ -222,11 +242,18 @@ export function useMonitor({
       dispatch({ type: 'SET_STATS', payload: { activePlayers: count } });
     });
 
+    const offPlayerLocations = onEvent<{
+      players: PlayerLocation[];
+    }>('player:locations', ({ players }) => {
+      dispatch({ type: 'SET_PLAYER_LOCATIONS', payload: players });
+    });
+
     return () => {
       offActivity();
       offTaskComplete();
       offAiError();
       offPlayerCount();
+      offPlayerLocations();
     };
   }, [onEvent, connectEpoch]);
 
@@ -242,6 +269,7 @@ export function useMonitor({
     activities: state.activities,
     taskProgress: state.taskProgress,
     aiErrors: state.aiErrors,
+    playerLocations: state.playerLocations,
     stats: state.stats,
     connectionStatus: status,
     retryAIError,

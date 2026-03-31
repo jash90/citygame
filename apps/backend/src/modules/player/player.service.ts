@@ -511,7 +511,7 @@ export class PlayerService {
       await this.notifyTopRankingChanges(gameId, ranking);
     }
 
-    await this.onTaskCorrect(gameId, userId, taskTitle, pointsAwarded, attemptId, teamId);
+    await this.onTaskCorrect(gameId, userId, taskId, taskTitle, pointsAwarded, attemptId, teamId);
   }
 
   /**
@@ -521,6 +521,7 @@ export class PlayerService {
   private async onTaskCorrect(
     gameId: string,
     userId: string,
+    taskId: string,
     taskTitle: string,
     pointsAwarded: number,
     attemptId: string,
@@ -538,6 +539,7 @@ export class PlayerService {
       playerName,
       details: `ukończył zadanie "${taskTitle}"`,
       points: pointsAwarded,
+      taskId,
     });
 
     // Push notifications to other active players (excluding the current user's team in team mode)

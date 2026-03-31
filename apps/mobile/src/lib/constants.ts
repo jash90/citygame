@@ -1,12 +1,8 @@
-import Constants from 'expo-constants';
-
-const extra = Constants.expoConfig?.extra ?? {};
-
 export const API_URL: string =
-  (extra.apiUrl as string | undefined) ?? 'http://localhost:3001/api';
+  process.env.EXPO_PUBLIC_API_URL || "";
 
 export const WS_URL: string =
-  (extra.wsUrl as string | undefined) ?? 'http://localhost:3001';
+  process.env.EXPO_PUBLIC_WS_URL || "";
 
 export const SECURE_STORE_KEYS = {
   ACCESS_TOKEN: 'citygame_access_token',
