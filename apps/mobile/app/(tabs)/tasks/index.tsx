@@ -12,8 +12,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { withUniwind } from 'uniwind';
 import { TaskCard } from '@/components/task/TaskCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { useTasks } from '@/hooks/useGame';
+import { useTasks, useProgress } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
+import { useGameTimer } from '@/hooks/useGameTimer';
 import type { Task } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
 
@@ -32,23 +33,34 @@ const EmptyState = (): React.JSX.Element => (
 
 export default function TasksScreen(): React.JSX.Element {
   const { currentGame, tasks } = useGameStore();
-  const { isFetching, refetch } = useTasks(currentGame?.id ?? '');
+  const { isLoading, isFetching, refetch } = useTasks(currentGame?.id ?? '');
+  useProgress(currentGame?.id ?? '');
   const router = useRouter();
+  const timer = useGameTimer(currentGame?.endsAt);
 
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
   const progress = tasks.length > 0 ? completedCount / tasks.length : 0;
 
   const handleTaskPress = (task: Task): void => {
-    router.push(`/(tabs)/tasks/${task.id}` as never);
+    router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'tasks' } } as never);
   };
 
   return (
     <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
       {/* Header */}
       <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
-        <Text className="text-2xl font-extrabold text-secondary mb-1">
-          Zadania
-        </Text>
+        <View className="flex-row items-center justify-between mb-1">
+          <Text className="text-2xl font-extrabold text-secondary">
+            Zadania
+          </Text>
+          {timer.formattedTime ? (
+            <View className={`rounded-xl px-3 py-1.5 ${timer.totalSeconds <= 300 ? 'bg-red-100' : 'bg-gray-100'}`}>
+              <Text className={`text-xs font-bold ${timer.totalSeconds <= 300 ? 'text-red-600' : 'text-gray-600'}`}>
+                ⏱ {timer.formattedTime}
+              </Text>
+            </View>
+          ) : null}
+        </View>
         {currentGame ? (
           <Text className="text-sm text-gray-500 mb-3">{currentGame.name}</Text>
         ) : null}
@@ -64,7 +76,7 @@ export default function TasksScreen(): React.JSX.Element {
       </View>
 
       {/* Task list */}
-      {isFetching && tasks.length === 0 ? (
+      {isLoading && tasks.length === 0 ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>

@@ -18,7 +18,7 @@ import { StoryContextCard } from '@/components/task/StoryContextCard';
 import { useSubmitTask, useUnlockTask, useHint } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import { useLocationStore } from '@/stores/locationStore';
-import type { TaskSubmission, HintResult } from '@/services/api';
+import type { TaskSubmission } from '@/services/api';
 
 // ── Countdown timer ───────────────────────────────────────────────────────────
 
@@ -61,17 +61,22 @@ const CountdownTimer = ({
   );
 };
 
-// ── Hints panel — uses real hint API ─────────────────────────────────────────
+// ── Hints panel — uses real hint API + store for persistence ─────────────────
 
 const HintsPanel = ({
   gameId,
   taskId,
+  totalHints,
 }: {
   gameId: string;
   taskId: string;
+  totalHints: number;
 }): React.JSX.Element => {
   const hintMutation = useHint();
-  const [revealedHints, setRevealedHints] = useState<HintResult['hint'][]>([]);
+  const revealedHints = useGameStore((s) => s.revealedHints.get(taskId) ?? []);
+  const addRevealedHint = useGameStore((s) => s.addRevealedHint);
+
+  const allUsed = revealedHints.length >= totalHints;
 
   const handleRevealHint = (): void => {
     Alert.alert(
@@ -86,7 +91,10 @@ const HintsPanel = ({
               { gameId, taskId },
               {
                 onSuccess: (result) => {
-                  setRevealedHints((prev) => [...prev, result.hint]);
+                  addRevealedHint(taskId, {
+                    content: result.hint.content,
+                    pointPenalty: result.hint.pointPenalty,
+                  });
                 },
                 onError: () => {
                   Alert.alert('Błąd', 'Nie udało się pobrać podpowiedzi.');
@@ -110,23 +118,30 @@ const HintsPanel = ({
           <Text className="text-sm text-amber-800">{hint.content}</Text>
         </View>
       ))}
-      <TouchableOpacity
-        className={`rounded-xl p-3 border border-gray-200 bg-gray-50 items-center ${hintMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
-        onPress={handleRevealHint}
-        disabled={hintMutation.isPending}
-        activeOpacity={0.8}
-      >
-        {hintMutation.isPending ? (
-          <ActivityIndicator size="small" color="#FF6B35" />
-        ) : (
-          <View className="flex-row items-center gap-1.5">
-            <Ionicons name="bulb-outline" size={16} color="#6B7280" />
-            <Text className="text-sm text-gray-500 text-center">
-              Poproś o kolejną podpowiedź
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      {!allUsed && (
+        <TouchableOpacity
+          className={`rounded-xl p-3 border border-gray-200 bg-gray-50 items-center ${hintMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
+          onPress={handleRevealHint}
+          disabled={hintMutation.isPending}
+          activeOpacity={0.8}
+        >
+          {hintMutation.isPending ? (
+            <ActivityIndicator size="small" color="#FF6B35" />
+          ) : (
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons name="bulb-outline" size={16} color="#6B7280" />
+              <Text className="text-sm text-gray-500 text-center">
+                Poproś o podpowiedź ({revealedHints.length}/{totalHints})
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      )}
+      {allUsed && revealedHints.length > 0 && (
+        <Text className="text-xs text-gray-400 text-center py-1">
+          Wykorzystano wszystkie podpowiedzi
+        </Text>
+      )}
     </View>
   );
 };
@@ -134,10 +149,18 @@ const HintsPanel = ({
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export default function TaskDetailScreen(): React.JSX.Element {
-  const { taskId } = useLocalSearchParams<{ taskId: string }>();
+  const { taskId, from } = useLocalSearchParams<{ taskId: string; from?: string }>();
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
+
+  const goBack = (): void => {
+    if (from === 'map') {
+      router.navigate('/(tabs)/map' as never);
+    } else {
+      router.navigate('/(tabs)/tasks' as never);
+    }
+  };
   const [showHints, setShowHints] = useState(false);
 
   const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult, addClue } = useGameStore();
@@ -273,7 +296,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
 
   const handleTimerExpire = (): void => {
     Alert.alert('Czas minął!', 'Niestety czas na to zadanie dobiegł końca.', [
-      { text: 'OK', onPress: () => router.back() },
+      { text: 'OK', onPress: () => goBack() },
     ]);
   };
 
@@ -291,7 +314,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
         <Text className="text-lg font-semibold text-gray-900 text-center">
           Nie znaleziono zadania
         </Text>
-        <TouchableOpacity onPress={() => router.back()} className="mt-4">
+        <TouchableOpacity onPress={goBack} className="mt-4">
           <Text className="text-primary font-semibold">Wróć</Text>
         </TouchableOpacity>
       </StyledSafeAreaView>
@@ -303,7 +326,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
       {/* Header */}
       <View className="flex-row items-center px-4 py-3 bg-surface border-b border-gray-100">
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={goBack}
           className="mr-3 w-8 h-8 items-center justify-center"
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -381,6 +404,28 @@ export default function TaskDetailScreen(): React.JSX.Element {
               />
             </View>
 
+            {__DEV__ && task.status !== 'completed' && (
+              <TouchableOpacity
+                className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
+                onPress={() => {
+                  const devSubmission: TaskSubmission = task.type === 'QR_SCAN'
+                    ? { scannedCode: '__DEV__' }
+                    : task.type === 'GPS_REACH'
+                      ? { latitude: task.location?.lat ?? 0, longitude: task.location?.lng ?? 0 }
+                      : task.type === 'PHOTO_AI'
+                        ? { imageUrl: '__DEV__' }
+                        : task.type === 'AUDIO_AI'
+                          ? { transcription: '__DEV__' }
+                          : { answer: '__DEV__' };
+                  void handleSubmit(devSubmission);
+                }}
+                disabled={submitMutation.isPending}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
+              </TouchableOpacity>
+            )}
+
             {/* AI verification status (shown when submission is pending AI check) */}
             {isAiTask && submitMutation.isPending ? (
               <AIVerificationStatus status="processing" />
@@ -400,7 +445,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
                   <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
                 </TouchableOpacity>
                 {showHints ? (
-                  <HintsPanel gameId={gameId} taskId={task.id} />
+                  <HintsPanel gameId={gameId} taskId={task.id} totalHints={task.hintCount} />
                 ) : null}
               </View>
             )}
