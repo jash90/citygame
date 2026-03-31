@@ -10,6 +10,7 @@ import {
   GameSession,
   GameStatus,
   Prisma,
+  RunStatus,
   SessionStatus,
   TaskAttempt,
   TaskType,
@@ -54,6 +55,7 @@ export class PlayerService {
       where: { id: gameId },
       include: {
         tasks: { orderBy: { orderIndex: 'asc' }, take: 1 },
+        runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
       },
     });
 
@@ -65,27 +67,40 @@ export class PlayerService {
       throw new ForbiddenException('This game is not available for play');
     }
 
+    const activeRun = game.runs[0];
+    if (!activeRun) {
+      throw new ForbiddenException('This game has no active session');
+    }
+
+    // Check if the current run has expired
+    if (activeRun.endsAt && new Date(activeRun.endsAt) < new Date()) {
+      throw new ForbiddenException('This game run has ended');
+    }
+
     const settings = game.settings as GameSettings;
 
     if (settings.teamMode) {
-      return this.startTeamGame(gameId, userId, game.tasks[0]?.id ?? null);
+      return this.startTeamGame(gameId, userId, game.tasks[0]?.id ?? null, activeRun.id);
     }
 
     const existingSession = await this.prisma.gameSession.findUnique({
-      where: { gameId_userId: { gameId, userId } },
+      where: {
+        gameRunId_userId: { gameRunId: activeRun.id, userId },
+      },
     });
 
     if (existingSession) {
       if (existingSession.status === SessionStatus.ACTIVE) {
         return existingSession;
       }
-      throw new ConflictException('You have already played this game');
+      throw new ConflictException('You have already played this game run');
     }
 
     const session = await this.prisma.gameSession.create({
       data: {
         gameId,
         userId,
+        gameRunId: activeRun.id,
         status: SessionStatus.ACTIVE,
         currentTaskId: game.tasks[0]?.id ?? null,
       },
@@ -106,6 +121,7 @@ export class PlayerService {
     gameId: string,
     userId: string,
     firstTaskId: string | null,
+    gameRunId: string,
   ): Promise<GameSession> {
     const membership = await this.teamService.findMembership(gameId, userId);
 
@@ -117,24 +133,25 @@ export class PlayerService {
 
     const { teamId } = membership;
 
-    // Check if any team member already has a session — shared team session
+    // Check if any team member already has a session for this run — shared team session
     const existingTeamSession = await this.prisma.gameSession.findFirst({
-      where: { gameId, teamId },
+      where: { gameId, teamId, gameRunId },
     });
 
     if (existingTeamSession) {
       if (existingTeamSession.status === SessionStatus.ACTIVE) {
-        // Ensure requesting user also has their own row pointing to the shared session data
         const userSession = await this.prisma.gameSession.findUnique({
-          where: { gameId_userId: { gameId, userId } },
+          where: {
+            gameRunId_userId: { gameRunId, userId },
+          },
         });
         if (!userSession) {
-          // Create a personal session row linked to the same team
           const newUserSession = await this.prisma.gameSession.create({
             data: {
               gameId,
               userId,
               teamId,
+              gameRunId,
               status: SessionStatus.ACTIVE,
               totalPoints: existingTeamSession.totalPoints,
               currentTaskId: existingTeamSession.currentTaskId,
@@ -145,15 +162,15 @@ export class PlayerService {
         }
         return userSession;
       }
-      throw new ConflictException('Your team has already played this game');
+      throw new ConflictException('Your team has already played this game run');
     }
 
-    // Create session for the first team member joining
     const session = await this.prisma.gameSession.create({
       data: {
         gameId,
         userId,
         teamId,
+        gameRunId,
         status: SessionStatus.ACTIVE,
         currentTaskId: firstTaskId,
       },
@@ -168,8 +185,45 @@ export class PlayerService {
    * Get the player's current progress: session, completed tasks, hint usages.
    */
   async getProgress(gameId: string, userId: string) {
+    // Find the active run for this game
+    const activeRun = await this.prisma.gameRun.findFirst({
+      where: { gameId, status: RunStatus.ACTIVE },
+    });
+
+    if (!activeRun) {
+      // Fall back to the most recent run the user participated in
+      const latestSession = await this.prisma.gameSession.findFirst({
+        where: { gameId, userId },
+        orderBy: { startedAt: 'desc' },
+        include: {
+          gameRun: true,
+          attempts: {
+            where: { status: AttemptStatus.CORRECT },
+            select: { taskId: true, pointsAwarded: true, createdAt: true },
+            orderBy: { createdAt: 'asc' },
+          },
+          hintUsages: { select: { hintId: true, usedAt: true, hint: { select: { taskId: true, content: true, pointPenalty: true } } } },
+        },
+      });
+
+      if (!latestSession) {
+        throw new NotFoundException('No session found for this game');
+      }
+
+      const totalTasks = await this.prisma.task.count({ where: { gameId } });
+      return {
+        session: latestSession,
+        completedTasks: latestSession.attempts.length,
+        totalTasks,
+        progressPercent: totalTasks > 0 ? Math.round((latestSession.attempts.length / totalTasks) * 100) : 0,
+        gameEnded: true,
+      };
+    }
+
     const session = await this.prisma.gameSession.findUnique({
-      where: { gameId_userId: { gameId, userId } },
+      where: {
+        gameRunId_userId: { gameRunId: activeRun.id, userId },
+      },
       include: {
         attempts: {
           where: { status: AttemptStatus.CORRECT },
@@ -177,13 +231,24 @@ export class PlayerService {
           orderBy: { createdAt: 'asc' },
         },
         hintUsages: {
-          select: { hintId: true, usedAt: true },
+          select: { hintId: true, usedAt: true, hint: { select: { taskId: true, content: true, pointPenalty: true } } },
         },
       },
     });
 
     if (!session) {
       throw new NotFoundException('No active session for this game');
+    }
+
+    const gameEnded = !!(activeRun.endsAt && new Date(activeRun.endsAt) < new Date());
+
+    // If the game run has ended but the session is still ACTIVE, mark it
+    if (gameEnded && session.status === SessionStatus.ACTIVE) {
+      await this.prisma.gameSession.update({
+        where: { id: session.id },
+        data: { status: SessionStatus.TIMED_OUT, completedAt: new Date() },
+      });
+      session.status = SessionStatus.TIMED_OUT;
     }
 
     const totalTasks = await this.prisma.task.count({ where: { gameId } });
@@ -194,6 +259,7 @@ export class PlayerService {
       completedTasks,
       totalTasks,
       progressPercent: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+      gameEnded,
     };
   }
 
@@ -347,6 +413,7 @@ export class PlayerService {
           // Async: ranking update, WebSocket broadcasts, push notifications
           void this.handlePostCorrect(
             gameId,
+            session.gameRunId,
             userId,
             taskId,
             task.title,
@@ -440,15 +507,141 @@ export class PlayerService {
     };
   }
 
+  /**
+   * Find any active session for this user across all games.
+   * Used by the mobile app to restore game state on re-login.
+   */
+  async getMyActiveSession(userId: string) {
+    const session = await this.prisma.gameSession.findFirst({
+      where: { userId, status: SessionStatus.ACTIVE },
+      include: {
+        gameRun: true,
+      },
+      orderBy: { startedAt: 'desc' },
+    });
+
+    if (!session) {
+      return null;
+    }
+
+    // If the game run has ended, mark session as timed out
+    if (session.gameRun.status === RunStatus.ENDED) {
+      await this.prisma.gameSession.update({
+        where: { id: session.id },
+        data: { status: SessionStatus.TIMED_OUT, completedAt: new Date() },
+      });
+      return null;
+    }
+
+    // If the run expired while the user was away
+    if (session.gameRun.endsAt && new Date(session.gameRun.endsAt) < new Date()) {
+      await this.prisma.gameSession.update({
+        where: { id: session.id },
+        data: { status: SessionStatus.TIMED_OUT, completedAt: new Date() },
+      });
+      return null;
+    }
+
+    return {
+      gameId: session.gameId,
+      sessionId: session.id,
+      gameRunId: session.gameRunId,
+    };
+  }
+
+  /**
+   * Get the user's answers for a specific past run (read-only).
+   */
+  async getRunAnswers(gameId: string, runNumber: number, userId: string) {
+    // Resolve runNumber to a GameRun
+    const gameRun = await this.prisma.gameRun.findUnique({
+      where: { gameId_runNumber: { gameId, runNumber } },
+    });
+
+    if (!gameRun) {
+      throw new NotFoundException('No run found with this number');
+    }
+
+    const session = await this.prisma.gameSession.findUnique({
+      where: {
+        gameRunId_userId: { gameRunId: gameRun.id, userId },
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('No session found for this run');
+    }
+
+    const attempts = await this.prisma.taskAttempt.findMany({
+      where: { sessionId: session.id },
+      include: {
+        task: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            type: true,
+            orderIndex: true,
+            maxPoints: true,
+          },
+        },
+      },
+      orderBy: [{ task: { orderIndex: 'asc' } }, { createdAt: 'asc' }],
+    });
+
+    return {
+      session: {
+        id: session.id,
+        status: session.status,
+        totalPoints: session.totalPoints,
+        startedAt: session.startedAt,
+        completedAt: session.completedAt,
+      },
+      attempts: attempts.map((a) => ({
+        taskId: a.taskId,
+        taskTitle: a.task.title,
+        taskDescription: a.task.description,
+        taskType: a.task.type,
+        maxPoints: a.task.maxPoints,
+        status: a.status,
+        pointsAwarded: a.pointsAwarded,
+        submission: a.submission,
+        aiResult: a.aiResult,
+        createdAt: a.createdAt,
+      })),
+    };
+  }
+
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   private async requireActiveSession(gameId: string, userId: string) {
+    const activeRun = await this.prisma.gameRun.findFirst({
+      where: { gameId, status: RunStatus.ACTIVE },
+    });
+
+    if (!activeRun) {
+      throw new ForbiddenException('This game has no active run');
+    }
+
     const session = await this.prisma.gameSession.findUnique({
-      where: { gameId_userId: { gameId, userId } },
+      where: {
+        gameRunId_userId: { gameRunId: activeRun.id, userId },
+      },
     });
 
     if (!session) {
       throw new NotFoundException('No session found. Start the game first.');
+    }
+
+    // Check if the game run has expired
+    if (activeRun.endsAt && new Date(activeRun.endsAt) < new Date()) {
+      if (session.status === SessionStatus.ACTIVE) {
+        await this.prisma.gameSession.update({
+          where: { id: session.id },
+          data: { status: SessionStatus.TIMED_OUT, completedAt: new Date() },
+        });
+      }
+      throw new ForbiddenException('This game run has ended');
     }
 
     if (session.status !== SessionStatus.ACTIVE) {
@@ -464,6 +657,7 @@ export class PlayerService {
    */
   private async handlePostCorrect(
     gameId: string,
+    runId: string,
     userId: string,
     taskId: string,
     taskTitle: string,
@@ -473,8 +667,8 @@ export class PlayerService {
     attemptId: string,
   ): Promise<void> {
     if (teamId) {
-      await this.rankingService.updateTeamScore(gameId, teamId, totalPoints);
-      const teamRanking = await this.rankingService.getTeamRanking(gameId);
+      await this.rankingService.updateTeamScore(runId, teamId, totalPoints);
+      const teamRanking = await this.rankingService.getTeamRanking(runId);
 
       // Retrieve team name for the broadcast payload
       const team = await this.prisma.team.findUnique({
@@ -497,8 +691,8 @@ export class PlayerService {
         totalPoints,
       });
     } else {
-      await this.rankingService.updateScore(gameId, userId, totalPoints);
-      const ranking = await this.rankingService.getRanking(gameId);
+      await this.rankingService.updateScore(runId, userId, totalPoints);
+      const ranking = await this.rankingService.getRanking(runId);
       this.rankingGateway.broadcastRankingUpdate(gameId, ranking);
       this.rankingGateway.broadcastPlayerCompletedTask({
         gameId,

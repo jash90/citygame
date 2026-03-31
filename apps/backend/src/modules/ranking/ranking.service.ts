@@ -67,33 +67,45 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Redis key for the sorted set of a game's player leaderboard.
+   * Redis key for the sorted set of a run's player leaderboard.
+   * Scoped by runId so each game run has its own ranking.
    */
-  private rankingKey(gameId: string): string {
-    return `ranking:game:${gameId}`;
+  private rankingKey(runId: string): string {
+    return `ranking:run:${runId}`;
   }
 
   /**
-   * Redis key for the sorted set of a game's team leaderboard.
+   * Redis key for the sorted set of a run's team leaderboard.
    */
-  private teamRankingKey(gameId: string): string {
-    return `ranking:game:${gameId}:teams`;
+  private teamRankingKey(runId: string): string {
+    return `ranking:run:${runId}:teams`;
   }
 
   /**
-   * Update (or add) a player's score in the game leaderboard sorted set.
+   * Resolve the active run ID for a game. Used by endpoints that don't have a runId.
+   */
+  async getActiveRunId(gameId: string): Promise<string | null> {
+    const run = await this.prisma.gameRun.findFirst({
+      where: { gameId, status: 'ACTIVE' },
+      select: { id: true },
+    });
+    return run?.id ?? null;
+  }
+
+  /**
+   * Update (or add) a player's score in the run leaderboard sorted set.
    * Uses ZADD with the absolute score (not an increment).
    */
-  async updateScore(gameId: string, userId: string, points: number): Promise<void> {
-    await this.redis.zadd(this.rankingKey(gameId), points, userId);
+  async updateScore(runId: string, userId: string, points: number): Promise<void> {
+    await this.redis.zadd(this.rankingKey(runId), points, userId);
   }
 
   /**
-   * Get the top-N entries in a game leaderboard, highest score first.
+   * Get the top-N entries in a run leaderboard, highest score first.
    */
-  async getRanking(gameId: string, limit = 50): Promise<RankEntry[]> {
+  async getRanking(runId: string, limit = 50): Promise<RankEntry[]> {
     const results = await this.redis.zrevrangebyscore(
-      this.rankingKey(gameId),
+      this.rankingKey(runId),
       '+inf',
       '-inf',
       'WITHSCORES',
@@ -114,10 +126,10 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Get the top-N leaderboard entries enriched with Prisma user profile data.
-   * Falls back to userId as display name if the user record is missing.
+   * Scoped to a specific run. Falls back to userId as display name if the user record is missing.
    */
-  async getRankingWithNames(gameId: string, limit = 50): Promise<EnrichedRankEntry[]> {
-    const rawEntries = await this.getRanking(gameId, limit);
+  async getRankingWithNames(runId: string, limit = 50): Promise<EnrichedRankEntry[]> {
+    const rawEntries = await this.getRanking(runId, limit);
 
     if (rawEntries.length === 0) {
       return [];
@@ -125,15 +137,14 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
 
     const userIds = rawEntries.map((e) => e.userId);
 
-    // Fetch user profiles and per-user correct-attempt counts for this game in parallel.
-    // groupBy does not support relation filters, so we query sessions first to get session ids.
+    // Fetch user profiles and per-user correct-attempt counts for this run in parallel.
     const [users, sessions] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true, displayName: true, avatarUrl: true },
       }),
       this.prisma.gameSession.findMany({
-        where: { gameId, userId: { in: userIds } },
+        where: { gameRunId: runId, userId: { in: userIds } },
         select: { id: true, userId: true },
       }),
     ]);
@@ -175,19 +186,19 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Update (or add) a team's score in the game team leaderboard sorted set.
+   * Update (or add) a team's score in the run team leaderboard sorted set.
    * Uses ZADD with the absolute score (not an increment).
    */
-  async updateTeamScore(gameId: string, teamId: string, points: number): Promise<void> {
-    await this.redis.zadd(this.teamRankingKey(gameId), points, teamId);
+  async updateTeamScore(runId: string, teamId: string, points: number): Promise<void> {
+    await this.redis.zadd(this.teamRankingKey(runId), points, teamId);
   }
 
   /**
-   * Get the top-N team entries in a game leaderboard, highest score first.
+   * Get the top-N team entries in a run leaderboard, highest score first.
    */
-  async getTeamRanking(gameId: string, limit = 50): Promise<TeamRankEntry[]> {
+  async getTeamRanking(runId: string, limit = 50): Promise<TeamRankEntry[]> {
     const results = await this.redis.zrevrangebyscore(
-      this.teamRankingKey(gameId),
+      this.teamRankingKey(runId),
       '+inf',
       '-inf',
       'WITHSCORES',
@@ -209,8 +220,8 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
   /**
    * Get the top-N team leaderboard entries enriched with team name and member count.
    */
-  async getTeamRankingWithNames(gameId: string, limit = 50): Promise<EnrichedTeamRankEntry[]> {
-    const rawEntries = await this.getTeamRanking(gameId, limit);
+  async getTeamRankingWithNames(runId: string, limit = 50): Promise<EnrichedTeamRankEntry[]> {
+    const rawEntries = await this.getTeamRanking(runId, limit);
 
     if (rawEntries.length === 0) {
       return [];
@@ -241,12 +252,12 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Get a single user's rank and score in a game (1-based, highest score = rank 1).
+   * Get a single user's rank and score in a run (1-based, highest score = rank 1).
    */
-  async getUserRank(gameId: string, userId: string): Promise<UserRankResult> {
+  async getUserRank(runId: string, userId: string): Promise<UserRankResult> {
     const [scoreStr, rank] = await Promise.all([
-      this.redis.zscore(this.rankingKey(gameId), userId),
-      this.redis.zrevrank(this.rankingKey(gameId), userId),
+      this.redis.zscore(this.rankingKey(runId), userId),
+      this.redis.zrevrank(this.rankingKey(runId), userId),
     ]);
 
     return {
