@@ -54,6 +54,7 @@ interface MonitorState {
 
 type MonitorAction =
   | { type: 'ADD_ACTIVITY'; payload: ActivityEntry }
+  | { type: 'SET_ACTIVITIES'; payload: ActivityEntry[] }
   | { type: 'SET_TASK_PROGRESS'; payload: TaskProgressEntry[] }
   | { type: 'INCREMENT_TASK'; payload: { taskId: string } }
   | { type: 'ADD_AI_ERROR'; payload: AIErrorEntry }
@@ -70,6 +71,12 @@ function monitorReducer(state: MonitorState, action: MonitorAction): MonitorStat
       return {
         ...state,
         activities: [action.payload, ...state.activities].slice(0, 100),
+      };
+
+    case 'SET_ACTIVITIES':
+      return {
+        ...state,
+        activities: action.payload.slice(0, 100),
       };
 
     case 'SET_TASK_PROGRESS':
@@ -133,6 +140,7 @@ interface UseMonitorOptions {
   gameId: string;
   startedAt?: string;
   initialPlayerCount?: number;
+  initialCompletions?: number;
 }
 
 interface UseMonitorReturn {
@@ -144,12 +152,14 @@ interface UseMonitorReturn {
   connectionStatus: ConnectionStatus;
   retryAIError: (errorId: string) => void;
   setTaskProgress: (tasks: TaskProgressEntry[]) => void;
+  setActivities: (activities: ActivityEntry[]) => void;
 }
 
 export function useMonitor({
   gameId,
   startedAt,
   initialPlayerCount = 0,
+  initialCompletions = 0,
 }: UseMonitorOptions): UseMonitorReturn {
   const [state, dispatch] = useReducer(monitorReducer, {
     activities: [],
@@ -158,7 +168,7 @@ export function useMonitor({
     playerLocations: [],
     stats: {
       activePlayers: initialPlayerCount,
-      totalCompletions: 0,
+      totalCompletions: initialCompletions,
       elapsedSeconds: startedAt
         ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
         : 0,
@@ -166,6 +176,31 @@ export function useMonitor({
   });
 
   const { status, joinGame, leaveGame, onEvent, connectEpoch } = useWebSocket();
+
+  // Sync initial stats when async data arrives
+  useEffect(() => {
+    if (initialPlayerCount > 0 || initialCompletions > 0) {
+      dispatch({
+        type: 'SET_STATS',
+        payload: {
+          activePlayers: initialPlayerCount,
+          totalCompletions: initialCompletions,
+        },
+      });
+    }
+  }, [initialPlayerCount, initialCompletions]);
+
+  // Sync elapsed time when startedAt changes
+  useEffect(() => {
+    if (startedAt) {
+      dispatch({
+        type: 'SET_STATS',
+        payload: {
+          elapsedSeconds: Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000),
+        },
+      });
+    }
+  }, [startedAt]);
 
   // Elapsed timer tick
   useEffect(() => {
@@ -265,6 +300,10 @@ export function useMonitor({
     dispatch({ type: 'SET_TASK_PROGRESS', payload: tasks });
   }, []);
 
+  const setActivities = useCallback((activities: ActivityEntry[]) => {
+    dispatch({ type: 'SET_ACTIVITIES', payload: activities });
+  }, []);
+
   return {
     activities: state.activities,
     taskProgress: state.taskProgress,
@@ -274,5 +313,6 @@ export function useMonitor({
     connectionStatus: status,
     retryAIError,
     setTaskProgress,
+    setActivities,
   };
 }

@@ -29,10 +29,26 @@ export default function MonitorPage() {
     queryFn: () => adminApi.getGame(gameId),
   });
 
-  // Fetch sessions for player count baseline
+  const activeRunId = (game as any)?.activeRun?.id as string | undefined;
+
+  // Fetch sessions for player count baseline — filtered to active run
   const { data: sessions = [] } = useQuery({
-    queryKey: ['game-sessions', gameId],
-    queryFn: () => adminApi.getGameSessions(gameId),
+    queryKey: ['game-sessions', gameId, activeRunId],
+    queryFn: () => adminApi.getGameSessions(gameId, activeRunId),
+    enabled: !!gameId && !!activeRunId,
+  });
+
+  // Fetch per-task completions for initial progress
+  const { data: runCompletions } = useQuery({
+    queryKey: ['run-completions', gameId, activeRunId],
+    queryFn: () => adminApi.getRunCompletions(gameId, activeRunId),
+    enabled: !!gameId,
+  });
+
+  // Fetch historical activity for the active run
+  const { data: runActivity } = useQuery({
+    queryKey: ['run-activity', gameId, activeRunId],
+    queryFn: () => adminApi.getRunActivity(gameId, activeRunId),
     enabled: !!gameId,
   });
 
@@ -46,26 +62,46 @@ export default function MonitorPage() {
     connectionStatus,
     retryAIError,
     setTaskProgress,
+    setActivities,
   } = useMonitor({
     gameId,
-    startedAt: game?.createdAt,
-    initialPlayerCount: sessions.length,
+    startedAt: (game as any)?.activeRun?.startedAt ?? game?.createdAt,
+    initialPlayerCount: sessions.filter((s: any) => s.status === 'ACTIVE').length,
+    initialCompletions: (runCompletions?.completions ?? []).reduce((sum, c) => sum + c.count, 0),
   });
 
-  // Seed task progress from real game tasks
+  // Seed historical activities from database
   useEffect(() => {
-    if (!game?.tasks?.length || taskProgress.length > 0) return;
+    if (!runActivity?.length) return;
+    setActivities(
+      runActivity.map((a) => ({
+        id: a.id,
+        timestamp: new Date(a.timestamp),
+        playerName: a.playerName,
+        action: a.action,
+        details: a.details,
+        points: a.points,
+      })),
+    );
+  }, [runActivity, setActivities]);
+
+  // Seed task progress from real game tasks + initial completion data
+  useEffect(() => {
+    if (!game?.tasks?.length) return;
     const totalPlayers = Math.max(sessions.length, 1);
+    const completionMap = new Map(
+      (runCompletions?.completions ?? []).map((c) => [c.taskId, c.count]),
+    );
     setTaskProgress(
       game.tasks.map((t) => ({
         taskId: t.id,
         title: t.title,
         type: t.type,
-        completions: 0,
+        completions: completionMap.get(t.id) ?? 0,
         total: totalPlayers,
       })),
     );
-  }, [game, taskProgress.length, sessions.length, setTaskProgress]);
+  }, [game, sessions.length, runCompletions, setTaskProgress]);
 
   // Task locations derived from real task coordinates
   const taskLocations = (game?.tasks ?? [])

@@ -12,6 +12,7 @@ import {
   Loader2,
   BarChart3,
   AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 import { useAnalytics, type AnalyticsPeriod } from '@/hooks/useAnalytics';
@@ -62,9 +63,11 @@ function TableCard({
 export default function AnalyticsPage() {
   const { gameId } = useParams<{ gameId: string }>();
   const [period, setPeriod] = useState<AnalyticsPeriod>('30d');
+  const [selectedRunId, setSelectedRunId] = useState<string | undefined>(undefined);
 
-  const analytics = useAnalytics(gameId, period);
-  const { data, game, isLoading, error } = analytics;
+  const { data, game, runs, isLoading, error } = useAnalytics(gameId, period, selectedRunId);
+
+  const selectedRun = selectedRunId ? runs.find((r) => r.id === selectedRunId) : undefined;
 
   if (isLoading) {
     return (
@@ -117,29 +120,64 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Period selector */}
-          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            {PERIOD_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setPeriod(option.value)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  period === option.value
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          {/* Filters: run selector + period selector */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Run selector */}
+            {runs.length > 0 && (
+              <div className="relative">
+                <select
+                  value={selectedRunId ?? ''}
+                  onChange={(e) => setSelectedRunId(e.target.value || undefined)}
+                  className="appearance-none bg-white border border-gray-200 rounded-lg px-3 py-1.5 pr-8 text-sm font-medium text-gray-700 cursor-pointer hover:border-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-[#FF6B35]/20 focus:border-[#FF6B35]"
+                >
+                  <option value="">Wszystkie sesje</option>
+                  {runs.map((run) => (
+                    <option key={run.id} value={run.id}>
+                      Sesja #{run.runNumber} ({run.sessionCount} graczy)
+                      {run.status === 'ACTIVE' ? ' — aktywna' : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                />
+              </div>
+            )}
+
+            {/* Period selector */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              {PERIOD_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setPeriod(option.value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    period === option.value
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {analytics.isSimulated && (
-        <div className="px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800 flex items-center gap-2">
-          <span className="font-medium">Dane demonstracyjne</span>
-          <span className="text-amber-600">— wykresy i statystyki są generowane na podstawie szacunków, nie rzeczywistych danych.</span>
+      {/* Active filter indicator */}
+      {selectedRun && (
+        <div className="px-4 py-2.5 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800 flex items-center justify-between">
+          <span>
+            Filtrowanie po: <span className="font-medium">Sesja #{selectedRun.runNumber}</span>
+            {' '}({selectedRun.sessionCount} graczy)
+          </span>
+          <button
+            onClick={() => setSelectedRunId(undefined)}
+            className="text-blue-600 hover:text-blue-800 font-medium underline text-xs"
+          >
+            Wyczyść filtr
+          </button>
         </div>
       )}
 

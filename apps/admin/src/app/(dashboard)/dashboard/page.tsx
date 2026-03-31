@@ -1,8 +1,10 @@
 'use client';
 
-import { Gamepad2, Users, ListChecks, Activity, Clock, CheckCircle2 } from 'lucide-react';
+import Link from 'next/link';
+import { Gamepad2, Users, ListChecks, Activity, Clock, CheckCircle2, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { api, adminApi } from '@/lib/api';
+import type { Game } from '@citygame/shared';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { GameTable } from '@/components/dashboard/GameTable';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
@@ -60,6 +62,12 @@ export default function DashboardPage() {
   const { data: stats, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['dashboard-stats'],
     queryFn: () => api.get<DashboardStats>('/api/admin/stats'),
+  });
+
+  const { data: runningGames = [] } = useQuery<Game[]>({
+    queryKey: ['running-games'],
+    queryFn: () => adminApi.getRunningGames(),
+    refetchInterval: 30_000,
   });
 
   const { data: recentActivity = [] } = useQuery<RecentActivity[]>({
@@ -125,6 +133,48 @@ export default function DashboardPage() {
         />
       </div>
       </ErrorBoundary>
+
+      {/* Running Games */}
+      {runningGames.length > 0 && (
+        <ErrorBoundary>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Play size={16} className="text-green-600" />
+            <h3 className="text-base font-semibold text-gray-800">Aktywne sesje gier</h3>
+            <span className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              {runningGames.length} {runningGames.length === 1 ? 'gra' : 'gier'}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {runningGames.map((game) => (
+              <Link
+                key={game.id}
+                href={`/games/${game.id}`}
+                className="flex items-center gap-3 p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+              >
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{game.title}</p>
+                  <p className="text-xs text-gray-500">{game.city}</p>
+                </div>
+                {game.activeRun?.endsAt && (
+                  <span className="text-xs text-[#FF6B35] font-medium flex-shrink-0">
+                    <Clock size={12} className="inline mr-0.5" />
+                    {(() => {
+                      const diff = new Date(game.activeRun.endsAt).getTime() - Date.now();
+                      if (diff <= 0) return 'Kończy się';
+                      const m = Math.floor(diff / 60_000);
+                      return `${m} min`;
+                    })()}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+        </ErrorBoundary>
+      )}
 
       {/* Two-column lower area */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
