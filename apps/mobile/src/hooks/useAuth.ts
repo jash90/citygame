@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { authApi } from '@/services/api';
+import { authApi, profileApi } from '@/services/api';
 
 interface UseAuthReturn {
   isLoading: boolean;
@@ -29,6 +29,8 @@ export const useAuth = (): UseAuthReturn => {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
+      // Pre-fetch profile for instant display
+      profileApi.get().then((p) => useAuthStore.getState().setProfile(p)).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Logowanie nie powiodło się.',
@@ -52,6 +54,8 @@ export const useAuth = (): UseAuthReturn => {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
       });
+      // Pre-fetch profile for instant display
+      profileApi.get().then((p) => useAuthStore.getState().setProfile(p)).catch(() => {});
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Rejestracja nie powiodła się.',
