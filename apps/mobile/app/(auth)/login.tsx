@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,9 @@ import {
   Platform,
   ScrollView,
   Alert,
+  Pressable,
 } from 'react-native';
+import { API_URL, WS_URL } from '@/lib/constants';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +22,24 @@ export default function LoginScreen(): React.JSX.Element {
   const [password, setPassword] = useState('');
   const { login, isLoading, error } = useAuth();
   const router = useRouter();
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleIconTap = () => {
+    tapCountRef.current += 1;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 5) {
+      tapCountRef.current = 0;
+      Alert.alert(
+        'Environment',
+        `API_URL: ${API_URL || '(empty)'}\nWS_URL: ${WS_URL || '(empty)'}`,
+      );
+      return;
+    }
+    tapTimerRef.current = setTimeout(() => {
+      tapCountRef.current = 0;
+    }, 1500);
+  };
 
   const handleLogin = async (): Promise<void> => {
     if (!email.trim() || !password.trim()) {
@@ -46,9 +66,11 @@ export default function LoginScreen(): React.JSX.Element {
         >
           {/* Logo / title */}
           <View className="items-center mb-10">
-            <View className="w-20 h-20 rounded-3xl bg-primary items-center justify-center mb-4 shadow-lg shadow-primary/40">
-              <Ionicons name="business" size={40} color="#FFFFFF" />
-            </View>
+            <Pressable onPress={handleIconTap}>
+              <View className="w-20 h-20 rounded-3xl bg-primary items-center justify-center mb-4 shadow-lg shadow-primary/40">
+                <Ionicons name="business" size={40} color="#FFFFFF" />
+              </View>
+            </Pressable>
             <Text className="text-3xl font-extrabold text-secondary">
               CityGame
             </Text>
