@@ -8,6 +8,7 @@ import { GameMap, type GameMapHandle } from '@/components/map/GameMap';
 import { TaskPin } from '@/components/map/TaskPin';
 import { GameBrowser } from '@/components/game/GameBrowser';
 import { useLocation } from '@/hooks/useLocation';
+import { useProgress } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import { useGameTimer } from '@/hooks/useGameTimer';
 import type { Task } from '@/services/api';
@@ -16,16 +17,17 @@ const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export default function MapScreen(): React.JSX.Element {
   const { hasPermission, requestPermission } = useLocation();
-  const { tasks, currentGame, currentSession, completedTaskIds, collectedClues, reset, setGameEnded } = useGameStore();
+  const { tasks, currentGame, currentSession, completedTaskIds, collectedClues, gameEnded, reset, setGameEnded } = useGameStore();
   const router = useRouter();
   const mapRef = useRef<GameMapHandle>(null);
   const [showJournal, setShowJournal] = useState(false);
   const isNarrative = currentGame?.narrative?.isNarrative;
   const timer = useGameTimer(currentGame?.endsAt);
+  useProgress(currentGame?.id ?? '');
 
-  // Handle timer expiry — navigate to game-ended screen
+  // Handle timer expiry or admin-ended run — navigate to game-ended screen
   useEffect(() => {
-    if (timer.isExpired && currentGame && currentSession) {
+    if ((timer.isExpired || gameEnded) && currentGame && currentSession) {
       setGameEnded(true);
       router.replace({
         pathname: '/game-ended' as never,
@@ -38,7 +40,7 @@ export default function MapScreen(): React.JSX.Element {
         },
       });
     }
-  }, [timer.isExpired]);
+  }, [timer.isExpired, gameEnded]);
 
   // No active session — show the game browser overlay (no location needed)
   if (!currentGame || !currentSession) {

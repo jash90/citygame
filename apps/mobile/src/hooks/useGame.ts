@@ -42,13 +42,16 @@ export const useStartGame = () => {
 };
 
 export const useProgress = (gameId: string) => {
-  const { updateProgress } = useGameStore();
+  const { updateProgress, setGameEnded } = useGameStore();
 
   return useQuery({
     queryKey: ['progress', gameId] as const,
     queryFn: async () => {
       const data = await gamesApi.progress(gameId);
       updateProgress(data);
+      if (data.gameEnded) {
+        setGameEnded(true);
+      }
       return data;
     },
     enabled: Boolean(gameId),
@@ -74,6 +77,25 @@ export const useSubmitTask = () => {
       if (attempt.status === 'CORRECT' || attempt.status === 'PARTIAL') {
         markTaskCompleted(variables.taskId);
       }
+      void queryClient.invalidateQueries({
+        queryKey: QUERY_KEYS.GAME(variables.gameId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['progress', variables.gameId],
+      });
+    },
+  });
+};
+
+export const useDevComplete = () => {
+  const { markTaskCompleted } = useGameStore();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ gameId, taskId }: { gameId: string; taskId: string }) =>
+      gamesApi.devComplete(gameId, taskId),
+    onSuccess: (attempt, variables) => {
+      markTaskCompleted(variables.taskId);
       void queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.GAME(variables.gameId),
       });
