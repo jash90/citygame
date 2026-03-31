@@ -1,5 +1,5 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Linking, Modal, ScrollView } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Linking, Modal, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { withUniwind } from 'uniwind';
@@ -9,17 +9,36 @@ import { TaskPin } from '@/components/map/TaskPin';
 import { GameBrowser } from '@/components/game/GameBrowser';
 import { useLocation } from '@/hooks/useLocation';
 import { useGameStore } from '@/stores/gameStore';
+import { useGameTimer } from '@/hooks/useGameTimer';
 import type { Task } from '@/services/api';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export default function MapScreen(): React.JSX.Element {
   const { hasPermission, requestPermission } = useLocation();
-  const { tasks, currentGame, currentSession, completedTaskIds, collectedClues } = useGameStore();
+  const { tasks, currentGame, currentSession, completedTaskIds, collectedClues, reset, setGameEnded } = useGameStore();
   const router = useRouter();
   const mapRef = useRef<GameMapHandle>(null);
   const [showJournal, setShowJournal] = useState(false);
   const isNarrative = currentGame?.narrative?.isNarrative;
+  const timer = useGameTimer(currentGame?.endsAt);
+
+  // Handle timer expiry — navigate to game-ended screen
+  useEffect(() => {
+    if (timer.isExpired && currentGame && currentSession) {
+      setGameEnded(true);
+      router.replace({
+        pathname: '/game-ended' as never,
+        params: {
+          gameId: currentGame.id,
+          runNumber: String(currentGame.currentRun),
+          totalPoints: String(currentSession.totalPoints),
+          tasksCompleted: String(completedTaskIds.size),
+          totalTasks: String(tasks.length),
+        },
+      });
+    }
+  }, [timer.isExpired]);
 
   // No active session — show the game browser overlay (no location needed)
   if (!currentGame || !currentSession) {
@@ -60,12 +79,27 @@ export default function MapScreen(): React.JSX.Element {
     );
   }
 
+  const handleLeaveGame = (): void => {
+    Alert.alert(
+      'Opuść grę',
+      'Czy na pewno chcesz opuścić grę? Możesz do niej wrócić z listy gier.',
+      [
+        { text: 'Anuluj', style: 'cancel' },
+        {
+          text: 'Opuść',
+          style: 'destructive',
+          onPress: () => reset(),
+        },
+      ],
+    );
+  };
+
   const handleTaskPinPress = (task: Task): void => {
     if (task.status === 'locked') {
       // Navigate to task detail where the unlock flow lives
-      router.push(`/(tabs)/tasks/${task.id}` as never);
+      router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'map' } } as never);
     } else if (task.status === 'available') {
-      router.push(`/(tabs)/tasks/${task.id}` as never);
+      router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'map' } } as never);
     }
     // completed tasks are not interactive from the map
   };
@@ -88,9 +122,18 @@ export default function MapScreen(): React.JSX.Element {
       </GameMap>
 
       {/* Floating header overlay */}
-      <StyledSafeAreaView edges={['top']} className="absolute top-0 left-0 right-0" pointerEvents="none">
-        <View className="mx-4 mt-2 bg-white/90 rounded-2xl px-4 py-3 flex-row items-center justify-between shadow-md">
-          <View className="flex-1 mr-3">
+      <StyledSafeAreaView edges={['top']} className="absolute top-0 left-0 right-0" pointerEvents="box-none">
+        <View className="mx-4 mt-2 bg-white/90 rounded-2xl px-3 py-3 flex-row items-center shadow-md" pointerEvents="auto">
+          {/* Back / leave button */}
+          <TouchableOpacity
+            onPress={handleLeaveGame}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="mr-2"
+          >
+            <Ionicons name="arrow-back" size={22} color="#1F2937" />
+          </TouchableOpacity>
+
+          <View className="flex-1 mr-2">
             <Text className="text-xs text-gray-500">Aktywna gra</Text>
             <Text className="text-base font-bold text-secondary" numberOfLines={1}>
               {currentGame.name}
@@ -100,10 +143,20 @@ export default function MapScreen(): React.JSX.Element {
               <Text className="text-xs text-gray-400">{currentGame.city}</Text>
             </View>
           </View>
-          <View className="bg-primary/10 rounded-xl px-3 py-1.5">
-            <Text className="text-sm font-bold text-primary">
-              {completedCount}/{totalCount} zadań
-            </Text>
+
+          <View className="items-end gap-1">
+            <View className="bg-primary/10 rounded-xl px-3 py-1">
+              <Text className="text-xs font-bold text-primary">
+                {completedCount}/{totalCount}
+              </Text>
+            </View>
+            {timer.formattedTime ? (
+              <View className={`rounded-xl px-3 py-1 ${timer.totalSeconds <= 300 ? 'bg-red-100' : 'bg-gray-100'}`}>
+                <Text className={`text-xs font-bold ${timer.totalSeconds <= 300 ? 'text-red-600' : 'text-gray-600'}`}>
+                  ⏱ {timer.formattedTime}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </StyledSafeAreaView>
