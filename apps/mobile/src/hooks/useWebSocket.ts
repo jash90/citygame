@@ -3,22 +3,22 @@ import { useWebSocketContext } from '@/providers/WebSocketProvider';
 
 interface UseWebSocketReturn {
   isConnected: boolean;
-  joinGame: (sessionId: string) => void;
-  leaveGame: (sessionId: string) => void;
+  joinGame: (gameId: string) => void;
+  leaveGame: (gameId: string) => void;
 }
 
-export const useWebSocket = (sessionId?: string): UseWebSocketReturn => {
+export const useWebSocket = (gameId?: string): UseWebSocketReturn => {
   const { isConnected, joinGame, leaveGame } = useWebSocketContext();
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!gameId) return;
 
-    joinGame(sessionId);
+    joinGame(gameId);
 
     return () => {
-      leaveGame(sessionId);
+      leaveGame(gameId);
     };
-  }, [sessionId, joinGame, leaveGame]);
+  }, [gameId, joinGame, leaveGame]);
 
   return { isConnected, joinGame, leaveGame };
 };
