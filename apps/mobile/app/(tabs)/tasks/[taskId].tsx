@@ -63,6 +63,8 @@ const CountdownTimer = ({
 
 // ── Hints panel — uses real hint API + store for persistence ─────────────────
 
+const EMPTY_HINTS: { content: string; pointPenalty: number }[] = [];
+
 const HintsPanel = ({
   gameId,
   taskId,
@@ -73,7 +75,7 @@ const HintsPanel = ({
   totalHints: number;
 }): React.JSX.Element => {
   const hintMutation = useHint();
-  const revealedHints = useGameStore((s) => s.revealedHints.get(taskId) ?? []);
+  const revealedHints = useGameStore((s) => s.revealedHints.get(taskId) ?? EMPTY_HINTS);
   const addRevealedHint = useGameStore((s) => s.addRevealedHint);
 
   const allUsed = revealedHints.length >= totalHints;
@@ -394,9 +396,6 @@ export default function TaskDetailScreen(): React.JSX.Element {
           <>
             {/* Task input */}
             <View className="bg-surface rounded-2xl p-4 border border-gray-100">
-              <Text className="text-sm font-semibold text-gray-900 mb-3">
-                Twoja odpowiedź
-              </Text>
               <TaskRenderer
                 task={task}
                 onSubmit={handleSubmit}
