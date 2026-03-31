@@ -103,16 +103,117 @@ export class GameController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @Post('api/admin/games/:id/start-run')
+  adminStartRun(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.gameService.startRun(id, user.id, true);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('api/admin/games/:id/end-run')
+  adminEndRun(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.gameService.endRun(id, user.id, true);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('api/admin/games/:id/restart')
+  adminRestart(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.gameService.restartGame(id, user.id, true);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/runs')
+  adminGetRuns(@Param('id', ParseUUIDPipe) id: string) {
+    return this.gameService.getRunHistory(id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/run-activity')
+  adminGetRunActivity(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getRunActivity(id, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/run-completions')
+  adminGetRunCompletions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getRunTaskCompletions(id, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id/sessions')
-  adminGetSessions(@Param('id', ParseUUIDPipe) id: string) {
-    return this.gameService.getGameSessions(id);
+  adminGetSessions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getGameSessions(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id/stats')
-  adminGetStats(@Param('id', ParseUUIDPipe) id: string) {
-    return this.gameService.getGameStats(id);
+  adminGetStats(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getGameStats(id, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/analytics/activity')
+  adminGetActivityTimeSeries(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('days') days?: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getPlayerActivityTimeSeries(id, Number(days) || 30, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/analytics/task-difficulty')
+  adminGetTaskDifficulty(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getTaskDifficultyStats(id, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/games/:id/analytics/ai-verification')
+  adminGetAiVerification(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('runId') runId?: string,
+  ) {
+    return this.gameService.getAiVerificationStats(id, runId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('api/admin/running-games')
+  adminRunningGames() {
+    return this.gameService.getRunningGames();
   }
 
   // ── Player routes ────────────────────────────────────────────────────────────
