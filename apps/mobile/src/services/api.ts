@@ -123,6 +123,14 @@ export const authApi = {
 
 // ── Backend → Mobile mappers ─────────────────────────────────────────────────
 
+interface BackendActiveRun {
+  id: string;
+  runNumber: number;
+  status: string;
+  startedAt: string;
+  endsAt?: string | null;
+}
+
 interface BackendGame {
   id: string;
   title: string;
@@ -130,6 +138,8 @@ interface BackendGame {
   city: string;
   coverImageUrl?: string;
   settings: { timeLimitMinutes?: number; [key: string]: unknown };
+  currentRun: number;
+  activeRun?: BackendActiveRun | null;
   taskCount: number;
   playerCount: number;
   tasks?: BackendTask[];
@@ -162,6 +172,10 @@ function mapGame(bg: BackendGame): Game {
     coverImageUrl: bg.coverImageUrl,
     taskCount: bg.taskCount,
     duration: bg.settings?.timeLimitMinutes ?? 0,
+    currentRun: bg.currentRun ?? 0,
+    endsAt: bg.activeRun?.endsAt ?? undefined,
+    activeRunId: bg.activeRun?.id ?? undefined,
+    isRunning: bg.activeRun?.status === 'ACTIVE',
     narrative: bg.settings?.narrative as NarrativeSettings | undefined,
     tasks: bg.tasks?.map(mapTask),
   };
@@ -294,6 +308,10 @@ export interface Game {
   coverImageUrl?: string;
   taskCount: number;
   duration: number;
+  currentRun: number;
+  endsAt?: string;
+  activeRunId?: string;
+  isRunning?: boolean;
   narrative?: NarrativeSettings;
   tasks?: Task[];
 }
@@ -302,18 +320,32 @@ export interface GameSession {
   id: string;
   gameId: string;
   userId: string;
+  gameRunId: string;
   status: string;
   totalPoints: number;
   currentTaskId: string | null;
   startedAt?: string;
-  endsAt?: string;
+}
+
+export interface ProgressAttempt {
+  taskId: string;
+  pointsAwarded: number;
+  createdAt: string;
 }
 
 export interface GameProgress {
-  session: GameSession;
+  session: GameSession & {
+    attempts?: ProgressAttempt[];
+    hintUsages?: {
+      hintId: string;
+      usedAt: string;
+      hint: { taskId: string; content: string; pointPenalty: number };
+    }[];
+  };
   completedTasks: number;
   totalTasks: number;
   progressPercent: number;
+  gameEnded?: boolean;
 }
 
 // Submission payloads per task type
@@ -363,3 +395,41 @@ export interface RankEntry {
 
 // Keep RankingEntry as alias for backward compat with ranking screen
 export type RankingEntry = RankEntry;
+
+export interface ActiveSessionResponse {
+  gameId: string;
+  sessionId: string;
+  gameRunId: string;
+}
+
+export interface RunAnswerEntry {
+  taskId: string;
+  taskTitle: string;
+  taskDescription: string;
+  taskType: TaskType;
+  maxPoints: number;
+  status: AttemptStatus;
+  pointsAwarded: number;
+  submission: Record<string, unknown>;
+  aiResult?: unknown;
+  createdAt: string;
+}
+
+export interface RunAnswersResponse {
+  session: {
+    id: string;
+    status: string;
+    totalPoints: number;
+    startedAt: string;
+    completedAt?: string;
+  };
+  attempts: RunAnswerEntry[];
+}
+
+// Player endpoints
+export const playerApi = {
+  activeSession: () =>
+    apiClient.get<ActiveSessionResponse | null>('/player/active-session'),
+  runAnswers: (gameId: string, runNumber: number) =>
+    apiClient.get<RunAnswersResponse>(`/games/${gameId}/runs/${runNumber}/answers`),
+};

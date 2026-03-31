@@ -6,9 +6,10 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { GameCard } from './GameCard';
 import { GamePrologueModal } from './GamePrologueModal';
-import { useGames, useStartGame, useGame } from '@/hooks/useGame';
+import { useGames, useStartGame, useGame, useActiveSession } from '@/hooks/useGame';
 import type { Game } from '@/services/api';
 import { StyledSafeAreaView } from '@/lib/styled';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +28,9 @@ const EmptyState = (): React.JSX.Element => (
 
 export const GameBrowser = (): React.JSX.Element => {
   const { data: games, isLoading, isFetching, refetch } = useGames();
+  const { data: activeSession } = useActiveSession();
   const startGame = useStartGame();
+  const router = useRouter();
   const [joiningGameId, setJoiningGameId] = useState<string | null>(null);
   const [prologueGame, setPrologueGame] = useState<Game | null>(null);
 
@@ -43,6 +46,17 @@ export const GameBrowser = (): React.JSX.Element => {
       },
       onError: () => {
         setJoiningGameId(null);
+      },
+    });
+  };
+
+  const handleViewResults = (game: Game): void => {
+    router.push({
+      pathname: '/run-answers' as never,
+      params: {
+        gameId: game.id,
+        runNumber: String((game.currentRun ?? 1) > 0 ? game.currentRun - 1 : 0),
+        gameName: game.name,
       },
     });
   };
@@ -67,15 +81,24 @@ export const GameBrowser = (): React.JSX.Element => {
       </View>
 
       <FlatList
-        data={games ?? []}
+        data={(games ?? []).filter((g) => g.isRunning)}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <GameCard
-            game={item}
-            onJoin={handleJoin}
-            isJoining={joiningGameId === item.id && startGame.isPending}
-          />
-        )}
+        renderItem={({ item }) => {
+          const hasActiveSession = activeSession?.gameId === item.id;
+          const isExpired = !!(item.endsAt && new Date(item.endsAt) < new Date());
+          const isRunning = !!item.isRunning && !isExpired;
+          return (
+            <GameCard
+              game={item}
+              onJoin={handleJoin}
+              onViewResults={handleViewResults}
+              isJoining={joiningGameId === item.id && startGame.isPending}
+              hasActiveSession={hasActiveSession}
+              isExpired={isExpired}
+              isRunning={isRunning}
+            />
+          );
+        }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
         ListEmptyComponent={<EmptyState />}
         refreshControl={

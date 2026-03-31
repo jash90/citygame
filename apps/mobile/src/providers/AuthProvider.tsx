@@ -3,7 +3,8 @@ import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { withUniwind } from 'uniwind';
 import { useAuthStore } from '@/stores/authStore';
-import { apiClient } from '@/services/api';
+import { useGameStore } from '@/stores/gameStore';
+import { apiClient, playerApi, gamesApi } from '@/services/api';
 import { colors } from '@/lib/theme';
 import {
   registerForPushNotifications,
@@ -44,6 +45,32 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       routerRef.current.replace('/(tabs)' as never);
     }
   }, [isAuthenticated, isLoading, segments, navigationState?.key]);
+
+  // Restore active game session on login
+  useEffect(() => {
+    if (!isAuthenticated || isLoading) return;
+
+    const restore = async () => {
+      try {
+        const activeSession = await playerApi.activeSession();
+        if (!activeSession) return;
+
+        const game = await gamesApi.get(activeSession.gameId);
+        const progress = await gamesApi.progress(activeSession.gameId);
+
+        useGameStore.getState().restoreSession(
+          game,
+          progress.session,
+          game.tasks ?? [],
+          progress,
+        );
+      } catch {
+        // Non-critical — user can manually rejoin from game list
+      }
+    };
+
+    void restore();
+  }, [isAuthenticated, isLoading]);
 
   // Register push token once authenticated
   useEffect(() => {
