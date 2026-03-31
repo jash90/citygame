@@ -111,6 +111,9 @@ export default function GameEndedScreen(): React.JSX.Element {
           className="bg-primary rounded-2xl py-4 items-center"
           onPress={handleViewAnswers}
           activeOpacity={0.8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Zobacz odpowiedzi"
         >
           <Text className="text-white text-base font-bold">Zobacz odpowiedzi</Text>
         </TouchableOpacity>
@@ -119,6 +122,9 @@ export default function GameEndedScreen(): React.JSX.Element {
           className="bg-gray-100 rounded-2xl py-4 items-center"
           onPress={handleReturn}
           activeOpacity={0.8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Wróć do gier"
         >
           <Text className="text-secondary text-base font-bold">Wróć do gier</Text>
         </TouchableOpacity>

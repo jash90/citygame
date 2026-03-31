@@ -23,6 +23,7 @@ export const useRankingStore = create<RankingState>((set) => ({
   // Merge incoming updates preserving entries not in update
   updateRanking: (updatedEntries) =>
     set((state) => {
+      if (!Array.isArray(updatedEntries)) return state;
       const updatedMap = new Map(
         updatedEntries.map((e) => [e.userId, e]),
       );
