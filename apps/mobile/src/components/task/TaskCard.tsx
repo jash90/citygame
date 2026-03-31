@@ -28,6 +28,9 @@ export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Eleme
       onPress={() => isInteractive && onPress?.(task)}
       activeOpacity={isInteractive ? 0.7 : 1}
       className="mb-3"
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={task.title}
     >
       <Card elevated style={{ opacity: task.status === 'locked' ? 0.6 : 1 }}>
         <View className="flex-row items-center gap-3">

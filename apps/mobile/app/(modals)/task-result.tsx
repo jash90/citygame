@@ -132,6 +132,9 @@ export default function TaskResultModal(): React.JSX.Element {
           className="bg-primary rounded-2xl py-4 items-center"
           onPress={handleContinue}
           activeOpacity={0.8}
+          accessible
+          accessibilityRole="button"
+          accessibilityLabel="Dalej"
         >
           <Text className="text-white text-base font-bold">Dalej</Text>
         </TouchableOpacity>
