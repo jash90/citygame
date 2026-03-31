@@ -2,6 +2,7 @@ import {
   AttemptStatus,
   GameStatus,
   PrismaClient,
+  RunStatus,
   SessionStatus,
   TaskType,
   UnlockMethod,
@@ -87,6 +88,7 @@ async function main() {
     await prisma.taskAttempt.deleteMany({ where: { session: { gameId: { in: gameIds } } } });
     await prisma.hintUsage.deleteMany({ where: { session: { gameId: { in: gameIds } } } });
     await prisma.gameSession.deleteMany({ where: { gameId: { in: gameIds } } });
+    await prisma.gameRun.deleteMany({ where: { gameId: { in: gameIds } } });
     await prisma.hint.deleteMany({ where: { task: { gameId: { in: gameIds } } } });
     await prisma.task.deleteMany({ where: { gameId: { in: gameIds } } });
     await prisma.game.deleteMany({ where: { id: { in: gameIds } } });
@@ -257,6 +259,22 @@ async function main() {
 
   const tasks = game.tasks;
 
+  // ── Demo Game Run ────────────────────────────────────────────────────────────
+
+  const gameRun = await prisma.gameRun.create({
+    data: {
+      gameId: game.id,
+      runNumber: 1,
+      status: RunStatus.ACTIVE,
+      endsAt: new Date(Date.now() + 120 * 60_000), // 2 hours from now
+    },
+  });
+
+  await prisma.game.update({
+    where: { id: game.id },
+    data: { currentRun: 1 },
+  });
+
   // ── Demo Sessions & Attempts ─────────────────────────────────────────────────
 
   // Jan — 5 tasks completed, ACTIVE
@@ -264,6 +282,7 @@ async function main() {
     data: {
       gameId: game.id,
       userId: jan.id,
+      gameRunId: gameRun.id,
       status: SessionStatus.ACTIVE,
       totalPoints: 450,
       currentTaskId: tasks[5]?.id ?? null,
@@ -294,6 +313,7 @@ async function main() {
     data: {
       gameId: game.id,
       userId: anna.id,
+      gameRunId: gameRun.id,
       status: SessionStatus.ACTIVE,
       totalPoints: 280,
       currentTaskId: tasks[3]?.id ?? null,
@@ -324,6 +344,7 @@ async function main() {
     data: {
       gameId: game.id,
       userId: marek.id,
+      gameRunId: gameRun.id,
       status: SessionStatus.COMPLETED,
       totalPoints: 870,
       currentTaskId: null,
@@ -367,6 +388,7 @@ async function main() {
     await prisma.taskAttempt.deleteMany({ where: { session: { gameId: { in: sGameIds } } } });
     await prisma.hintUsage.deleteMany({ where: { session: { gameId: { in: sGameIds } } } });
     await prisma.gameSession.deleteMany({ where: { gameId: { in: sGameIds } } });
+    await prisma.gameRun.deleteMany({ where: { gameId: { in: sGameIds } } });
     await prisma.hint.deleteMany({ where: { task: { gameId: { in: sGameIds } } } });
     await prisma.task.deleteMany({ where: { gameId: { in: sGameIds } } });
     await prisma.game.deleteMany({ where: { id: { in: sGameIds } } });
@@ -575,6 +597,22 @@ async function main() {
 
   const strzyzowTasks = strzyzowGame.tasks;
 
+  // ── Strzyżów Demo Game Run ──────────────────────────────────────────────────
+
+  const strzyzowRun = await prisma.gameRun.create({
+    data: {
+      gameId: strzyzowGame.id,
+      runNumber: 1,
+      status: RunStatus.ACTIVE,
+      endsAt: new Date(Date.now() + 120 * 60_000),
+    },
+  });
+
+  await prisma.game.update({
+    where: { id: strzyzowGame.id },
+    data: { currentRun: 1 },
+  });
+
   // ── Strzyżów Demo Sessions & Attempts ──────────────────────────────────────
 
   // Jan — 4 tasks completed, ACTIVE
@@ -582,6 +620,7 @@ async function main() {
     data: {
       gameId: strzyzowGame.id,
       userId: jan.id,
+      gameRunId: strzyzowRun.id,
       status: SessionStatus.ACTIVE,
       totalPoints: 330,
       currentTaskId: strzyzowTasks[4]?.id ?? null,
@@ -612,6 +651,7 @@ async function main() {
     data: {
       gameId: strzyzowGame.id,
       userId: anna.id,
+      gameRunId: strzyzowRun.id,
       status: SessionStatus.ACTIVE,
       totalPoints: 170,
       currentTaskId: strzyzowTasks[2]?.id ?? null,
@@ -642,6 +682,7 @@ async function main() {
     data: {
       gameId: strzyzowGame.id,
       userId: marek.id,
+      gameRunId: strzyzowRun.id,
       status: SessionStatus.COMPLETED,
       totalPoints: 910,
       currentTaskId: null,
@@ -683,6 +724,7 @@ async function main() {
     await prisma.taskAttempt.deleteMany({ where: { session: { gameId: { in: nGameIds } } } });
     await prisma.hintUsage.deleteMany({ where: { session: { gameId: { in: nGameIds } } } });
     await prisma.gameSession.deleteMany({ where: { gameId: { in: nGameIds } } });
+    await prisma.gameRun.deleteMany({ where: { gameId: { in: nGameIds } } });
     await prisma.hint.deleteMany({ where: { task: { gameId: { in: nGameIds } } } });
     await prisma.task.deleteMany({ where: { gameId: { in: nGameIds } } });
     await prisma.game.deleteMany({ where: { id: { in: nGameIds } } });

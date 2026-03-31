@@ -4,6 +4,21 @@ export enum GameStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
+export enum RunStatus {
+  ACTIVE = 'ACTIVE',
+  ENDED = 'ENDED',
+}
+
+export interface GameRun {
+  id: string;
+  gameId: string;
+  runNumber: number;
+  status: RunStatus;
+  startedAt: string;
+  endsAt?: string;
+  endedAt?: string;
+}
+
 export interface GameSettings {
   maxPlayers?: number;
   timeLimitMinutes?: number;
@@ -23,6 +38,8 @@ export interface Game {
   status: GameStatus;
   settings: GameSettings;
   creatorId: string;
+  currentRun: number;
+  activeRun?: GameRun | null;
   createdAt: string;
   updatedAt: string;
   taskCount?: number;

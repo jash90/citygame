@@ -42,6 +42,11 @@ enum SessionStatus {
   TIMED_OUT
 }
 
+enum RunStatus {
+  ACTIVE
+  ENDED
+}
+
 enum AttemptStatus {
   PENDING
   CORRECT
@@ -79,12 +84,14 @@ model Game {
   status        GameStatus @default(DRAFT)
   settings      Json
   creatorId     String
+  currentRun    Int        @default(0)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
   creator  User          @relation(fields: [creatorId], references: [id])
   tasks    Task[]
   sessions GameSession[]
+  runs     GameRun[]
   teams    Team[]
 
   @@index([status])
@@ -142,11 +149,29 @@ model HintUsage {
   @@unique([hintId, userId, sessionId])
 }
 
+model GameRun {
+  id        String    @id @default(uuid())
+  gameId    String
+  runNumber Int
+  status    RunStatus @default(ACTIVE)
+  startedAt DateTime  @default(now())
+  endsAt    DateTime?
+  endedAt   DateTime?
+
+  game     Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  sessions GameSession[]
+
+  @@unique([gameId, runNumber])
+  @@index([gameId, status])
+  @@index([status, endsAt])
+}
+
 model GameSession {
   id            String        @id @default(uuid())
   gameId        String
   userId        String
   teamId        String?
+  gameRunId     String
   status        SessionStatus @default(ACTIVE)
   totalPoints   Int           @default(0)
   startedAt     DateTime      @default(now())
@@ -156,10 +181,11 @@ model GameSession {
   game       Game          @relation(fields: [gameId], references: [id])
   user       User          @relation(fields: [userId], references: [id])
   team       Team?         @relation(fields: [teamId], references: [id])
+  gameRun    GameRun       @relation(fields: [gameRunId], references: [id])
   attempts   TaskAttempt[]
   hintUsages HintUsage[]
 
-  @@unique([gameId, userId])
+  @@unique([gameRunId, userId])
   @@index([gameId, totalPoints])
   @@index([gameId, teamId])
 }
