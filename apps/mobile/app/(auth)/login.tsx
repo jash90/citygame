@@ -86,7 +86,7 @@ export default function LoginScreen(): React.JSX.Element {
                 Adres e-mail
               </Text>
               <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
+                className="border border-gray-200 rounded-xl px-4 h-12 text-base text-gray-900 bg-gray-50"
                 placeholder="jan.kowalski@email.pl"
                 placeholderTextColor="#9CA3AF"
                 keyboardType="email-address"
@@ -102,12 +102,14 @@ export default function LoginScreen(): React.JSX.Element {
                 Hasło
               </Text>
               <TextInput
-                className="border border-gray-200 rounded-xl px-4 py-3 text-base text-gray-900 bg-gray-50"
+                className="border border-gray-200 rounded-xl px-4 h-12 text-base text-gray-900 bg-gray-50"
                 placeholder="Twoje hasło"
                 placeholderTextColor="#9CA3AF"
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
+                accessibilityLabel="Password"
+                testID="password-input"
               />
             </View>
 
