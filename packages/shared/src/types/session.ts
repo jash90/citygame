@@ -17,6 +17,7 @@ export interface GameSession {
   id: string;
   gameId: string;
   userId: string;
+  gameRunId: string;
   status: SessionStatus;
   totalPoints: number;
   startedAt: string;
