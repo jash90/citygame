@@ -37,8 +37,8 @@ export default function RankingScreen(): React.JSX.Element {
   const { user } = useAuthStore();
   const gameId = currentGame?.id ?? '';
 
-  // Connect to WebSocket for the current session
-  const { isConnected } = useWebSocket(currentSession?.id);
+  // Connect to WebSocket for the current game
+  const { isConnected } = useWebSocket(gameId || undefined);
 
   // Initial fetch via game-scoped ranking endpoint
   const { data: rankingData, isFetching, refetch } = useRanking(gameId);

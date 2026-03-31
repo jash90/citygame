@@ -18,8 +18,8 @@ import type { RankingEntry } from '@/services/api';
 interface WebSocketContextValue {
   socket: Socket | null;
   isConnected: boolean;
-  joinGame: (sessionId: string) => void;
-  leaveGame: (sessionId: string) => void;
+  joinGame: (gameId: string) => void;
+  leaveGame: (gameId: string) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue>({
@@ -100,6 +100,9 @@ export const WebSocketProvider = ({
     if (!isConnected || !currentGameId) return;
     activeGameRef.current = currentGameId;
 
+    // Join the game room so the backend associates this socket with the game
+    socketRef.current?.emit('join-game', { gameId: currentGameId });
+
     const intervalId = setInterval(() => {
       const loc = useLocationStore.getState().location;
       const heading = useLocationStore.getState().heading;
@@ -118,15 +121,19 @@ export const WebSocketProvider = ({
       });
     }, 5000);
 
-    return () => clearInterval(intervalId);
+    return () => {
+      clearInterval(intervalId);
+      socketRef.current?.emit('leave-game', { gameId: currentGameId });
+      activeGameRef.current = null;
+    };
   }, [isConnected, currentGameId]);
 
-  const joinGame = useCallback((sessionId: string): void => {
-    socketRef.current?.emit('game:join', { sessionId });
+  const joinGame = useCallback((gameId: string): void => {
+    socketRef.current?.emit('join-game', { gameId });
   }, []);
 
-  const leaveGame = useCallback((sessionId: string): void => {
-    socketRef.current?.emit('game:leave', { sessionId });
+  const leaveGame = useCallback((gameId: string): void => {
+    socketRef.current?.emit('leave-game', { gameId });
   }, []);
 
   return (
