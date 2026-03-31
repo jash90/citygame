@@ -221,6 +221,8 @@ export const gamesApi = {
     apiClient.post<UnlockTaskResult>(`/games/${gameId}/tasks/${taskId}/unlock`, { unlockData: data ?? {} }),
   submitTask: (gameId: string, taskId: string, submission: TaskSubmission) =>
     apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/submit`, { submission }),
+  devComplete: (gameId: string, taskId: string) =>
+    apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/dev-complete`),
   useHint: (gameId: string, taskId: string) =>
     apiClient.post<HintResult>(`/games/${gameId}/tasks/${taskId}/hint`),
   ranking: (gameId: string) =>

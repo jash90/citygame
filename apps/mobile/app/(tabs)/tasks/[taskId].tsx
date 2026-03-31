@@ -15,7 +15,7 @@ import { TaskTypeBadge } from '@/components/ui/Badge';
 import { TaskRenderer } from '@/components/task/TaskRenderer';
 import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
 import { StoryContextCard } from '@/components/task/StoryContextCard';
-import { useSubmitTask, useUnlockTask, useHint } from '@/hooks/useGame';
+import { useSubmitTask, useUnlockTask, useHint, useDevComplete } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import { useLocationStore } from '@/stores/locationStore';
 import type { TaskSubmission } from '@/services/api';
@@ -168,6 +168,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
   const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult, addClue } = useGameStore();
   const submitMutation = useSubmitTask();
   const unlockMutation = useUnlockTask();
+  const devCompleteMutation = useDevComplete();
 
   const task = tasks.find((t) => t.id === taskId);
   const gameId = currentGame?.id ?? '';
@@ -184,9 +185,14 @@ export default function TaskDetailScreen(): React.JSX.Element {
   const isAiTask =
     task?.type === 'PHOTO_AI' || task?.type === 'AUDIO_AI' || task?.type === 'TEXT_AI';
 
+  // Track whether handleSubmit already navigated to prevent double modal from WebSocket
+  const hasNavigatedRef = useRef(false);
+  useEffect(() => { hasNavigatedRef.current = false; }, [taskId]);
+
   // When a WebSocket ai:result arrives for this task, auto-navigate to result modal
+  // Only fires if handleSubmit hasn't already shown the result (e.g. PENDING → async AI)
   useEffect(() => {
-    if (!lastAiResult || !task) return;
+    if (!lastAiResult || !task || hasNavigatedRef.current) return;
 
     const isComplete =
       lastAiResult.status === 'CORRECT' ||
@@ -204,7 +210,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
       pathname: '/(modals)/task-result' as never,
       params: {
         success: isSuccess ? '1' : '0',
-        points: String(0), // actual points come from the attempt; AI result may not carry them
+        points: String(0),
         feedback: lastAiResult.feedback ?? '',
         aiScore: String(lastAiResult.score ?? ''),
         isAiTask: '1',
@@ -262,6 +268,8 @@ export default function TaskDetailScreen(): React.JSX.Element {
       const completedAfter = new Set(currentCompleted);
       if (isSuccess) completedAfter.add(task.id);
       const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
+
+      hasNavigatedRef.current = true;
 
       if (allDone) {
         router.replace({
@@ -406,19 +414,50 @@ export default function TaskDetailScreen(): React.JSX.Element {
             {__DEV__ && task.status !== 'completed' && (
               <TouchableOpacity
                 className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="DEV Auto-complete"
                 onPress={() => {
-                  const devSubmission: TaskSubmission = task.type === 'QR_SCAN'
-                    ? { scannedCode: '__DEV__' }
-                    : task.type === 'GPS_REACH'
-                      ? { latitude: task.location?.lat ?? 0, longitude: task.location?.lng ?? 0 }
-                      : task.type === 'PHOTO_AI'
-                        ? { imageUrl: '__DEV__' }
-                        : task.type === 'AUDIO_AI'
-                          ? { transcription: '__DEV__' }
-                          : { answer: '__DEV__' };
-                  void handleSubmit(devSubmission);
+                  devCompleteMutation.mutate(
+                    { gameId, taskId: task.id },
+                    {
+                      onSuccess: (attempt) => {
+                        hasNavigatedRef.current = true;
+                        const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
+                        const completedAfter = new Set(currentCompleted);
+                        completedAfter.add(task.id);
+                        const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
+
+                        if (allDone) {
+                          router.replace({
+                            pathname: '/game-summary' as never,
+                            params: {
+                              totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
+                              tasksCompleted: String(completedAfter.size),
+                              totalTasks: String(allTasks.length),
+                              timeTakenSec: '0',
+                              rank: '0',
+                            },
+                          });
+                          return;
+                        }
+
+                        router.push({
+                          pathname: '/(modals)/task-result' as never,
+                          params: {
+                            success: '1',
+                            points: String(attempt.pointsAwarded),
+                            feedback: 'DEV auto-complete',
+                          },
+                        });
+                      },
+                      onError: () => {
+                        Alert.alert('Błąd', 'DEV auto-complete failed.');
+                      },
+                    },
+                  );
                 }}
-                disabled={submitMutation.isPending}
+                disabled={devCompleteMutation.isPending}
                 activeOpacity={0.7}
               >
                 <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
