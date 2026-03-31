@@ -16,27 +16,24 @@ export const StoryContextCard = ({ context }: StoryContextCardProps): React.JSX.
   if (!context.locationIntro && !context.taskNarrative) return null;
 
   return (
-    <View
-      className="rounded-2xl p-4 border border-amber-200/50"
-      style={{ backgroundColor: '#1a1a2e' }}
-    >
+    <View className="rounded-2xl p-4 border border-amber-200 bg-amber-50">
       {context.characterName ? (
         <View className="flex-row items-center gap-2 mb-3">
-          <Ionicons name="book-outline" size={14} color="#D4A574" />
-          <Text className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#D4A574' }}>
+          <Ionicons name="book-outline" size={14} color="#B45309" />
+          <Text className="text-xs font-semibold uppercase tracking-wider text-amber-700">
             {context.characterName}
           </Text>
         </View>
       ) : null}
 
       {context.locationIntro ? (
-        <Text className="text-sm leading-6 mb-2" style={{ color: '#E8D5B7' }}>
+        <Text className="text-sm leading-6 mb-2 text-amber-900">
           {context.locationIntro}
         </Text>
       ) : null}
 
       {context.taskNarrative ? (
-        <Text className="text-sm leading-6 italic" style={{ color: '#C4A882' }}>
+        <Text className="text-sm leading-6 italic text-amber-700">
           {context.taskNarrative}
         </Text>
       ) : null}
