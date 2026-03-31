@@ -84,7 +84,15 @@ export default function GamesPage() {
                     <td className="py-3.5 px-5 font-medium text-gray-900">{game.title}</td>
                     <td className="py-3.5 px-5 text-gray-600">{game.city}</td>
                     <td className="py-3.5 px-5">
-                      <GameStatusBadge status={game.status} />
+                      <div className="flex items-center gap-2">
+                        <GameStatusBadge status={game.status} />
+                        {game.activeRun && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            Aktywna
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3.5 px-5 text-gray-600">{game.taskCount ?? 0}</td>
                     <td className="py-3.5 px-5 text-gray-600">{game.playerCount ?? 0}</td>
