@@ -6,10 +6,10 @@
     "scheme": "citygame",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FF6B35"
     },
@@ -23,8 +23,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF6B35"
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ff6b35"
       },
       "package": "com.citygame.mobile",
       "permissions": [
@@ -67,6 +67,9 @@
       "eas": {
         "projectId": "af162e07-c480-431d-80d7-d7f074bd4810"
       }
+    },
+    "web": {
+      "favicon": "./assets/images/favicon.png"
     }
   }
 }
