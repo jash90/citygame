@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -39,13 +39,21 @@ const StatCard = ({
 );
 
 export default function ProfileScreen(): React.JSX.Element {
-  const { user } = useAuthStore();
+  const { user, profile: cachedProfile, setProfile } = useAuthStore();
   const { logout, isLoading: isLoggingOut } = useAuth();
 
   const { data: profile, isLoading } = useQuery({
     queryKey: QUERY_KEYS.PROFILE,
     queryFn: () => profileApi.get(),
+    staleTime: 24 * 60 * 60_000, // 24 hours — profile data doesn't change often
+    initialData: cachedProfile ?? undefined,
   });
+
+  useEffect(() => {
+    if (profile && JSON.stringify(profile) !== JSON.stringify(cachedProfile)) {
+      void setProfile(profile);
+    }
+  }, [profile, cachedProfile, setProfile]);
 
   const handleLogout = (): void => {
     Alert.alert(

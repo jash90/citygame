@@ -8,6 +8,7 @@ export const SECURE_STORE_KEYS = {
   ACCESS_TOKEN: 'citygame_access_token',
   REFRESH_TOKEN: 'citygame_refresh_token',
   USER: 'citygame_user',
+  PROFILE: 'citygame_profile',
 } as const;
 
 export const RANKING_WS_NAMESPACE = '/ranking';

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { SECURE_STORE_KEYS } from '@/lib/constants';
-import type { User } from '@/services/api';
+import type { User, UserProfile } from '@/services/api';
 
 interface AuthTokens {
   accessToken: string;
@@ -13,9 +13,11 @@ interface AuthState {
   tokens: AuthTokens | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  profile: UserProfile | null;
   // Actions
   setTokens: (tokens: AuthTokens) => Promise<void>;
   setUser: (user: User) => void;
+  setProfile: (profile: UserProfile) => Promise<void>;
   login: (user: User, tokens: AuthTokens) => Promise<void>;
   logout: () => Promise<void>;
   init: () => Promise<void>;
@@ -24,6 +26,7 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   tokens: null,
+  profile: null,
   isAuthenticated: false,
   isLoading: true,
 
@@ -43,6 +46,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user });
   },
 
+  setProfile: async (profile) => {
+    await SecureStore.setItemAsync(
+      SECURE_STORE_KEYS.PROFILE,
+      JSON.stringify(profile),
+    );
+    set({ profile });
+  },
+
   login: async (user, tokens) => {
     await SecureStore.setItemAsync(
       SECURE_STORE_KEYS.ACCESS_TOKEN,
@@ -56,29 +67,42 @@ export const useAuthStore = create<AuthState>((set) => ({
       SECURE_STORE_KEYS.USER,
       JSON.stringify(user),
     );
-    set({ user, tokens, isAuthenticated: true });
+    // Save user data as initial profile so email/name are available immediately
+    const initialProfile: UserProfile = {
+      ...user,
+      stats: { gamesPlayed: 0, totalPoints: 0, completedTasks: 0, rank: 0 },
+    };
+    await SecureStore.setItemAsync(
+      SECURE_STORE_KEYS.PROFILE,
+      JSON.stringify(initialProfile),
+    );
+    set({ user, tokens, profile: initialProfile, isAuthenticated: true });
   },
 
   logout: async () => {
     await SecureStore.deleteItemAsync(SECURE_STORE_KEYS.ACCESS_TOKEN);
     await SecureStore.deleteItemAsync(SECURE_STORE_KEYS.REFRESH_TOKEN);
     await SecureStore.deleteItemAsync(SECURE_STORE_KEYS.USER);
-    set({ user: null, tokens: null, isAuthenticated: false });
+    await SecureStore.deleteItemAsync(SECURE_STORE_KEYS.PROFILE);
+    set({ user: null, tokens: null, profile: null, isAuthenticated: false });
   },
 
   init: async () => {
     try {
-      const [accessToken, refreshToken, userJson] = await Promise.all([
+      const [accessToken, refreshToken, userJson, profileJson] = await Promise.all([
         SecureStore.getItemAsync(SECURE_STORE_KEYS.ACCESS_TOKEN),
         SecureStore.getItemAsync(SECURE_STORE_KEYS.REFRESH_TOKEN),
         SecureStore.getItemAsync(SECURE_STORE_KEYS.USER),
+        SecureStore.getItemAsync(SECURE_STORE_KEYS.PROFILE),
       ]);
 
       if (accessToken && refreshToken && userJson) {
         const user = JSON.parse(userJson) as User;
+        const profile = profileJson ? JSON.parse(profileJson) as UserProfile : null;
         set({
           user,
           tokens: { accessToken, refreshToken },
+          profile,
           isAuthenticated: true,
           isLoading: false,
         });
