@@ -29,6 +29,14 @@ export default function RootLayout(): React.JSX.Element {
                     animation: 'slide_from_bottom',
                   }}
                 />
+                <Stack.Screen
+                  name="game-ended"
+                  options={{
+                    presentation: 'modal',
+                    animation: 'slide_from_bottom',
+                  }}
+                />
+                <Stack.Screen name="run-answers" />
               </Stack>
               <StatusBar style="dark" />
             </AuthProvider>

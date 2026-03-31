@@ -6,10 +6,74 @@ import type { Game } from '@/services/api';
 interface GameCardProps {
   game: Game;
   onJoin: (game: Game) => void;
+  onViewResults?: (game: Game) => void;
   isJoining?: boolean;
+  hasActiveSession?: boolean;
+  isExpired?: boolean;
+  isRunning?: boolean;
 }
 
-export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): React.JSX.Element => {
+export const GameCard = ({
+  game,
+  onJoin,
+  onViewResults,
+  isJoining = false,
+  hasActiveSession = false,
+  isExpired = false,
+  isRunning = false,
+}: GameCardProps): React.JSX.Element => {
+  const renderActionButton = () => {
+    if (isExpired) {
+      // Game run ended — show View Results
+      return (
+        <TouchableOpacity
+          className="bg-gray-200 rounded-lg px-5 py-2.5"
+          onPress={() => onViewResults?.(game)}
+          activeOpacity={0.8}
+        >
+          <Text className="text-gray-700 text-sm font-bold">Wyniki</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (!isRunning && !hasActiveSession) {
+      // Published but no active run — not joinable
+      return (
+        <View className="bg-gray-100 rounded-lg px-5 py-2.5">
+          <Text className="text-gray-400 text-sm font-bold">Brak sesji</Text>
+        </View>
+      );
+    }
+
+    if (hasActiveSession) {
+      return (
+        <TouchableOpacity
+          className="bg-green-600 rounded-lg px-5 py-2.5"
+          onPress={() => onJoin(game)}
+          disabled={isJoining}
+          activeOpacity={0.8}
+        >
+          <Text className="text-white text-sm font-bold">
+            {isJoining ? 'Ładowanie...' : 'Kontynuuj'}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        className={`bg-primary rounded-lg px-5 py-2.5 ${isJoining ? 'opacity-50' : ''}`}
+        onPress={() => onJoin(game)}
+        disabled={isJoining}
+        activeOpacity={0.8}
+      >
+        <Text className="text-white text-sm font-bold">
+          {isJoining ? 'Dołączanie...' : 'Dołącz'}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View className="bg-white rounded-xl border border-gray-100 overflow-hidden mb-4 shadow-sm">
       {game.coverImageUrl ? (
@@ -24,6 +88,19 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
           <Ionicons name="map-outline" size={48} color="#FF6B35" />
         </View>
       )}
+
+      {/* Status badge */}
+      {isExpired ? (
+        <View className="absolute top-3 right-3 bg-red-500/90 rounded-full px-3 py-1">
+          <Text className="text-white text-[10px] font-bold">Zakończona</Text>
+        </View>
+      ) : isRunning ? (
+        <View className="absolute top-3 right-3 bg-green-500/90 rounded-full px-3 py-1 flex-row items-center gap-1">
+          <View className="w-1.5 h-1.5 rounded-full bg-white" />
+          <Text className="text-white text-[10px] font-bold">Aktywna</Text>
+        </View>
+      ) : null}
+
       <View className="p-4 gap-3">
         <View>
           <View className="flex-row items-center gap-2">
@@ -60,16 +137,7 @@ export const GameCard = ({ game, onJoin, isJoining = false }: GameCardProps): Re
               </View>
             ) : null}
           </View>
-          <TouchableOpacity
-            className={`bg-primary rounded-lg px-5 py-2.5 ${isJoining ? 'opacity-50' : ''}`}
-            onPress={() => onJoin(game)}
-            disabled={isJoining}
-            activeOpacity={0.8}
-          >
-            <Text className="text-white text-sm font-bold">
-              {isJoining ? 'Dołączanie...' : 'Dołącz'}
-            </Text>
-          </TouchableOpacity>
+          {renderActionButton()}
         </View>
       </View>
     </View>

@@ -32,11 +32,23 @@ const EmptyState = (): React.JSX.Element => (
 );
 
 export default function TasksScreen(): React.JSX.Element {
-  const { currentGame, tasks } = useGameStore();
+  const { currentGame, currentSession, tasks } = useGameStore();
   const { isLoading, isFetching, refetch } = useTasks(currentGame?.id ?? '');
   useProgress(currentGame?.id ?? '');
   const router = useRouter();
   const timer = useGameTimer(currentGame?.endsAt);
+
+  // No active game session — show empty state
+  if (!currentSession) {
+    return (
+      <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+          <Text className="text-2xl font-extrabold text-secondary">Zadania</Text>
+        </View>
+        <EmptyState />
+      </StyledSafeAreaView>
+    );
+  }
 
   const completedCount = tasks.filter((t) => t.status === 'completed').length;
   const progress = tasks.length > 0 ? completedCount / tasks.length : 0;

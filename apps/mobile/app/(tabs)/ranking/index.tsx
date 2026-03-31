@@ -51,6 +51,18 @@ export default function RankingScreen(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankingData]);
 
+  // No active game session — show empty state
+  if (!currentSession) {
+    return (
+      <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
+        <View className="px-4 pt-4 pb-3 bg-surface border-b border-gray-100">
+          <Text className="text-2xl font-extrabold text-secondary">Ranking</Text>
+        </View>
+        <EmptyState />
+      </StyledSafeAreaView>
+    );
+  }
+
   const podiumEntries = entries.slice(0, 3);
   const restEntries = entries.slice(3);
 

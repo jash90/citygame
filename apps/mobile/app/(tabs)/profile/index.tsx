@@ -108,42 +108,7 @@ export default function ProfileScreen(): React.JSX.Element {
               </View>
             </Card>
 
-            {/* Stats */}
-            {stats ? (
-              <View>
-                <Text className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-widest">
-                  Statystyki
-                </Text>
-                <View className="flex-row gap-3 mb-3">
-                  <StatCard
-                    label="Rozegranych gier"
-                    value={stats.gamesPlayed}
-                    icon="game-controller"
-                    iconColor="#6366F1"
-                  />
-                  <StatCard
-                    label="Łączne punkty"
-                    value={stats.totalPoints}
-                    icon="star"
-                    iconColor="#F59E0B"
-                  />
-                </View>
-                <View className="flex-row gap-3 mb-3">
-                  <StatCard
-                    label="Ukończonych zadań"
-                    value={stats.completedTasks}
-                    icon="checkmark-circle"
-                    iconColor="#22C55E"
-                  />
-                  <StatCard
-                    label="Globalny ranking"
-                    value={`#${stats.rank}`}
-                    icon="trophy"
-                    iconColor="#FF6B35"
-                  />
-                </View>
-              </View>
-            ) : null}
+            {/* Stats — hidden until backend /profile endpoint is implemented */}
 
             {/* Actions */}
             <View className="mt-2">

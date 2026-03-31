@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { gamesApi } from '@/services/api';
+import { gamesApi, playerApi } from '@/services/api';
 import { useGameStore } from '@/stores/gameStore';
 import { QUERY_KEYS } from '@/lib/constants';
 import type { TaskSubmission } from '@/services/api';
@@ -125,6 +125,22 @@ export const useRanking = (gameId: string) => {
   });
 };
 
+export const useActiveSession = () => {
+  return useQuery({
+    queryKey: ['active-session'] as const,
+    queryFn: () => playerApi.activeSession(),
+    retry: false,
+  });
+};
+
+export const useRunAnswers = (gameId: string, runNumber: number) => {
+  return useQuery({
+    queryKey: ['run-answers', gameId, runNumber] as const,
+    queryFn: () => playerApi.runAnswers(gameId, runNumber),
+    enabled: Boolean(gameId),
+  });
+};
+
 // Keep useTasks for backward compat — tasks are now embedded in the game response
 export const useTasks = (gameId: string) => {
   const { setTasks } = useGameStore();
@@ -138,5 +154,6 @@ export const useTasks = (gameId: string) => {
       return tasks;
     },
     enabled: Boolean(gameId),
+    staleTime: 60_000, // 1 minute — avoid refetch on every tab switch
   });
 };
