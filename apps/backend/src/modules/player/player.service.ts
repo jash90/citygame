@@ -443,6 +443,101 @@ export class PlayerService {
   }
 
   /**
+   * DEV-only: auto-complete a task bypassing verification.
+   * Blocked in production environments.
+   */
+  async devCompleteTask(
+    gameId: string,
+    taskId: string,
+    userId: string,
+  ): Promise<TaskAttempt> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Dev-complete is not available in production');
+    }
+
+    const session = await this.requireActiveSession(gameId, userId);
+
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, gameId },
+    });
+
+    if (!task) {
+      throw new NotFoundException(`Task ${taskId} not found in game ${gameId}`);
+    }
+
+    const attemptCount = await this.prisma.taskAttempt.count({
+      where: { sessionId: session.id, taskId },
+    });
+
+    const pointsAwarded = task.maxPoints;
+
+    const attempt = await this.prisma.$transaction(async (tx) => {
+      const newAttempt = await tx.taskAttempt.create({
+        data: {
+          sessionId: session.id,
+          taskId,
+          userId,
+          status: AttemptStatus.CORRECT,
+          attemptNumber: attemptCount + 1,
+          submission: { _dev: true } as Prisma.InputJsonValue,
+          aiResult: Prisma.JsonNull,
+          pointsAwarded,
+        },
+      });
+
+      const updatedSession = await tx.gameSession.update({
+        where: { id: session.id },
+        data: { totalPoints: { increment: pointsAwarded } },
+        select: { id: true, totalPoints: true, teamId: true },
+      });
+
+      const nextTask = await tx.task.findFirst({
+        where: { gameId, orderIndex: { gt: task.orderIndex } },
+        orderBy: { orderIndex: 'asc' },
+      });
+
+      const sessionUpdate: Prisma.GameSessionUpdateInput = {
+        currentTaskId: nextTask?.id ?? null,
+        status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+        completedAt: nextTask ? undefined : new Date(),
+      };
+
+      if (updatedSession.teamId) {
+        await tx.gameSession.updateMany({
+          where: { gameId, teamId: updatedSession.teamId, status: SessionStatus.ACTIVE },
+          data: {
+            currentTaskId: nextTask?.id ?? null,
+            status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+            completedAt: nextTask ? undefined : new Date(),
+            totalPoints: updatedSession.totalPoints,
+          },
+        });
+      } else {
+        await tx.gameSession.update({
+          where: { id: session.id },
+          data: sessionUpdate,
+        });
+      }
+
+      void this.handlePostCorrect(
+        gameId,
+        session.gameRunId,
+        userId,
+        taskId,
+        task.title,
+        pointsAwarded,
+        updatedSession.totalPoints,
+        updatedSession.teamId ?? null,
+        newAttempt.id,
+      );
+
+      return newAttempt;
+    });
+
+    return attempt;
+  }
+
+  /**
    * Use a hint for a task. Records the usage and applies the point penalty
    * to the session's total score.
    */

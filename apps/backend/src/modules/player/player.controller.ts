@@ -100,6 +100,15 @@ export class PlayerController {
     return this.playerService.submitAnswer(gameId, taskId, user.id, dto.submission);
   }
 
+  @Post('api/games/:gameId/tasks/:taskId/dev-complete')
+  devCompleteTask(
+    @Param('gameId') gameId: string,
+    @Param('taskId') taskId: string,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    return this.playerService.devCompleteTask(gameId, taskId, user.id);
+  }
+
   @Post('api/games/:gameId/tasks/:taskId/hint')
   useHint(
     @Param('gameId') gameId: string,
