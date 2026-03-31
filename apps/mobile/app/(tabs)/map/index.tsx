@@ -50,17 +50,14 @@ export default function MapScreen(): React.JSX.Element {
   // Location permission not granted — show locked screen
   if (hasPermission === false) {
     return (
-      <View className="flex-1 bg-secondary items-center justify-center px-8">
-        <View
-          className="w-20 h-20 rounded-full items-center justify-center mb-6"
-          style={{ backgroundColor: 'rgba(255,107,53,0.15)' }}
-        >
+      <View className="flex-1 bg-gray-50 items-center justify-center px-8">
+        <View className="w-20 h-20 rounded-full bg-primary/10 items-center justify-center mb-6">
           <Ionicons name="location-outline" size={40} color="#FF6B35" />
         </View>
-        <Text className="text-2xl font-bold text-white text-center mb-3">
+        <Text className="text-2xl font-bold text-gray-900 text-center mb-3">
           Wymagana lokalizacja
         </Text>
-        <Text className="text-base text-gray-400 text-center mb-8 leading-6">
+        <Text className="text-base text-gray-500 text-center mb-8 leading-6">
           CityGame potrzebuje dostępu do Twojej lokalizacji, aby wyświetlać zadania na mapie i weryfikować Twoją pozycję.
         </Text>
         <TouchableOpacity
@@ -75,7 +72,7 @@ export default function MapScreen(): React.JSX.Element {
           activeOpacity={0.6}
           onPress={() => void Linking.openSettings()}
         >
-          <Text className="text-gray-400 text-sm">Otwórz ustawienia</Text>
+          <Text className="text-gray-500 text-sm">Otwórz ustawienia</Text>
         </TouchableOpacity>
       </View>
     );
@@ -168,12 +165,11 @@ export default function MapScreen(): React.JSX.Element {
         <View className="gap-3 items-center">
           {isNarrative ? (
             <TouchableOpacity
-              className="w-12 h-12 rounded-full items-center justify-center shadow-md"
-              style={{ backgroundColor: '#1a1a2e' }}
+              className="w-12 h-12 rounded-full bg-surface items-center justify-center shadow-md border border-gray-100"
               activeOpacity={0.8}
               onPress={() => setShowJournal(true)}
             >
-              <Ionicons name="book" size={20} color="#D4A574" />
+              <Ionicons name="book" size={20} color="#FF6B35" />
               {collectedClues.length > 0 ? (
                 <View className="absolute -top-1 -right-1 bg-primary rounded-full w-5 h-5 items-center justify-center">
                   <Text className="text-white text-[10px] font-bold">{collectedClues.length}</Text>
@@ -198,7 +194,7 @@ export default function MapScreen(): React.JSX.Element {
             <View className="bg-surface rounded-t-3xl max-h-[70%] shadow-2xl">
               <View className="flex-row items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
                 <View className="flex-row items-center gap-2">
-                  <Ionicons name="book" size={18} color="#1a1a2e" />
+                  <Ionicons name="book" size={18} color="#FF6B35" />
                   <Text className="text-lg font-bold text-secondary">Dziennik wskazówek</Text>
                 </View>
                 <TouchableOpacity onPress={() => setShowJournal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -213,8 +209,8 @@ export default function MapScreen(): React.JSX.Element {
                 ) : (
                   collectedClues.map((clue, i) => (
                     <View key={i} className="flex-row gap-3 mb-4">
-                      <View className="w-7 h-7 rounded-full items-center justify-center mt-0.5" style={{ backgroundColor: '#1a1a2e' }}>
-                        <Text className="text-xs font-bold" style={{ color: '#D4A574' }}>{i + 1}</Text>
+                      <View className="w-7 h-7 rounded-full bg-primary/10 items-center justify-center mt-0.5">
+                        <Text className="text-xs font-bold text-primary">{i + 1}</Text>
                       </View>
                       <Text className="flex-1 text-sm italic text-gray-700 leading-6">„{clue}"</Text>
                     </View>
