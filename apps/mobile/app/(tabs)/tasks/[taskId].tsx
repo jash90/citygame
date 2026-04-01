@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Keyboard,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -167,15 +164,6 @@ export default function TaskDetailScreen(): React.JSX.Element {
     }
   };
   const [showHints, setShowHints] = useState(false);
-
-  const scrollRef = useRef<ScrollView>(null);
-
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => {
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
-    });
-    return () => sub.remove();
-  }, []);
 
   const { tasks, currentGame, currentSession, lastAiResult, clearLastAiResult, addClue } = useGameStore();
   const submitMutation = useSubmitTask();
@@ -365,150 +353,146 @@ export default function TaskDetailScreen(): React.JSX.Element {
         ) : null}
       </View>
 
-      <KeyboardAvoidingView
+      <KeyboardAwareScrollView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        contentContainerStyle={{ padding: 16, gap: 16 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={20}
       >
-        <ScrollView
-          ref={scrollRef}
-          className="px-4 py-4"
-          contentContainerStyle={{ gap: 16 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Task meta */}
-          <View className="flex-row items-center gap-2">
-            <TaskTypeBadge type={task.type} />
-            <View className="bg-primary/10 rounded-full px-2.5 py-0.5">
-              <Text className="text-xs font-semibold text-primary">
-                {task.points} pkt
-              </Text>
-            </View>
-          </View>
-
-          {/* Story context (narrative games) */}
-          {storyContext ? (
-            <StoryContextCard context={storyContext} />
-          ) : null}
-
-          {/* Description */}
-          <View className="bg-surface rounded-2xl p-4 border border-gray-100">
-            <Text className="text-base text-gray-700 leading-7">
-              {task.description}
+        {/* Task meta */}
+        <View className="flex-row items-center gap-2">
+          <TaskTypeBadge type={task.type} />
+          <View className="bg-primary/10 rounded-full px-2.5 py-0.5">
+            <Text className="text-xs font-semibold text-primary">
+              {task.points} pkt
             </Text>
           </View>
+        </View>
 
-          {/* Locked state — show unlock button */}
-          {isLocked ? (
-            <View className="bg-surface rounded-2xl p-4 border border-gray-100 items-center gap-3">
-              <Ionicons name="lock-closed" size={30} color="#9CA3AF" />
-              <Text className="text-sm text-gray-600 text-center">
-                To zadanie jest jeszcze zablokowane. Odblokuj je, aby zobaczyć treść.
-              </Text>
-              <TouchableOpacity
-                className={`bg-primary rounded-xl px-6 py-3 ${unlockMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
-                onPress={handleUnlock}
-                disabled={unlockMutation.isPending}
-                activeOpacity={0.8}
-              >
-                {unlockMutation.isPending ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text className="text-white font-bold">Odblokuj zadanie</Text>
-                )}
-              </TouchableOpacity>
+        {/* Story context (narrative games) */}
+        {storyContext ? (
+          <StoryContextCard context={storyContext} />
+        ) : null}
+
+        {/* Description */}
+        <View className="bg-surface rounded-2xl p-4 border border-gray-100">
+          <Text className="text-base text-gray-700 leading-7">
+            {task.description}
+          </Text>
+        </View>
+
+        {/* Locked state — show unlock button */}
+        {isLocked ? (
+          <View className="bg-surface rounded-2xl p-4 border border-gray-100 items-center gap-3">
+            <Ionicons name="lock-closed" size={30} color="#9CA3AF" />
+            <Text className="text-sm text-gray-600 text-center">
+              To zadanie jest jeszcze zablokowane. Odblokuj je, aby zobaczyć treść.
+            </Text>
+            <TouchableOpacity
+              className={`bg-primary rounded-xl px-6 py-3 ${unlockMutation.isPending ? 'opacity-50' : 'opacity-100'}`}
+              onPress={handleUnlock}
+              disabled={unlockMutation.isPending}
+              activeOpacity={0.8}
+            >
+              {unlockMutation.isPending ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text className="text-white font-bold">Odblokuj zadanie</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Task input */}
+            <View className="bg-surface rounded-2xl p-4 border border-gray-100">
+              <TaskRenderer
+                task={task}
+                onSubmit={handleSubmit}
+                isSubmitting={submitMutation.isPending}
+              />
             </View>
-          ) : (
-            <>
-              {/* Task input */}
-              <View className="bg-surface rounded-2xl p-4 border border-gray-100">
-                <TaskRenderer
-                  task={task}
-                  onSubmit={handleSubmit}
-                  isSubmitting={submitMutation.isPending}
-                />
-              </View>
 
-              {__DEV__ && task.status !== 'completed' && (
-                <TouchableOpacity
-                  className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
-                  accessible
-                  accessibilityRole="button"
-                  accessibilityLabel="DEV Auto-complete"
-                  onPress={() => {
-                    devCompleteMutation.mutate(
-                      { gameId, taskId: task.id },
-                      {
-                        onSuccess: (attempt) => {
-                          hasNavigatedRef.current = true;
-                          const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
-                          const completedAfter = new Set(currentCompleted);
-                          completedAfter.add(task.id);
-                          const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
+            {__DEV__ && task.status !== 'completed' && (
+              <TouchableOpacity
+                className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel="DEV Auto-complete"
+                onPress={() => {
+                  devCompleteMutation.mutate(
+                    { gameId, taskId: task.id },
+                    {
+                      onSuccess: (attempt) => {
+                        hasNavigatedRef.current = true;
+                        const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
+                        const completedAfter = new Set(currentCompleted);
+                        completedAfter.add(task.id);
+                        const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
 
-                          if (allDone) {
-                            router.replace({
-                              pathname: '/game-summary' as never,
-                              params: {
-                                totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
-                                tasksCompleted: String(completedAfter.size),
-                                totalTasks: String(allTasks.length),
-                                timeTakenSec: '0',
-                                rank: '0',
-                              },
-                            });
-                            return;
-                          }
-
-                          router.push({
-                            pathname: '/(modals)/task-result' as never,
+                        if (allDone) {
+                          router.replace({
+                            pathname: '/game-summary' as never,
                             params: {
-                              success: '1',
-                              points: String(attempt.pointsAwarded),
-                              feedback: 'DEV auto-complete',
+                              totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
+                              tasksCompleted: String(completedAfter.size),
+                              totalTasks: String(allTasks.length),
+                              timeTakenSec: '0',
+                              rank: '0',
                             },
                           });
-                        },
-                        onError: () => {
-                          Alert.alert('Błąd', 'DEV auto-complete failed.');
-                        },
+                          return;
+                        }
+
+                        router.push({
+                          pathname: '/(modals)/task-result' as never,
+                          params: {
+                            success: '1',
+                            points: String(attempt.pointsAwarded),
+                            feedback: 'DEV auto-complete',
+                          },
+                        });
                       },
-                    );
-                  }}
-                  disabled={devCompleteMutation.isPending}
-                  activeOpacity={0.7}
+                      onError: () => {
+                        Alert.alert('Błąd', 'DEV auto-complete failed.');
+                      },
+                    },
+                  );
+                }}
+                disabled={devCompleteMutation.isPending}
+                activeOpacity={0.7}
+              >
+                <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* AI verification status (shown when submission is pending AI check) */}
+            {isAiTask && submitMutation.isPending ? (
+              <AIVerificationStatus status="processing" />
+            ) : null}
+
+            {/* Hints */}
+            {currentSession && task.hintCount > 0 && (
+              <View>
+                <TouchableOpacity
+                  className="flex-row items-center gap-2 py-2"
+                  onPress={() => setShowHints((prev) => !prev)}
                 >
-                  <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
+                  <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
+                  <Text className="text-sm font-semibold text-primary">
+                    Podpowiedzi
+                  </Text>
+                  <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
                 </TouchableOpacity>
-              )}
-
-              {/* AI verification status (shown when submission is pending AI check) */}
-              {isAiTask && submitMutation.isPending ? (
-                <AIVerificationStatus status="processing" />
-              ) : null}
-
-              {/* Hints */}
-              {currentSession && task.hintCount > 0 && (
-                <View>
-                  <TouchableOpacity
-                    className="flex-row items-center gap-2 py-2"
-                    onPress={() => setShowHints((prev) => !prev)}
-                  >
-                    <Ionicons name="bulb-outline" size={16} color="#FF6B35" />
-                    <Text className="text-sm font-semibold text-primary">
-                      Podpowiedzi
-                    </Text>
-                    <Ionicons name={showHints ? 'chevron-up' : 'chevron-down'} size={16} color="#FF6B35" />
-                  </TouchableOpacity>
-                  {showHints ? (
-                    <HintsPanel gameId={gameId} taskId={task.id} totalHints={task.hintCount} />
-                  ) : null}
-                </View>
-              )}
-            </>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+                {showHints ? (
+                  <HintsPanel gameId={gameId} taskId={task.id} totalHints={task.hintCount} />
+                ) : null}
+              </View>
+            )}
+          </>
+        )}
+      </KeyboardAwareScrollView>
     </StyledSafeAreaView>
   );
 }
