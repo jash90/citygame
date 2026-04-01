@@ -1,0 +1,25 @@
+---
+import Layout from '@/layouts/Layout.astro';
+import LandingNav from '@/components/landing/LandingNav.astro';
+import HeroSection from '@/components/landing/HeroSection.astro';
+import FeaturesSection from '@/components/landing/FeaturesSection.astro';
+import HowItWorksSection from '@/components/landing/HowItWorksSection.astro';
+import GameShowcaseSection from '@/components/landing/GameShowcaseSection.astro';
+import DownloadCTASection from '@/components/landing/DownloadCTASection.astro';
+import LandingFooter from '@/components/landing/LandingFooter.astro';
+---
+
+<Layout
+  title="CityGame - Miejskie gry przygodowe"
+  description="Dołącz do miejskich gier przygodowych. Eksploruj miasta, rozwiązuj zagadki, zbieraj wskazówki i rywalizuj z innymi graczami."
+>
+  <main>
+    <LandingNav />
+    <HeroSection />
+    <FeaturesSection />
+    <HowItWorksSection />
+    <GameShowcaseSection />
+    <DownloadCTASection />
+    <LandingFooter />
+  </main>
+</Layout>
