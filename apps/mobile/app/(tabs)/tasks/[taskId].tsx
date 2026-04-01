@@ -359,7 +359,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid
-        extraScrollHeight={20}
+        extraScrollHeight={120}
       >
         {/* Task meta */}
         <View className="flex-row items-center gap-2">
