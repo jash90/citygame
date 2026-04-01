@@ -414,59 +414,6 @@ export default function TaskDetailScreen(): React.JSX.Element {
               />
             </View>
 
-            {__DEV__ && task.status !== 'completed' && (
-              <TouchableOpacity
-                className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel="DEV Auto-complete"
-                onPress={() => {
-                  devCompleteMutation.mutate(
-                    { gameId, taskId: task.id },
-                    {
-                      onSuccess: (attempt) => {
-                        hasNavigatedRef.current = true;
-                        const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
-                        const completedAfter = new Set(currentCompleted);
-                        completedAfter.add(task.id);
-                        const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
-
-                        if (allDone) {
-                          router.replace({
-                            pathname: '/game-summary' as never,
-                            params: {
-                              totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
-                              tasksCompleted: String(completedAfter.size),
-                              totalTasks: String(allTasks.length),
-                              timeTakenSec: '0',
-                              rank: '0',
-                            },
-                          });
-                          return;
-                        }
-
-                        router.push({
-                          pathname: '/(modals)/task-result' as never,
-                          params: {
-                            success: '1',
-                            points: String(attempt.pointsAwarded),
-                            feedback: 'DEV auto-complete',
-                          },
-                        });
-                      },
-                      onError: () => {
-                        Alert.alert('Błąd', 'DEV auto-complete failed.');
-                      },
-                    },
-                  );
-                }}
-                disabled={devCompleteMutation.isPending}
-                activeOpacity={0.7}
-              >
-                <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
-              </TouchableOpacity>
-            )}
-
             {/* AI verification status (shown when submission is pending AI check) */}
             {isAiTask && submitMutation.isPending ? (
               <AIVerificationStatus status="processing" />
@@ -491,6 +438,60 @@ export default function TaskDetailScreen(): React.JSX.Element {
               </View>
             )}
           </>
+        )}
+
+        {/* DEV button — visible for all non-completed tasks regardless of lock state */}
+        {__DEV__ && task.status !== 'completed' && (
+          <TouchableOpacity
+            className="border-2 border-dashed border-red-400 rounded-xl py-3 items-center bg-red-50"
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel="DEV Auto-complete"
+            onPress={() => {
+              devCompleteMutation.mutate(
+                { gameId, taskId: task.id },
+                {
+                  onSuccess: (attempt) => {
+                    hasNavigatedRef.current = true;
+                    const { completedTaskIds: currentCompleted, tasks: allTasks } = useGameStore.getState();
+                    const completedAfter = new Set(currentCompleted);
+                    completedAfter.add(task.id);
+                    const allDone = allTasks.length > 0 && allTasks.every((t) => completedAfter.has(t.id));
+
+                    if (allDone) {
+                      router.replace({
+                        pathname: '/game-summary' as never,
+                        params: {
+                          totalPoints: String(attempt.pointsAwarded + (currentSession?.totalPoints ?? 0)),
+                          tasksCompleted: String(completedAfter.size),
+                          totalTasks: String(allTasks.length),
+                          timeTakenSec: '0',
+                          rank: '0',
+                        },
+                      });
+                      return;
+                    }
+
+                    router.push({
+                      pathname: '/(modals)/task-result' as never,
+                      params: {
+                        success: '1',
+                        points: String(attempt.pointsAwarded),
+                        feedback: 'DEV auto-complete',
+                      },
+                    });
+                  },
+                  onError: (error: Error) => {
+                    Alert.alert('DEV auto-complete failed', error.message || 'Unknown error');
+                  },
+                },
+              );
+            }}
+            disabled={devCompleteMutation.isPending}
+            activeOpacity={0.7}
+          >
+            <Text className="text-sm font-bold text-red-500">DEV: Auto-complete</Text>
+          </TouchableOpacity>
         )}
       </KeyboardAwareScrollView>
     </StyledSafeAreaView>
