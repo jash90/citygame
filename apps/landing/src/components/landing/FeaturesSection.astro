@@ -1,0 +1,157 @@
+---
+const features = [
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>',
+    title: 'Interaktywna mapa',
+    description: 'Przeglądaj zadania na mapie miasta. Każda lokalizacja kryje nowe wyzwanie do odkrycia.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="2" y="2" rx="1"/><rect width="5" height="5" x="17" y="2" rx="1"/><rect width="5" height="5" x="2" y="17" rx="1"/><rect width="5" height="5" x="17" y="17" rx="1"/><path d="M12 2v20"/><path d="M2 12h20"/></svg>',
+    title: 'Skanowanie kodów QR',
+    description: 'Skanuj kody QR ukryte w terenie, aby odblokować kolejne etapy gry i zdobywać punkty.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+    title: 'Zadania fotograficzne',
+    description: 'Wykonuj zdjęcia i nagrywaj dźwięk, aby udowodnić swoją obecność w wyznaczonych miejscach.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>',
+    title: 'Rankingi i rywalizacja',
+    description: 'Rywalizuj z innymi graczami w czasie rzeczywistym. Sprawdź, kto zdobędzie najwięcej punktów.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+    title: 'Gry narracyjne',
+    description: 'Wciągające historie z prologiem, wskazówkami i fabułą, która prowadzi Cię przez miasto.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    title: 'Sesje na czas',
+    description: 'Każda gra ma ograniczony czas trwania. Planuj trasę i realizuj zadania, zanim czas minie.',
+  },
+];
+---
+
+<section id="funkcje" class="features">
+  <div class="container">
+    <div class="header">
+      <p class="label">Funkcje</p>
+      <h2>Wszystko, czego potrzebujesz do gry</h2>
+      <p class="description">
+        Aplikacja mobilna CityGame to kompletne narzędzie do udziału w miejskich grach przygodowych.
+      </p>
+    </div>
+
+    <div class="grid">
+      {features.map((feature) => (
+        <div class="card">
+          <div class="icon-box">
+            <Fragment set:html={feature.icon} />
+          </div>
+          <h3>{feature.title}</h3>
+          <p>{feature.description}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .features {
+    padding: 5rem 0;
+    background: white;
+  }
+
+  .container {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .label {
+    color: #FF6B35;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: #1a1a2e;
+  }
+
+  .description {
+    color: #6b7280;
+    margin-top: 1rem;
+    max-width: 36rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .card {
+    padding: 1.5rem;
+    border-radius: 1rem;
+    border: 1px solid #f3f4f6;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .card:hover {
+    border-color: rgba(255, 107, 53, 0.3);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  }
+
+  .icon-box {
+    width: 3rem;
+    height: 3rem;
+    background: rgba(255, 107, 53, 0.1);
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+    color: #FF6B35;
+    transition: background 0.2s;
+  }
+
+  .card:hover .icon-box {
+    background: rgba(255, 107, 53, 0.2);
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 0.5rem;
+  }
+
+  .card p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  @media (min-width: 640px) {
+    .features { padding: 7rem 0; }
+    h2 { font-size: 2.25rem; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (min-width: 1024px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>

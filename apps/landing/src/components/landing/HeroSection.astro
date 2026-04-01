@@ -1,0 +1,226 @@
+---
+---
+
+<section class="hero">
+  <div class="bg-glow">
+    <div class="glow glow-1"></div>
+    <div class="glow glow-2"></div>
+  </div>
+
+  <div class="hero-content">
+    <div class="badge">
+      <div class="badge-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <span>CityGame</span>
+    </div>
+
+    <h1>Odkrywaj miasta<br /><span class="accent">przez grę</span></h1>
+
+    <p class="subtitle">
+      Dołącz do miejskich gier przygodowych. Eksploruj ukryte zakątki,
+      rozwiązuj zagadki, zbieraj wskazówki i rywalizuj z innymi graczami
+      w Twoim mieście.
+    </p>
+
+    <div class="actions">
+      <a href="#pobierz" class="btn-primary">Rozpocznij przygodę</a>
+      <a href="#funkcje" class="btn-secondary">Dowiedz się więcej</a>
+    </div>
+
+    <div class="stats">
+      <div>
+        <div class="stat-value">100+</div>
+        <div class="stat-label">Graczy</div>
+      </div>
+      <div>
+        <div class="stat-value">15+</div>
+        <div class="stat-label">Gier miejskich</div>
+      </div>
+      <div>
+        <div class="stat-value">5</div>
+        <div class="stat-label">Miast</div>
+      </div>
+    </div>
+  </div>
+
+  <a href="#funkcje" class="scroll-indicator" aria-label="Przewiń w dół">
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+  </a>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #1a1a2e;
+  }
+
+  .bg-glow {
+    position: absolute;
+    inset: 0;
+    opacity: 0.1;
+  }
+
+  .glow {
+    position: absolute;
+    border-radius: 50%;
+    background: #FF6B35;
+  }
+
+  .glow-1 { top: 5rem; left: 2.5rem; width: 18rem; height: 18rem; filter: blur(128px); }
+  .glow-2 { bottom: 5rem; right: 2.5rem; width: 24rem; height: 24rem; filter: blur(160px); }
+
+  .hero-content {
+    position: relative;
+    z-index: 10;
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    padding: 0.625rem 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .badge-icon {
+    width: 2rem;
+    height: 2rem;
+    background: #FF6B35;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  .badge span {
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: white;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+  }
+
+  .accent { color: #FF6B35; }
+
+  .subtitle {
+    font-size: 1.125rem;
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 40rem;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    justify-content: center;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #FF6B35;
+    color: white;
+    font-weight: 700;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-size: 1.125rem;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .btn-primary:hover { background: #e55a26; }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 2rem;
+    border-radius: 0.75rem;
+    font-size: 1.125rem;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: background 0.2s;
+  }
+
+  .btn-secondary:hover { background: rgba(255, 255, 255, 0.15); }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .stat-value {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: white;
+  }
+
+  .stat-label {
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0.25rem;
+  }
+
+  .scroll-indicator {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.4);
+    transition: color 0.2s;
+    animation: bounce 2s infinite;
+  }
+
+  .scroll-indicator:hover { color: rgba(255, 255, 255, 0.7); }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-8px); }
+  }
+
+  @media (min-width: 640px) {
+    h1 { font-size: 3.25rem; }
+    .subtitle { font-size: 1.25rem; }
+    .actions { flex-direction: row; }
+    .stats { gap: 4rem; }
+  }
+
+  @media (min-width: 1024px) {
+    h1 { font-size: 4.5rem; }
+  }
+</style>

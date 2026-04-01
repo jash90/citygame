@@ -1,0 +1,152 @@
+---
+const phases = [
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>',
+    title: 'Prolog i fabuła',
+    description: 'Każda gra narracyjna zaczyna się od wciągającej historii, która wprowadza Cię w klimat przygody.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 4.5-6 9-6 9s-6-4.5-6-9a6 6 0 0 1 12 0"/><circle cx="12" cy="8" r="2"/><path d="M8.835 14H5a1 1 0 0 0-.9.7l-2 6c-.1.1-.1.2-.1.3 0 .6.4 1 1 1h18c.6 0 1-.4 1-1 0-.1 0-.2-.1-.3l-2-6a1 1 0 0 0-.9-.7h-3.835"/></svg>',
+    title: 'Eksploracja na mapie',
+    description: 'Odkrywaj punkty na mapie miasta. Każdy pin to zadanie czekające na realizację.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+    title: 'Realizacja zadań',
+    description: 'Odpowiadaj na pytania, skanuj kody QR, rób zdjęcia — każde zadanie to nowe wyzwanie.',
+  },
+  {
+    icon: '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',
+    title: 'Punkty i ranking',
+    description: 'Zdobywaj punkty za każde wykonane zadanie. Sprawdź swoją pozycję w rankingu w czasie rzeczywistym.',
+  },
+];
+---
+
+<section class="showcase">
+  <div class="container">
+    <div class="header">
+      <p class="label">Przebieg gry</p>
+      <h2>Jak wygląda sesja gry</h2>
+      <p class="description">
+        Od startu do mety — każda gra to unikalna przygoda pełna zadań i odkryć.
+      </p>
+    </div>
+
+    <div class="grid">
+      {phases.map((phase, index) => (
+        <div class="card">
+          <div class="card-icon-col">
+            <div class="phase-icon">
+              <Fragment set:html={phase.icon} />
+            </div>
+            <span class="phase-number">{String(index + 1).padStart(2, '0')}</span>
+          </div>
+          <div>
+            <h3>{phase.title}</h3>
+            <p>{phase.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .showcase {
+    padding: 5rem 0;
+    background: white;
+  }
+
+  .container {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .label {
+    color: #FF6B35;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+    font-weight: 800;
+    color: #1a1a2e;
+  }
+
+  .description {
+    color: #6b7280;
+    margin-top: 1rem;
+    max-width: 36rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .card {
+    display: flex;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background: #f9fafb;
+    border: 1px solid #f3f4f6;
+  }
+
+  .card-icon-col {
+    flex-shrink: 0;
+  }
+
+  .phase-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    background: #1a1a2e;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FF6B35;
+  }
+
+  .phase-number {
+    display: block;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #d1d5db;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 0.25rem;
+  }
+
+  .card p {
+    color: #6b7280;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+
+  @media (min-width: 640px) {
+    .showcase { padding: 7rem 0; }
+    h2 { font-size: 2.25rem; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
