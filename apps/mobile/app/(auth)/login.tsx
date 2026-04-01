@@ -4,12 +4,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Alert,
   Pressable,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { API_URL, WS_URL } from '@/lib/constants';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,14 +54,12 @@ export default function LoginScreen(): React.JSX.Element {
 
   return (
     <StyledSafeAreaView className="flex-1 bg-surface">
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={20}
       >
-        <ScrollView
-          contentContainerClassName="flex-grow justify-center px-6 py-8"
-          keyboardShouldPersistTaps="handled"
-        >
           {/* Logo / title */}
           <View className="items-center mb-10">
             <Pressable onPress={handleIconTap}>
@@ -141,8 +137,7 @@ export default function LoginScreen(): React.JSX.Element {
               </TouchableOpacity>
             </Link>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </StyledSafeAreaView>
   );
 }
