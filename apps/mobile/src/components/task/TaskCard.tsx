@@ -20,7 +20,7 @@ interface TaskCardProps {
 }
 
 export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Element => {
-  const isInteractive = task.status === 'available';
+  const isInteractive = task.status === 'available' || (__DEV__ && task.status !== 'completed');
   const statusIcon = STATUS_ICONS[task.status];
 
   return (
