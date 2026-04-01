@@ -51,11 +51,15 @@ export const GameBrowser = (): React.JSX.Element => {
   };
 
   const handleViewResults = (game: Game): void => {
+    // If game is currently running, show previous run; otherwise show the latest (ended) run
+    const runToView = game.isRunning
+      ? Math.max((game.currentRun ?? 1) - 1, 0)
+      : game.currentRun ?? 0;
     router.push({
       pathname: '/run-answers' as never,
       params: {
         gameId: game.id,
-        runNumber: String((game.currentRun ?? 1) > 0 ? game.currentRun - 1 : 0),
+        runNumber: String(runToView),
         gameName: game.name,
       },
     });
@@ -81,7 +85,14 @@ export const GameBrowser = (): React.JSX.Element => {
       </View>
 
       <FlatList
-        data={(games ?? []).filter((g) => g.isRunning)}
+        data={(games ?? [])
+          .filter((g) => g.isRunning || g.currentRun > 0)
+          .sort((a, b) => {
+            // Running games first, then ended
+            const aRunning = a.isRunning ? 1 : 0;
+            const bRunning = b.isRunning ? 1 : 0;
+            return bRunning - aRunning;
+          })}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => {
           const hasActiveSession = activeSession?.gameId === item.id;

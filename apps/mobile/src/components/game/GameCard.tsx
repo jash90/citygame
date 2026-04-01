@@ -22,8 +22,10 @@ export const GameCard = ({
   isExpired = false,
   isRunning = false,
 }: GameCardProps): React.JSX.Element => {
+  const hasEndedRuns = game.currentRun > 0;
+
   const renderActionButton = () => {
-    if (isExpired) {
+    if (isExpired || (!isRunning && hasEndedRuns)) {
       // Game run ended — show View Results
       return (
         <TouchableOpacity
@@ -37,7 +39,7 @@ export const GameCard = ({
     }
 
     if (!isRunning && !hasActiveSession) {
-      // Published but no active run — not joinable
+      // Published but never had a run — not joinable
       return (
         <View className="bg-gray-100 rounded-lg px-5 py-2.5">
           <Text className="text-gray-400 text-sm font-bold">Brak sesji</Text>
@@ -90,8 +92,8 @@ export const GameCard = ({
       )}
 
       {/* Status badge */}
-      {isExpired ? (
-        <View className="absolute top-3 right-3 bg-red-500/90 rounded-full px-3 py-1">
+      {isExpired || (!isRunning && hasEndedRuns) ? (
+        <View className="absolute top-3 right-3 bg-gray-500/90 rounded-full px-3 py-1">
           <Text className="text-white text-[10px] font-bold">Zakończona</Text>
         </View>
       ) : isRunning ? (
