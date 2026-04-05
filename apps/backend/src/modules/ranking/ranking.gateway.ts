@@ -1,4 +1,4 @@
-import { Logger, OnModuleInit, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Logger, OnModuleDestroy, OnModuleInit, UsePipes, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -73,7 +73,7 @@ export interface PlayerLocationPayload {
     credentials: true,
   },
 })
-export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit, OnModuleDestroy {
   @WebSocketServer()
   server!: Server;
 

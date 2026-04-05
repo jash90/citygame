@@ -63,7 +63,7 @@ export const RankItem = memo(({
           isCurrentUser ? 'text-primary' : 'text-gray-800'
         }`}
       >
-        {entry.points} pkt
+        {entry.totalPoints} pkt
       </Text>
     </View>
   );

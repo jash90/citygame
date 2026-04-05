@@ -472,13 +472,16 @@ export class PlayerService {
 
   /**
    * DEV-only: auto-complete a task bypassing verification.
-   * Only available when DevPlayerController is registered (non-production).
+   * Only available when DevPlayerController is registered (ENABLE_DEV_ENDPOINTS=true).
    */
   async devCompleteTask(
     gameId: string,
     taskId: string,
     userId: string,
   ): Promise<TaskAttempt> {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException('Dev endpoints are disabled in production');
+    }
 
     const session = await this.requireActiveSession(gameId, userId);
 

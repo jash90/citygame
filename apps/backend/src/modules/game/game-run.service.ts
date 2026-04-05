@@ -111,7 +111,7 @@ export class GameRunService {
       });
 
       return endedRun;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   }
 
   /**

@@ -39,7 +39,7 @@ export const useRankingStore = create<RankingState>((set) => ({
         }
       });
       // Re-sort by points descending
-      merged.sort((a, b) => b.points - a.points);
+      merged.sort((a, b) => b.totalPoints - a.totalPoints);
       // Re-assign ranks
       merged.forEach((entry, index) => {
         entry.rank = index + 1;
