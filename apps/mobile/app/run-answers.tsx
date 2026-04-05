@@ -12,7 +12,9 @@ import { useRunAnswers } from '@/hooks/useGame';
 import { StyledSafeAreaView } from '@/lib/styled';
 import type { RunAnswerEntry } from '@/services/api';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: IoniconsName }> = {
   CORRECT: { label: 'Poprawna', color: '#16A34A', bg: 'bg-green-100', icon: 'checkmark-circle' },
   PARTIAL: { label: 'Częściowa', color: '#D97706', bg: 'bg-amber-100', icon: 'remove-circle' },
   INCORRECT: { label: 'Błędna', color: '#EF4444', bg: 'bg-red-100', icon: 'close-circle' },
@@ -33,7 +35,7 @@ function AnswerItem({ item }: { item: RunAnswerEntry }): React.JSX.Element {
           <Text className="text-xs text-gray-500 mt-0.5">{item.taskType}</Text>
         </View>
         <View className={`flex-row items-center gap-1 rounded-full px-2.5 py-1 ${config.bg}`}>
-          <Ionicons name={config.icon as any} size={12} color={config.color} />
+          <Ionicons name={config.icon} size={12} color={config.color} />
           <Text className="text-[10px] font-bold" style={{ color: config.color }}>
             {config.label}
           </Text>
