@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MapPin, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { isTokenExpired } from '@/lib/jwt';
+import { setWsToken } from '@/lib/ws';
 import type { AuthTokens } from '@citygame/shared';
 
 const loginSchema = z.object({
@@ -21,10 +21,11 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token && !isTokenExpired(token)) {
-      const role = localStorage.getItem('userRole');
-      if (role === 'ADMIN') router.replace('/dashboard');
+    // If we already have a cached role, try navigating to dashboard.
+    // The AuthGuard will verify the cookie is still valid.
+    const role = localStorage.getItem('userRole');
+    if (role === 'ADMIN') {
+      router.replace('/dashboard');
     }
   }, [router]);
 
@@ -49,11 +50,15 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem('accessToken', accessToken);
-      if (res.refreshToken) {
-        localStorage.setItem('refreshToken', res.refreshToken);
-      }
+      // Tokens are stored in httpOnly cookies by the backend.
+      // Only cache the role locally for UI gating (non-sensitive).
       localStorage.setItem('userRole', user.role);
+
+      // Pass the access token to the WebSocket module for WS auth.
+      // This is safe — the token is short-lived and only held in memory.
+      if (accessToken) {
+        setWsToken(accessToken);
+      }
       router.push('/dashboard');
     } catch (err) {
       setError('root', {

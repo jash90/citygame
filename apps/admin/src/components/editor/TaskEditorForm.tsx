@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useState } from 'react';
@@ -140,7 +140,6 @@ export function TaskEditorForm({
     handleSubmit,
     watch,
     setValue,
-    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(baseSchema),
@@ -161,7 +160,7 @@ export function TaskEditorForm({
       gpsRadius: 50,
       ...(() => {
         try {
-          const ctx = (task as any)?.storyContext ? JSON.parse((task as any).storyContext) : {};
+          const ctx = task?.storyContext ? JSON.parse(task.storyContext) : {};
           return {
             characterName: ctx.characterName ?? '',
             locationIntro: ctx.locationIntro ?? '',
@@ -268,12 +267,14 @@ export function TaskEditorForm({
     const unlockConfig: CreateTaskDto['unlockConfig'] =
       data.unlockMethod === UnlockMethod.QR
         ? { method: 'QR', expectedHash: data.qrHash ?? '' }
-        : {
-            method: 'GPS',
-            latitude: data.latitude,
-            longitude: data.longitude,
-            radiusMeters: data.gpsRadius ?? 50,
-          };
+        : data.unlockMethod === UnlockMethod.NONE
+          ? { method: 'NONE' }
+          : {
+              method: 'GPS',
+              latitude: data.latitude,
+              longitude: data.longitude,
+              radiusMeters: data.gpsRadius ?? 50,
+            };
 
     // Serialize story context fields into a JSON string
     const hasStoryContext =
@@ -300,7 +301,7 @@ export function TaskEditorForm({
       unlockConfig,
       verifyConfig,
       ...(storyContext ? { storyContext } : {}),
-    } as any);
+    } as CreateTaskDto);
   };
 
   return (

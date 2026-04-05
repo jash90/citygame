@@ -76,10 +76,10 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
       minTeamSize: settings.minTeamSize ?? '',
       maxTeamSize: settings.maxTeamSize ?? '',
       narrative: {
-        isNarrative: (settings as any).narrative?.isNarrative ?? false,
-        theme: (settings as any).narrative?.theme ?? '',
-        prologue: (settings as any).narrative?.prologue ?? '',
-        epilogue: (settings as any).narrative?.epilogue ?? '',
+        isNarrative: settings.narrative?.isNarrative ?? false,
+        theme: settings.narrative?.theme ?? '',
+        prologue: settings.narrative?.prologue ?? '',
+        epilogue: settings.narrative?.epilogue ?? '',
       },
     },
   });
@@ -96,10 +96,10 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
         minTeamSize: settings.minTeamSize ?? '',
         maxTeamSize: settings.maxTeamSize ?? '',
         narrative: {
-          isNarrative: (settings as any).narrative?.isNarrative ?? false,
-          theme: (settings as any).narrative?.theme ?? '',
-          prologue: (settings as any).narrative?.prologue ?? '',
-          epilogue: (settings as any).narrative?.epilogue ?? '',
+          isNarrative: settings.narrative?.isNarrative ?? false,
+          theme: settings.narrative?.theme ?? '',
+          prologue: settings.narrative?.prologue ?? '',
+          epilogue: settings.narrative?.epilogue ?? '',
         },
       });
     }
@@ -110,7 +110,7 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
 
   const mutation = useMutation({
     mutationFn: (data: SettingsFormValues) => {
-      const cleaned: GameSettings & { narrative?: { isNarrative?: boolean; theme?: string; prologue?: string; epilogue?: string } } = {
+      const cleaned: GameSettings = {
         maxPlayers: data.maxPlayers === '' ? undefined : Number(data.maxPlayers),
         timeLimitMinutes: data.timeLimitMinutes === '' ? undefined : Number(data.timeLimitMinutes),
         allowLateJoin: data.allowLateJoin,
@@ -200,14 +200,14 @@ export function GameSettingsEditor({ gameId, settings }: GameSettingsEditorProps
           <div>
             <dt className="text-gray-500">Tryb narracyjny</dt>
             <dd className="font-medium text-gray-800 mt-0.5">
-              {(settings as any).narrative?.isNarrative ? 'Tak' : 'Nie'}
+              {settings.narrative?.isNarrative ? 'Tak' : 'Nie'}
             </dd>
           </div>
-          {(settings as any).narrative?.isNarrative && (settings as any).narrative?.theme && (
+          {settings.narrative?.isNarrative && settings.narrative?.theme && (
             <div>
               <dt className="text-gray-500">Temat</dt>
               <dd className="font-medium text-gray-800 mt-0.5">
-                {(settings as any).narrative.theme}
+                {settings.narrative.theme}
               </dd>
             </div>
           )}
