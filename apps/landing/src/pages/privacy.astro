@@ -1,0 +1,73 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LandingNav from '../components/landing/LandingNav.astro';
+import LandingFooter from '../components/landing/LandingFooter.astro';
+---
+
+<Layout
+  title="Polityka Prywatności — CityGame"
+  description="Polityka prywatności aplikacji CityGame. Dowiedz się, jak przetwarzamy Twoje dane."
+>
+  <LandingNav />
+  <main style="max-width: 800px; margin: 0 auto; padding: 120px 24px 80px;">
+    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 24px; color: #1a1a2e;">
+      Polityka Prywatności
+    </h1>
+    <p style="color: #666; margin-bottom: 16px; font-size: 0.875rem;">
+      Ostatnia aktualizacja: 3 kwietnia 2026
+    </p>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">1. Administrator danych</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Administratorem danych osobowych przetwarzanych w związku z korzystaniem z aplikacji CityGame jest jej twórca.
+        Kontakt: <a href="mailto:kontakt@citygame.app" style="color: #FF6B35;">kontakt@citygame.app</a>.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">2. Jakie dane zbieramy</h2>
+      <ul style="color: #444; line-height: 1.8; padding-left: 24px;">
+        <li><strong>Dane konta:</strong> adres e-mail, nazwa wyświetlana, avatar.</li>
+        <li><strong>Dane lokalizacyjne:</strong> współrzędne GPS podczas aktywnej gry (do weryfikacji zadań).</li>
+        <li><strong>Dane rozgrywki:</strong> odpowiedzi na zadania, wyniki, przesłane zdjęcia i nagrania audio.</li>
+        <li><strong>Dane techniczne:</strong> token push notification, informacje o urządzeniu.</li>
+      </ul>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">3. Cel przetwarzania</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Dane przetwarzamy w celu: umożliwienia korzystania z aplikacji, weryfikacji lokalizacji i odpowiedzi,
+        prowadzenia rankingu, wysyłania powiadomień push oraz poprawy jakości usług.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">4. Udostępnianie danych</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Przesłane zdjęcia i transkrypcje audio mogą być analizowane przez usługę AI (Anthropic Claude)
+        w celu weryfikacji odpowiedzi. Pliki przechowywane są na serwerach Cloudflare R2.
+        Dane nie są sprzedawane podmiotom trzecim.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">5. Twoje prawa</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Masz prawo do: dostępu do swoich danych, ich sprostowania, usunięcia, ograniczenia przetwarzania,
+        przenoszenia danych oraz wniesienia sprzeciwu. W celu realizacji tych praw skontaktuj się z nami
+        pod adresem <a href="mailto:kontakt@citygame.app" style="color: #FF6B35;">kontakt@citygame.app</a>.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">6. Bezpieczeństwo</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Stosujemy odpowiednie środki techniczne i organizacyjne w celu ochrony danych, w tym szyfrowanie
+        haseł (bcrypt), komunikację HTTPS oraz tokeny JWT z ograniczonym czasem ważności.
+      </p>
+    </section>
+  </main>
+  <LandingFooter />
+</Layout>

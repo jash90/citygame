@@ -1,0 +1,83 @@
+---
+import Layout from '../layouts/Layout.astro';
+import LandingNav from '../components/landing/LandingNav.astro';
+import LandingFooter from '../components/landing/LandingFooter.astro';
+---
+
+<Layout
+  title="Regulamin — CityGame"
+  description="Regulamin korzystania z aplikacji CityGame."
+>
+  <LandingNav />
+  <main style="max-width: 800px; margin: 0 auto; padding: 120px 24px 80px;">
+    <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 24px; color: #1a1a2e;">
+      Regulamin
+    </h1>
+    <p style="color: #666; margin-bottom: 16px; font-size: 0.875rem;">
+      Ostatnia aktualizacja: 3 kwietnia 2026
+    </p>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">1. Postanowienia ogólne</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Niniejszy regulamin określa zasady korzystania z aplikacji mobilnej CityGame oraz powiązanej
+        platformy internetowej. Korzystając z aplikacji, użytkownik akceptuje niniejszy regulamin.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">2. Konto użytkownika</h2>
+      <ul style="color: #444; line-height: 1.8; padding-left: 24px;">
+        <li>Rejestracja wymaga podania adresu e-mail, hasła i nazwy wyświetlanej.</li>
+        <li>Użytkownik odpowiada za bezpieczeństwo swojego konta.</li>
+        <li>Konta mogą zostać usunięte na żądanie użytkownika.</li>
+      </ul>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">3. Zasady rozgrywki</h2>
+      <ul style="color: #444; line-height: 1.8; padding-left: 24px;">
+        <li>Gry wymagają dostępu do lokalizacji GPS urządzenia.</li>
+        <li>Odpowiedzi mogą być weryfikowane przez sztuczną inteligencję (AI).</li>
+        <li>Przesyłane zdjęcia i nagrania audio są przetwarzane w celu oceny zadań.</li>
+        <li>Użytkownik zobowiązuje się do przestrzegania przepisów prawa podczas rozgrywki.</li>
+        <li>Zabrania się korzystania z narzędzi do fałszowania lokalizacji GPS.</li>
+      </ul>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">4. Treści użytkowników</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Przesyłając treści (zdjęcia, nagrania, odpowiedzi tekstowe), użytkownik udziela platformie
+        licencji na ich przetwarzanie w celu weryfikacji zadań. Treści obraźliwe lub niezgodne
+        z prawem mogą skutkować zablokowaniem konta.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">5. Odpowiedzialność</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Aplikacja jest udostępniana „tak jak jest". Twórca nie ponosi odpowiedzialności za:
+        przerwy w działaniu usługi, utratę danych rozgrywki, wyniki weryfikacji AI,
+        ani za bezpieczeństwo użytkownika podczas przemieszczania się po mieście.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">6. Zmiany regulaminu</h2>
+      <p style="color: #444; line-height: 1.8;">
+        Regulamin może być aktualizowany. O istotnych zmianach użytkownicy zostaną poinformowani
+        za pośrednictwem aplikacji lub e-mail.
+      </p>
+    </section>
+
+    <section style="margin-bottom: 32px;">
+      <h2 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 12px; color: #1a1a2e;">7. Kontakt</h2>
+      <p style="color: #444; line-height: 1.8;">
+        W sprawach dotyczących regulaminu prosimy o kontakt:
+        <a href="mailto:kontakt@citygame.app" style="color: #FF6B35;">kontakt@citygame.app</a>.
+      </p>
+    </section>
+  </main>
+  <LandingFooter />
+</Layout>
