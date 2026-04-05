@@ -19,6 +19,13 @@ export interface GameRun {
   endedAt?: string;
 }
 
+export interface NarrativeSettings {
+  isNarrative?: boolean;
+  theme?: string;
+  prologue?: string;
+  epilogue?: string;
+}
+
 export interface GameSettings {
   maxPlayers?: number;
   timeLimitMinutes?: number;
@@ -27,6 +34,7 @@ export interface GameSettings {
   teamMode?: boolean;
   minTeamSize?: number;
   maxTeamSize?: number;
+  narrative?: NarrativeSettings;
 }
 
 export interface Game {

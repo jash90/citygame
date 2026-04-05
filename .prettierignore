@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.next/
+.turbo/
+.expo/
+pnpm-lock.yaml
+bun.lock
+*.prisma

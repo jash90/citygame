@@ -35,6 +35,7 @@ export const unlockConfigSchema = z.discriminatedUnion('method', [
     longitude: z.number(),
     radiusMeters: z.number().positive(),
   }),
+  z.object({ method: z.literal('NONE') }),
 ]);
 
 export const verifyConfigSchema: z.ZodType<unknown> = z.lazy(() =>
@@ -93,7 +94,7 @@ export const createTaskSchema = z.object({
     'CIPHER',
     'MIXED',
   ]),
-  unlockMethod: z.enum(['QR', 'GPS']),
+  unlockMethod: z.enum(['QR', 'GPS', 'NONE']),
   orderIndex: z.number().int().min(0),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),

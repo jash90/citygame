@@ -9,5 +9,6 @@
     "types": ["node"],
     "emitDeclarationOnly": false
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }
