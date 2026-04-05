@@ -4,7 +4,13 @@ dist/
 .turbo/
 .expo/
 *.tsbuildinfo
+
+# Environment files (all directories)
+**/.env
+**/.env.local
+**/.env.*.local
 .env
 .env.local
 .env.*.local
+
 .vercel

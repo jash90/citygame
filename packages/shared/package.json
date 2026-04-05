@@ -13,9 +13,15 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "jest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9"
   }
 }

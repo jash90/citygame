@@ -6,6 +6,7 @@
     "dev:admin": "turbo run dev --filter=@citygame/admin",
     "dev:mobile": "turbo run dev --filter=@citygame/mobile",
     "build": "turbo run build",
+    "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "db:migrate": "turbo run db:migrate --filter=@citygame/backend",
@@ -13,8 +14,11 @@
     "db:seed": "turbo run db:seed --filter=@citygame/backend"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^9.25.0",
     "turbo": "^2.3.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.58.0"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {

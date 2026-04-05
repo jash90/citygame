@@ -5,3 +5,4 @@ export * from './session';
 export * from './ranking';
 export * from './ws';
 export * from './api';
+export * from './player';

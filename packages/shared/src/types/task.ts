@@ -12,6 +12,7 @@ export enum TaskType {
 export enum UnlockMethod {
   QR = 'QR',
   GPS = 'GPS',
+  NONE = 'NONE',
 }
 
 // Discriminated union for verifyConfig per TaskType
@@ -86,7 +87,11 @@ export interface UnlockGpsConfig {
   radiusMeters: number;
 }
 
-export type TaskUnlockConfig = UnlockQrConfig | UnlockGpsConfig;
+export interface UnlockNoneConfig {
+  method: 'NONE';
+}
+
+export type TaskUnlockConfig = UnlockQrConfig | UnlockGpsConfig | UnlockNoneConfig;
 
 export interface TaskStoryContext {
   locationIntro?: string;
