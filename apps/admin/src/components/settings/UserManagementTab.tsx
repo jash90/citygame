@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { api } from '@/lib/api';
-import { parseJwtPayload } from '@/lib/jwt';
 import { UserRole } from '@citygame/shared';
 import type { UserListItem } from '@citygame/shared';
 
@@ -32,9 +31,10 @@ export function UserManagementTab() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) { setCurrentUserId(null); return; }
-    setCurrentUserId((parseJwtPayload(token)?.sub as string) ?? null);
+    // Fetch current user ID from the cookie-authenticated API
+    api.get<{ id: string }>('/api/auth/me')
+      .then((me) => setCurrentUserId(me.id))
+      .catch(() => setCurrentUserId(null));
   }, []);
 
   // Debounce search input — 300ms delay

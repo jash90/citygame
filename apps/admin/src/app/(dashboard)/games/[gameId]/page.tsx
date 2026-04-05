@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit, Activity, BarChart3, Loader2, Calendar, MapPin, Users, ListChecks, Play, Square, Clock, History, AlertTriangle } from 'lucide-react';
 import { api, adminApi } from '@/lib/api';
-import type { Game, GameRun } from '@citygame/shared';
+import type { Game } from '@citygame/shared';
 import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
 import { GameSettingsEditor } from '@/components/game/GameSettingsEditor';
 

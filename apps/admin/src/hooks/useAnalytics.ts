@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { adminApi, type GameStats } from '@/lib/api';
-import type { Game, Task, GameSession, GameRun } from '@citygame/shared';
+import type { GameSession } from '@citygame/shared';
 
 export type AnalyticsPeriod = '7d' | '30d' | 'all';
 
@@ -186,7 +186,10 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: st
 
   const sessionsQuery = useQuery({
     queryKey: ['analytics', gameId, 'sessions', runId],
-    queryFn: () => adminApi.getGameSessions(gameId, runId) as Promise<AdminGameSession[]>,
+    queryFn: async () => {
+      const page = await adminApi.getGameSessions(gameId, runId);
+      return (page.items ?? []) as AdminGameSession[];
+    },
     staleTime: 30_000,
   });
 

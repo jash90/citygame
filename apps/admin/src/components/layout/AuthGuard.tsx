@@ -3,66 +3,83 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { isTokenExpired } from '@/lib/jwt';
-import { tryRefreshToken } from '@/lib/api';
+import { api, tryRefreshToken } from '@/lib/api';
 
 interface AuthGuardProps {
   children: React.ReactNode;
 }
 
+interface MeResponse {
+  id: string;
+  role: string;
+}
+
+/**
+ * Auth guard that validates the httpOnly cookie session by calling /api/auth/me.
+ * No tokens are read from localStorage — only the cached `userRole` for fast UI gating.
+ */
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [checked, setChecked] = useState(false);
 
   const clearAndRedirect = useCallback(() => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     router.replace('/login');
   }, [router]);
 
   const checkAuth = useCallback(async () => {
-    const accessToken = localStorage.getItem('accessToken');
+    try {
+      // Verify cookie session by calling the backend
+      const me = await api.get<MeResponse>('/api/auth/me');
 
-    if (accessToken && !isTokenExpired(accessToken)) {
-      const role = localStorage.getItem('userRole');
-      if (role && role !== 'ADMIN') {
+      if (me.role !== 'ADMIN') {
         clearAndRedirect();
         return false;
       }
-      return true;
-    }
 
-    // Access token expired or missing — try refresh
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (refreshToken) {
+      // Keep cached role in sync
+      localStorage.setItem('userRole', me.role);
+      return true;
+    } catch {
+      // Session expired or invalid — try refresh
       const refreshed = await tryRefreshToken();
       if (refreshed) {
-        // Re-check role after refresh — tryRefreshToken updates userRole from JWT
-        const updatedRole = localStorage.getItem('userRole');
-        if (updatedRole && updatedRole !== 'ADMIN') {
-          clearAndRedirect();
-          return false;
+        try {
+          const me = await api.get<MeResponse>('/api/auth/me');
+          if (me.role === 'ADMIN') {
+            localStorage.setItem('userRole', me.role);
+            return true;
+          }
+        } catch {
+          // Refresh succeeded but /me failed — bail
         }
-        return true;
       }
-    }
 
-    clearAndRedirect();
-    return false;
+      clearAndRedirect();
+      return false;
+    }
   }, [clearAndRedirect]);
 
   useEffect(() => {
+    // Fast path: if no cached role, redirect immediately
+    const cachedRole = localStorage.getItem('userRole');
+    if (!cachedRole || cachedRole !== 'ADMIN') {
+      clearAndRedirect();
+      return;
+    }
+
+    // Verify the session cookie is still valid
     checkAuth().then((valid) => {
       if (valid) setChecked(true);
     });
 
+    // Re-validate every 60 seconds
     const interval = setInterval(() => {
       checkAuth();
-    }, 30_000);
+    }, 60_000);
 
     return () => clearInterval(interval);
-  }, [checkAuth]);
+  }, [checkAuth, clearAndRedirect]);
 
   if (!checked) {
     return (

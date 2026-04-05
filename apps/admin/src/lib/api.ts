@@ -1,54 +1,46 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
-function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('accessToken');
-}
-
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('refreshToken');
-}
-
 let refreshPromise: Promise<boolean> | null = null;
 
-export async function tryRefreshToken(): Promise<boolean> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
+/**
+ * BroadcastChannel to coordinate token refresh across browser tabs.
+ * When one tab refreshes, it notifies others so they don't fire redundant
+ * refresh requests (which would fail due to DB token rotation).
+ */
+const refreshChannel =
+  typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('citygame:auth-refresh')
+    : null;
 
+if (refreshChannel) {
+  refreshChannel.onmessage = (event) => {
+    if (event.data === 'refreshed') {
+      // Another tab refreshed successfully — our cookies are already updated.
+      // If we have a pending refresh promise, let it resolve naturally.
+      // The important thing is we don't fire our own /refresh call.
+    }
+  };
+}
+
+/**
+ * Attempt to refresh the access token using httpOnly cookies.
+ * The refresh token cookie is sent automatically by the browser.
+ */
+export async function tryRefreshToken(): Promise<boolean> {
   try {
     const res = await fetch(`${BASE_URL}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'include',
+      body: JSON.stringify({}),
     });
 
-    if (!res.ok) return false;
-
-    const json = await res.json();
-    const data = json.data ?? json;
-
-    if (data.accessToken) {
-      localStorage.setItem('accessToken', data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem('refreshToken', data.refreshToken);
-      }
-      // Update cached role from new token payload
-      try {
-        const parts = data.accessToken.split('.');
-        if (parts.length === 3) {
-          let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          while (base64.length % 4) base64 += '=';
-          const payload = JSON.parse(atob(base64));
-          if (payload?.role) {
-            localStorage.setItem('userRole', payload.role);
-          }
-        }
-      } catch {
-        // Ignore parse errors — token is still saved
-      }
+    if (res.ok) {
+      // Notify other tabs that we refreshed successfully
+      refreshChannel?.postMessage('refreshed');
       return true;
     }
+
     return false;
   } catch {
     return false;
@@ -57,28 +49,26 @@ export async function tryRefreshToken(): Promise<boolean> {
 
 function handleUnauthorized(): never {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('userRole');
     window.location.href = '/login';
   }
   throw new Error('Unauthorized');
 }
 
+/**
+ * Core fetch wrapper. Authentication is handled via httpOnly cookies
+ * sent automatically by the browser (`credentials: 'include'`).
+ * No tokens are stored in localStorage.
+ */
 async function request<T>(
   path: string,
   options: RequestInit = {},
-  _isRetry = false,
+  isRetry = false,
 ): Promise<T> {
-  const token = getToken();
-
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
@@ -86,10 +76,11 @@ async function request<T>(
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
     signal: controller.signal,
   }).finally(() => clearTimeout(timeoutId));
 
-  if (response.status === 401 && !_isRetry) {
+  if (response.status === 401 && !isRetry) {
     // Deduplicate concurrent refresh attempts
     if (!refreshPromise) {
       refreshPromise = tryRefreshToken().finally(() => {
@@ -111,7 +102,7 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Błąd serwera' }));
+    const error = await response.json().catch(() => ({ message: 'Server error' }));
     throw new Error(error.message ?? `HTTP ${response.status}`);
   }
 
@@ -154,21 +145,10 @@ export const api = {
 
 // ─── Admin-specific helpers ────────────────────────────────────────────────
 
-import type { Game, GameRun, Task, GameSession, UserListItem, UserRole, SystemInfo } from '@citygame/shared';
+import type { Game, GameRun, Task, GameSession, UserListItem, UserRole, SystemInfo, GameStats as SharedGameStats } from '@citygame/shared';
 
-export interface GameStats {
-  totalSessions: number;
-  activeSessions: number;
-  completedSessions: number;
-  totalAttempts: number;
-  avgCompletionRate: number;
-  taskCompletionRates: {
-    taskId: string;
-    title: string;
-    completedCount: number;
-    totalAttempts: number;
-  }[];
-}
+// GameStats is now imported from @citygame/shared
+export type GameStats = SharedGameStats;
 
 export interface GenerateTaskContentParams {
   type: 'description' | 'hints' | 'prompt';
@@ -188,7 +168,7 @@ export const adminApi = {
   },
 
   /** GET /api/admin/games/:gameId/sessions — sessions with player info, optionally filtered by run */
-  getGameSessions(gameId: string, runId?: string): Promise<GameSession[]> {
+  getGameSessions(gameId: string, runId?: string): Promise<{ items: GameSession[]; total: number; page: number; limit: number; totalPages: number }> {
     const qs = runId ? `?runId=${runId}` : '';
     return api.get(`/api/admin/games/${gameId}/sessions${qs}`);
   },

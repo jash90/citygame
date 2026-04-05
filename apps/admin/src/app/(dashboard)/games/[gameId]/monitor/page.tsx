@@ -29,14 +29,15 @@ export default function MonitorPage() {
     queryFn: () => adminApi.getGame(gameId),
   });
 
-  const activeRunId = (game as any)?.activeRun?.id as string | undefined;
+  const activeRunId = game?.activeRun?.id as string | undefined;
 
   // Fetch sessions for player count baseline — filtered to active run
-  const { data: sessions = [] } = useQuery({
+  const { data: sessionsPage } = useQuery({
     queryKey: ['game-sessions', gameId, activeRunId],
     queryFn: () => adminApi.getGameSessions(gameId, activeRunId),
     enabled: !!gameId && !!activeRunId,
   });
+  const sessions = sessionsPage?.items ?? [];
 
   // Fetch per-task completions for initial progress
   const { data: runCompletions } = useQuery({
@@ -65,8 +66,8 @@ export default function MonitorPage() {
     setActivities,
   } = useMonitor({
     gameId,
-    startedAt: (game as any)?.activeRun?.startedAt ?? game?.createdAt,
-    initialPlayerCount: sessions.filter((s: any) => s.status === 'ACTIVE').length,
+    startedAt: game?.activeRun?.startedAt ?? game?.createdAt,
+    initialPlayerCount: sessions.filter((s: { status: string }) => s.status === 'ACTIVE').length,
     initialCompletions: (runCompletions?.completions ?? []).reduce((sum, c) => sum + c.count, 0),
   });
 

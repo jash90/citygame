@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { LogOut, User } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { parseJwtPayload } from '@/lib/jwt';
 import { disconnectRankingSocket } from '@/lib/ws';
 
 interface HeaderProps {
@@ -18,25 +17,22 @@ export function Header({ title }: HeaderProps) {
   const [userName, setUserName] = useState('Admin');
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      const payload = parseJwtPayload(token);
-      if (payload?.email) setUserName(payload.email as string);
-    }
+    // Fetch current user email from the cookie-authenticated API
+    api.get<{ email: string }>('/api/auth/me')
+      .then((me) => {
+        if (me?.email) setUserName(me.email);
+      })
+      .catch(() => {
+        // Non-critical — fall back to "Admin"
+      });
   }, []);
 
   const handleLogout = async () => {
-    const token = localStorage.getItem('accessToken');
-    // Only call backend if token might still be valid
-    if (token) {
-      try {
-        await api.post('/api/auth/logout', {});
-      } catch {
-        // Ignore — clean up locally regardless
-      }
+    try {
+      await api.post('/api/auth/logout', {});
+    } catch {
+      // Ignore — clean up locally regardless
     }
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
     localStorage.removeItem('userRole');
     disconnectRankingSocket();
     queryClient.clear();

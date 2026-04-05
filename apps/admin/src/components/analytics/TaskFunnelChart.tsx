@@ -41,7 +41,7 @@ function getBarColor(index: number, total: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-function formatLabel(value: number, entry: { payload?: TaskFunnelDataPoint }) {
+function _formatLabel(value: number, entry: { payload?: TaskFunnelDataPoint }) {
   const total = entry?.payload?.totalPlayers ?? 0;
   if (total === 0) return `${value}`;
   const pct = Math.round((value / total) * 100);

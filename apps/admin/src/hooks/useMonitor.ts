@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useReducer, useCallback, useRef } from 'react';
+import { useEffect, useReducer, useCallback } from 'react';
 import { useWebSocket } from './useWebSocket';
 import type { ConnectionStatus } from './useWebSocket';
 
