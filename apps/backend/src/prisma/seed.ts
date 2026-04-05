@@ -13,6 +13,29 @@ import Redis from 'ioredis';
 
 const prisma = new PrismaClient();
 
+/**
+ * Delete all data for games matching the given title(s).
+ * Handles cascading deletions in the correct order.
+ */
+async function cleanGames(titles: string[]): Promise<void> {
+  const existing = await prisma.game.findMany({
+    where: { title: { in: titles } },
+    select: { id: true },
+  });
+  if (existing.length === 0) return;
+
+  const gameIds = existing.map((g) => g.id);
+  await prisma.taskAttempt.deleteMany({ where: { session: { gameId: { in: gameIds } } } });
+  await prisma.hintUsage.deleteMany({ where: { session: { gameId: { in: gameIds } } } });
+  await prisma.gameSession.deleteMany({ where: { gameId: { in: gameIds } } });
+  await prisma.gameRun.deleteMany({ where: { gameId: { in: gameIds } } });
+  await prisma.teamMember.deleteMany({ where: { team: { gameId: { in: gameIds } } } });
+  await prisma.team.deleteMany({ where: { gameId: { in: gameIds } } });
+  await prisma.hint.deleteMany({ where: { task: { gameId: { in: gameIds } } } });
+  await prisma.task.deleteMany({ where: { gameId: { in: gameIds } } });
+  await prisma.game.deleteMany({ where: { id: { in: gameIds } } });
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -716,19 +739,7 @@ async function main() {
 
   // ── Narrative Game: "Zagubiony Rękopis Kronikarza" ────────────────────────────
 
-  const existingNarrativeGames = await prisma.game.findMany({
-    where: { title: 'Zagubiony Rękopis Kronikarza' },
-  });
-  if (existingNarrativeGames.length > 0) {
-    const nGameIds = existingNarrativeGames.map((g) => g.id);
-    await prisma.taskAttempt.deleteMany({ where: { session: { gameId: { in: nGameIds } } } });
-    await prisma.hintUsage.deleteMany({ where: { session: { gameId: { in: nGameIds } } } });
-    await prisma.gameSession.deleteMany({ where: { gameId: { in: nGameIds } } });
-    await prisma.gameRun.deleteMany({ where: { gameId: { in: nGameIds } } });
-    await prisma.hint.deleteMany({ where: { task: { gameId: { in: nGameIds } } } });
-    await prisma.task.deleteMany({ where: { gameId: { in: nGameIds } } });
-    await prisma.game.deleteMany({ where: { id: { in: nGameIds } } });
-  }
+  await cleanGames(['Zagubiony Rękopis Kronikarza']);
 
   const sc = (ctx: Record<string, string>) => JSON.stringify(ctx);
 
@@ -980,14 +991,14 @@ async function main() {
 
   const redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6380');
 
-  // Kraków ranking
-  const rankingKey = `ranking:game:${game.id}`;
+  // Kraków ranking — use ranking:run:{runId} to match RankingService keys
+  const rankingKey = `ranking:run:${gameRun.id}`;
   await redis.zadd(rankingKey, 870, marek.id);
   await redis.zadd(rankingKey, 450, jan.id);
   await redis.zadd(rankingKey, 280, anna.id);
 
-  // Strzyżów ranking
-  const strzyzowRankingKey = `ranking:game:${strzyzowGame.id}`;
+  // Strzyżów ranking — use ranking:run:{runId} to match RankingService keys
+  const strzyzowRankingKey = `ranking:run:${strzyzowRun.id}`;
   await redis.zadd(strzyzowRankingKey, 910, marek.id);
   await redis.zadd(strzyzowRankingKey, 330, jan.id);
   await redis.zadd(strzyzowRankingKey, 170, anna.id);

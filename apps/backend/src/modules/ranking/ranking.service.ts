@@ -1,7 +1,7 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AttemptStatus } from '@prisma/client';
 import Redis from 'ioredis';
+import { REDIS_CLIENT } from '../../redis/redis.module';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface RankEntry {
@@ -39,31 +39,33 @@ export interface EnrichedRankEntry {
   rank: number;
 }
 
+/** TTL for ranking sorted sets — 7 days after last update. */
+const RANKING_TTL_SECONDS = 7 * 24 * 3600;
+
 @Injectable()
-export class RankingService implements OnModuleInit, OnModuleDestroy {
-  private readonly redis: Redis;
+export class RankingService {
   private readonly logger = new Logger(RankingService.name);
+  private redisAvailable = true;
 
   constructor(
-    private readonly configService: ConfigService,
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly prisma: PrismaService,
   ) {
-    this.redis = new Redis(
-      this.configService.getOrThrow<string>('REDIS_URL'),
-      { lazyConnect: true },
-    );
-  }
-
-  async onModuleInit(): Promise<void> {
-    try {
-      await this.redis.connect();
-    } catch (error) {
-      this.logger.warn('Redis connection failed — ranking will be unavailable', error);
-    }
-  }
-
-  async onModuleDestroy(): Promise<void> {
-    await this.redis.quit();
+    // Track Redis availability
+    this.redis.on('error', () => {
+      if (this.redisAvailable) {
+        this.logger.warn('Redis connection lost — ranking will use DB fallback');
+      }
+      this.redisAvailable = false;
+    });
+    this.redis.on('connect', () => {
+      if (!this.redisAvailable) {
+        this.logger.log('Redis connection restored');
+      }
+      this.redisAvailable = true;
+    });
+    // Set initial state
+    this.redisAvailable = this.redis.status === 'ready';
   }
 
   /**
@@ -95,33 +97,67 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
   /**
    * Update (or add) a player's score in the run leaderboard sorted set.
    * Uses ZADD with the absolute score (not an increment).
+   * Silently degrades when Redis is unavailable.
    */
   async updateScore(runId: string, userId: string, points: number): Promise<void> {
-    await this.redis.zadd(this.rankingKey(runId), points, userId);
+    try {
+      const key = this.rankingKey(runId);
+      await this.redis.zadd(key, points, userId);
+      await this.redis.expire(key, RANKING_TTL_SECONDS);
+    } catch (error) {
+      this.logger.error(`Redis updateScore failed for run ${runId}`, error);
+    }
   }
 
   /**
    * Get the top-N entries in a run leaderboard, highest score first.
+   * Falls back to Prisma when Redis is unavailable.
    */
   async getRanking(runId: string, limit = 50): Promise<RankEntry[]> {
-    const results = await this.redis.zrevrangebyscore(
-      this.rankingKey(runId),
-      '+inf',
-      '-inf',
-      'WITHSCORES',
-      'LIMIT',
-      0,
-      limit,
-    );
+    try {
+      const results = await this.redis.zrevrangebyscore(
+        this.rankingKey(runId),
+        '+inf',
+        '-inf',
+        'WITHSCORES',
+        'LIMIT',
+        0,
+        limit,
+      );
 
-    const entries: RankEntry[] = [];
-    for (let i = 0; i < results.length; i += 2) {
-      const userId = results[i] as string;
-      const score = parseFloat(results[i + 1] as string);
-      entries.push({ userId, score, rank: entries.length + 1 });
+      if (this.redisAvailable && results.length > 0) {
+        const entries: RankEntry[] = [];
+        for (let i = 0; i < results.length; i += 2) {
+          const userId = results[i] as string;
+          const score = parseFloat(results[i + 1] as string);
+          entries.push({ userId, score, rank: entries.length + 1 });
+        }
+        return entries;
+      }
+    } catch (error) {
+      this.logger.warn(`Redis getRanking failed for run ${runId}, using DB fallback`, error);
     }
 
-    return entries;
+    // DB fallback: query sessions directly (also used when Redis is degraded)
+    return this.getRankingFromDb(runId, limit);
+  }
+
+  /**
+   * Fallback: compute ranking from database when Redis is unavailable.
+   */
+  private async getRankingFromDb(runId: string, limit: number): Promise<RankEntry[]> {
+    const sessions = await this.prisma.gameSession.findMany({
+      where: { gameRunId: runId },
+      orderBy: { totalPoints: 'desc' },
+      take: limit,
+      select: { userId: true, totalPoints: true },
+    });
+
+    return sessions.map((s, i) => ({
+      userId: s.userId,
+      score: s.totalPoints,
+      rank: i + 1,
+    }));
   }
 
   /**
@@ -137,40 +173,34 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
 
     const userIds = rawEntries.map((e) => e.userId);
 
-    // Fetch user profiles and per-user correct-attempt counts for this run in parallel.
-    const [users, sessions] = await Promise.all([
-      this.prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, displayName: true, avatarUrl: true },
-      }),
-      this.prisma.gameSession.findMany({
-        where: { gameRunId: runId, userId: { in: userIds } },
-        select: { id: true, userId: true },
-      }),
-    ]);
-
-    const sessionIds = sessions.map((s) => s.id);
-    const sessionUserMap = new Map(sessions.map((s) => [s.id, s.userId]));
-
-    const completedCounts = await this.prisma.taskAttempt.groupBy({
-      by: ['sessionId'],
-      where: {
-        sessionId: { in: sessionIds },
-        status: AttemptStatus.CORRECT,
+    // Single query: fetch user profiles + completed task counts via session join
+    const sessions = await this.prisma.gameSession.findMany({
+      where: { gameRunId: runId, userId: { in: userIds } },
+      select: {
+        userId: true,
+        user: { select: { id: true, displayName: true, avatarUrl: true } },
+        _count: {
+          select: {
+            attempts: { where: { status: AttemptStatus.CORRECT } },
+          },
+        },
       },
-      _count: { id: true },
     });
 
-    // Map userId -> total correct attempts count
+    // Build lookup maps from the single query result
+    const userMap = new Map<string, { displayName: string; avatarUrl: string | null }>();
     const countMap = new Map<string, number>();
-    for (const row of completedCounts) {
-      const userId = sessionUserMap.get(row.sessionId);
-      if (userId !== undefined) {
-        countMap.set(userId, (countMap.get(userId) ?? 0) + row._count.id);
-      }
-    }
 
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    for (const s of sessions) {
+      userMap.set(s.userId, {
+        displayName: s.user.displayName,
+        avatarUrl: s.user.avatarUrl,
+      });
+      countMap.set(
+        s.userId,
+        (countMap.get(s.userId) ?? 0) + s._count.attempts,
+      );
+    }
 
     return rawEntries.map((entry) => {
       const user = userMap.get(entry.userId);
@@ -187,34 +217,63 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Update (or add) a team's score in the run team leaderboard sorted set.
-   * Uses ZADD with the absolute score (not an increment).
+   * Silently degrades when Redis is unavailable.
    */
   async updateTeamScore(runId: string, teamId: string, points: number): Promise<void> {
-    await this.redis.zadd(this.teamRankingKey(runId), points, teamId);
+    try {
+      const key = this.teamRankingKey(runId);
+      await this.redis.zadd(key, points, teamId);
+      await this.redis.expire(key, RANKING_TTL_SECONDS);
+    } catch (error) {
+      this.logger.error(`Redis updateTeamScore failed for run ${runId}`, error);
+    }
   }
 
   /**
    * Get the top-N team entries in a run leaderboard, highest score first.
+   * Falls back to Prisma when Redis is unavailable.
    */
   async getTeamRanking(runId: string, limit = 50): Promise<TeamRankEntry[]> {
-    const results = await this.redis.zrevrangebyscore(
-      this.teamRankingKey(runId),
-      '+inf',
-      '-inf',
-      'WITHSCORES',
-      'LIMIT',
-      0,
-      limit,
-    );
+    try {
+      const results = await this.redis.zrevrangebyscore(
+        this.teamRankingKey(runId),
+        '+inf',
+        '-inf',
+        'WITHSCORES',
+        'LIMIT',
+        0,
+        limit,
+      );
 
-    const entries: TeamRankEntry[] = [];
-    for (let i = 0; i < results.length; i += 2) {
-      const teamId = results[i] as string;
-      const score = parseFloat(results[i + 1] as string);
-      entries.push({ teamId, score, rank: entries.length + 1 });
+      if (this.redisAvailable && results.length > 0) {
+        const entries: TeamRankEntry[] = [];
+        for (let i = 0; i < results.length; i += 2) {
+          const teamId = results[i] as string;
+          const score = parseFloat(results[i + 1] as string);
+          entries.push({ teamId, score, rank: entries.length + 1 });
+        }
+        return entries;
+      }
+    } catch (error) {
+      this.logger.warn(`Redis getTeamRanking failed for run ${runId}, using DB fallback`, error);
     }
 
-    return entries;
+    // DB fallback: aggregate team scores from sessions
+    const teamSessions = await this.prisma.gameSession.groupBy({
+      by: ['teamId'],
+      where: { gameRunId: runId, teamId: { not: null } },
+      _max: { totalPoints: true },
+      orderBy: { _max: { totalPoints: 'desc' } },
+      take: limit,
+    });
+
+    return teamSessions
+      .filter((s) => s.teamId !== null)
+      .map((s, i) => ({
+        teamId: s.teamId!,
+        score: s._max.totalPoints ?? 0,
+        rank: i + 1,
+      }));
   }
 
   /**
@@ -255,15 +314,39 @@ export class RankingService implements OnModuleInit, OnModuleDestroy {
    * Get a single user's rank and score in a run (1-based, highest score = rank 1).
    */
   async getUserRank(runId: string, userId: string): Promise<UserRankResult> {
-    const [scoreStr, rank] = await Promise.all([
-      this.redis.zscore(this.rankingKey(runId), userId),
-      this.redis.zrevrank(this.rankingKey(runId), userId),
-    ]);
+    try {
+      const [scoreStr, rank] = await Promise.all([
+        this.redis.zscore(this.rankingKey(runId), userId),
+        this.redis.zrevrank(this.rankingKey(runId), userId),
+      ]);
 
-    return {
-      userId,
-      score: scoreStr !== null ? parseFloat(scoreStr) : 0,
-      rank: rank !== null ? rank + 1 : null,
-    };
+      return {
+        userId,
+        score: scoreStr !== null ? parseFloat(scoreStr) : 0,
+        rank: rank !== null ? rank + 1 : null,
+      };
+    } catch (error) {
+      this.logger.warn(`Redis getUserRank failed for run ${runId}`, error);
+
+      // DB fallback
+      const session = await this.prisma.gameSession.findUnique({
+        where: { gameRunId_userId: { gameRunId: runId, userId } },
+        select: { totalPoints: true },
+      });
+
+      if (!session) {
+        return { userId, score: 0, rank: null };
+      }
+
+      const higherCount = await this.prisma.gameSession.count({
+        where: { gameRunId: runId, totalPoints: { gt: session.totalPoints } },
+      });
+
+      return {
+        userId,
+        score: session.totalPoints,
+        rank: higherCount + 1,
+      };
+    }
   }
 }

@@ -11,11 +11,13 @@ export class StorageService {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly endpoint: string;
+  private readonly publicUrl: string | undefined;
   private readonly logger = new Logger(StorageService.name);
 
   constructor(private readonly configService: ConfigService) {
     this.endpoint = this.configService.getOrThrow<string>('R2_ENDPOINT');
     this.bucket = this.configService.getOrThrow<string>('R2_BUCKET');
+    this.publicUrl = this.configService.get<string>('R2_PUBLIC_URL');
 
     this.client = new S3Client({
       region: 'auto',
@@ -55,8 +57,12 @@ export class StorageService {
 
   /**
    * Build the public URL for a stored object.
+   * Uses R2_PUBLIC_URL (CDN/custom domain) when configured.
    */
   getFileUrl(key: string): string {
+    if (this.publicUrl) {
+      return `${this.publicUrl}/${key}`;
+    }
     return `${this.endpoint}/${this.bucket}/${key}`;
   }
 }

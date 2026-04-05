@@ -175,7 +175,7 @@ export class AdminService {
         id: `game-${game.id}`,
         type: game.status === 'PUBLISHED' ? 'game_published' : game.status === 'ARCHIVED' ? 'game_archived' : 'game_created',
         label: game.title,
-        detail: game.status === 'PUBLISHED' ? 'Gra opublikowana' : game.status === 'ARCHIVED' ? 'Gra zarchiwizowana' : 'Nowa gra utworzona',
+        detail: game.status === 'PUBLISHED' ? 'Game published' : game.status === 'ARCHIVED' ? 'Game archived' : 'New game created',
         timestamp: (game.status === 'DRAFT' ? game.createdAt : game.updatedAt).toISOString(),
       });
     }

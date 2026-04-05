@@ -28,7 +28,7 @@ export class PhotoAiStrategy implements VerificationStrategy {
     const threshold = (config['threshold'] as number | undefined) ?? 0.7;
 
     if (!imageUrl) {
-      return { status: 'INCORRECT', score: 0, feedback: 'Brak zdjęcia' };
+      return { status: 'INCORRECT', score: 0, feedback: 'No photo provided' };
     }
 
     const result = await this.aiService.evaluatePhoto(imageUrl, prompt, threshold);

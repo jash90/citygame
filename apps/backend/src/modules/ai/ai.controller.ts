@@ -1,4 +1,5 @@
 import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -8,16 +9,15 @@ import { GenerateDescriptionDto } from './dto/generate-description.dto';
 import { GenerateHintsDto } from './dto/generate-hints.dto';
 import { GeneratePromptDto } from './dto/generate-prompt.dto';
 
+@ApiTags('AI')
+@ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 @Controller('api/admin/ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 
-  /**
-   * POST /api/admin/ai/generate-description
-   * Generate a task description for the given title, type and city.
-   */
+  @ApiOperation({ summary: 'Generate a task description using AI' })
   @Post('generate-description')
   async generateDescription(
     @Body() dto: GenerateDescriptionDto,
@@ -30,10 +30,7 @@ export class AiController {
     return { description };
   }
 
-  /**
-   * POST /api/admin/ai/generate-hints
-   * Generate progressive hints for a task description.
-   */
+  @ApiOperation({ summary: 'Generate progressive hints for a task' })
   @Post('generate-hints')
   async generateHints(
     @Body() dto: GenerateHintsDto,
@@ -45,10 +42,7 @@ export class AiController {
     return { hints };
   }
 
-  /**
-   * POST /api/admin/ai/generate-prompt
-   * Generate an AI verification prompt for a task.
-   */
+  @ApiOperation({ summary: 'Generate an AI verification prompt for a task' })
   @Post('generate-prompt')
   async generatePrompt(
     @Body() dto: GeneratePromptDto,
