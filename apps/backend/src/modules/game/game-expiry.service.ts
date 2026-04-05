@@ -77,8 +77,8 @@ export class GameExpiryService {
       if (tokens.length > 0) {
         await this.notificationService.sendToMultiple(
           tokens,
-          'Gra zakończona',
-          `Czas gry "${run.game.title}" upłynął! Sprawdź swoje wyniki.`,
+          'Game ended',
+          `Time for "${run.game.title}" has expired! Check your results.`,
           { gameId: run.game.id, type: 'game_expired' },
         );
       }

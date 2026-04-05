@@ -6,9 +6,12 @@ import {
   Post,
   Put,
   Request,
+  Res,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { Request as ExpressRequest } from 'express';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Request as ExpressRequest, Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
@@ -24,45 +27,87 @@ interface RequestWithUser extends ExpressRequest {
   user: CurrentUserPayload;
 }
 
+@ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @ApiOperation({ summary: 'Register a new player account' })
+  @ApiResponse({ status: 201, description: 'Account created, tokens returned' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('register')
-  register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(dto);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiResponse({ status: 200, description: 'Tokens and user profile returned' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    return result;
   }
 
+  @ApiOperation({ summary: 'Refresh access token using refresh token' })
+  @ApiResponse({ status: 200, description: 'New token pair returned' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
-  refreshTokens(
-    @Request() req: RequestWithUser,
-    @Body() dto: RefreshTokenDto,
+  async refreshTokens(
+    @Request() req: RequestWithUser & { cookies?: Record<string, string> },
+    @Body() dto: Partial<RefreshTokenDto>,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.refreshTokens(req.user.id, dto.refreshToken);
+    // Resolve the raw refresh token from body (mobile) or cookie (admin)
+    const rawRefreshToken =
+      dto.refreshToken ?? req.cookies?.refreshToken;
+
+    if (!rawRefreshToken) {
+      throw new UnauthorizedException('Refresh token required');
+    }
+
+    const tokens = await this.authService.refreshTokens(req.user.id, rawRefreshToken);
+    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    return tokens;
   }
 
+  @ApiOperation({ summary: 'Logout and invalidate refresh token' })
+  @ApiResponse({ status: 200, description: 'Logged out successfully' })
   @UseGuards(JwtAuthGuard)
   @Post('logout')
-  logout(@CurrentUser() user: CurrentUserPayload) {
-    return this.authService.logout(user.id);
+  async logout(
+    @CurrentUser() user: CurrentUserPayload,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    await this.authService.logout(user.id);
+    this.clearAuthCookies(res);
+    return { message: 'Logged out' };
   }
 
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'User profile returned' })
   @UseGuards(JwtAuthGuard)
   @Get('me')
   getMe(@CurrentUser() user: CurrentUserPayload) {
     return this.authService.getMe(user.id);
   }
 
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Updated profile returned' })
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   updateMe(
@@ -72,6 +117,8 @@ export class AuthController {
     return this.authService.updateMe(user.id, dto);
   }
 
+  @ApiOperation({ summary: 'Register or update push notification token' })
+  @ApiResponse({ status: 200, description: 'Push token saved' })
   @UseGuards(JwtAuthGuard)
   @Put('push-token')
   updatePushToken(
@@ -79,5 +126,38 @@ export class AuthController {
     @Body() dto: PushTokenDto,
   ) {
     return this.authService.updatePushToken(user.id, dto.pushToken);
+  }
+
+  /**
+   * Set httpOnly cookies for web clients (admin panel).
+   * Mobile clients still use the JSON body tokens.
+   */
+  private setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
+    const isProduction = process.env.NODE_ENV === 'production';
+    // Use 'lax' to allow cookies on same-site navigations and cross-origin
+    // sub-requests within the same registrable domain. 'strict' blocks cookies
+    // on all cross-origin requests, breaking admin↔backend on different hosts.
+    const sameSite: 'lax' | 'none' = process.env.COOKIE_SAME_SITE === 'none' ? 'none' : 'lax';
+
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: isProduction || sameSite === 'none',
+      sameSite,
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/',
+    });
+
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: isProduction || sameSite === 'none',
+      sameSite,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth',
+    });
+  }
+
+  private clearAuthCookies(res: Response): void {
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/auth' });
   }
 }

@@ -5,8 +5,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Team, TeamMember } from '@prisma/client';
+import { randomBytes } from 'crypto';
+import { Team, TeamMember } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import type { GameSettings } from '../../common/types/game-settings';
 import { CreateTeamDto } from './dto/create-team.dto';
 
 export interface TeamWithMembers extends Team {
@@ -18,12 +20,6 @@ export interface TeamWithMembers extends Team {
     };
   })[];
 }
-
-type GameSettings = {
-  teamMode?: boolean;
-  minTeamSize?: number;
-  maxTeamSize?: number;
-};
 
 @Injectable()
 export class TeamService {
@@ -290,14 +286,13 @@ export class TeamService {
   }
 
   /**
-   * Generate a random 6-character alphanumeric uppercase join code.
+   * Generate a cryptographically secure 6-character alphanumeric uppercase join code.
    */
   generateCode(): string {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = '';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
+    const bytes = randomBytes(6);
+    return Array.from(bytes)
+      .map((b) => chars[b % chars.length])
+      .join('');
   }
 }

@@ -16,6 +16,27 @@ class TeamSizeConstraint implements ValidatorConstraintInterface {
   }
 }
 
+class NarrativeSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  isNarrative?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  theme?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  prologue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  epilogue?: string;
+}
+
 class GameSettingsDto {
   @IsOptional()
   @IsInt()
@@ -45,6 +66,11 @@ class GameSettingsDto {
   @Max(20)
   @Validate(TeamSizeConstraint)
   maxTeamSize?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NarrativeSettingsDto)
+  narrative?: NarrativeSettingsDto;
 }
 
 export class CreateGameDto {

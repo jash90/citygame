@@ -1,4 +1,6 @@
-import { Logger } from '@nestjs/common';
+import { Logger, OnModuleInit, UsePipes, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
   MessageBody,
@@ -10,6 +12,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { RankEntry, TeamRankEntry } from './ranking.service';
+import { createWsJwtMiddleware, type WsUser } from './ws-jwt.middleware';
+import { JoinGameWsDto } from './dto/join-game.ws.dto';
+import { LocationUpdateWsDto } from './dto/location-update.ws.dto';
 
 export interface RankingUpdatePayload {
   gameId: string;
@@ -55,6 +60,8 @@ export interface PlayerLocationPayload {
   longitude: number;
   heading?: number | null;
   accuracy?: number | null;
+  /** Epoch ms of the last update — used for stale entry eviction. */
+  lastSeen: number;
 }
 
 @WebSocketGateway({
@@ -66,7 +73,7 @@ export interface PlayerLocationPayload {
     credentials: true,
   },
 })
-export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
   @WebSocketServer()
   server!: Server;
 
@@ -78,8 +85,59 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
     Map<string, PlayerLocationPayload> // userId → location
   >();
 
+  /** Periodic cleanup interval for stale player locations. */
+  private locationCleanupInterval?: ReturnType<typeof setInterval>;
+
+  /** Entries older than this threshold (ms) are considered stale. */
+  private static readonly LOCATION_STALE_MS = 120_000; // 2 minutes
+
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * Register JWT authentication middleware on the WebSocket namespace.
+   * Unauthenticated clients are disconnected before handleConnection fires.
+   * Also starts a periodic sweep to evict stale player location entries.
+   */
+  onModuleInit(): void {
+    if (!this.server) {
+      this.logger.error('WebSocket server not available at onModuleInit — JWT middleware NOT registered');
+    } else {
+      this.server.use(createWsJwtMiddleware(this.jwtService, this.configService));
+    }
+
+    // Sweep stale player locations every 30 seconds
+    this.locationCleanupInterval = setInterval(() => {
+      const threshold = Date.now() - RankingGateway.LOCATION_STALE_MS;
+      for (const [gameId, gameLocs] of this.playerLocations) {
+        for (const [userId, loc] of gameLocs) {
+          if (loc.lastSeen < threshold) {
+            gameLocs.delete(userId);
+          }
+        }
+        if (gameLocs.size === 0) {
+          this.playerLocations.delete(gameId);
+        } else {
+          this.broadcastPlayerLocations(gameId);
+        }
+      }
+    }, 30_000);
+  }
+
+  /**
+   * Clean up the location eviction interval on module teardown.
+   */
+  onModuleDestroy(): void {
+    if (this.locationCleanupInterval) {
+      clearInterval(this.locationCleanupInterval);
+    }
+  }
+
   handleConnection(client: Socket): void {
-    this.logger.log(`Client connected to ranking gateway: ${client.id}`);
+    const user = client.data.user as WsUser | undefined;
+    this.logger.log(`Client connected to ranking gateway: ${client.id} (user: ${user?.id ?? 'anonymous'})`);
   }
 
   handleDisconnect(client: Socket): void {
@@ -101,10 +159,11 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   /**
    * Client joins the ranking room for a specific game.
    */
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('join-game')
   handleJoinGame(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { gameId: string },
+    @MessageBody() data: JoinGameWsDto,
   ): void {
     const room = `game:${data.gameId}`;
     void client.join(room);
@@ -114,10 +173,11 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   /**
    * Client leaves the ranking room for a specific game.
    */
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('leave-game')
   handleLeaveGame(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { gameId: string },
+    @MessageBody() data: JoinGameWsDto,
   ): void {
     const room = `game:${data.gameId}`;
     void client.leave(room);
@@ -165,22 +225,25 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
   /**
    * Receive live location updates from mobile players and rebroadcast
    * the full player location set to admin clients watching the game room.
+   * The userId is validated against the authenticated socket identity.
    */
+  @UsePipes(new ValidationPipe({ whitelist: true }))
   @SubscribeMessage('location:update')
   handleLocationUpdate(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    data: {
-      gameId: string;
-      userId: string;
-      displayName: string;
-      latitude: number;
-      longitude: number;
-      heading?: number | null;
-      accuracy?: number | null;
-    },
+    @MessageBody() data: LocationUpdateWsDto,
   ): void {
     if (!data.gameId || !data.userId) return;
+
+    // Prevent spoofed location updates — userId must match authenticated identity.
+    // Fail-closed: reject if no authenticated user (middleware not applied or token invalid).
+    const wsUser = client.data.user as WsUser | undefined;
+    if (!wsUser || data.userId !== wsUser.id) {
+      this.logger.warn(
+        `Location update rejected: socket user ${wsUser?.id ?? 'unauthenticated'} tried to send for ${data.userId}`,
+      );
+      return;
+    }
 
     // Store reference on socket for cleanup on disconnect
     (client as Socket & { _locationUserId?: string })._locationUserId = data.userId;
@@ -200,6 +263,7 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect 
       longitude: data.longitude,
       heading: data.heading,
       accuracy: data.accuracy,
+      lastSeen: Date.now(),
     });
 
     this.broadcastPlayerLocations(data.gameId);

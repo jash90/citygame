@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -18,14 +19,24 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateGameDto } from './dto/create-game.dto';
 import { ListGamesQueryDto } from './dto/list-games-query.dto';
 import { UpdateGameDto } from './dto/update-game.dto';
+import { GameAnalyticsService } from './game-analytics.service';
+import { GameRunService } from './game-run.service';
 import { GameService } from './game.service';
 
+@ApiTags('Games')
 @Controller()
 export class GameController {
-  constructor(private readonly gameService: GameService) {}
+  constructor(
+    private readonly gameService: GameService,
+    private readonly gameRunService: GameRunService,
+    private readonly gameAnalyticsService: GameAnalyticsService,
+  ) {}
 
   // ── Admin routes ────────────────────────────────────────────────────────────
 
+  @ApiOperation({ summary: 'Create a new game draft' })
+  @ApiResponse({ status: 201, description: 'Game created' })
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('api/admin/games')
@@ -36,6 +47,8 @@ export class GameController {
     return this.gameService.create(dto, user.id);
   }
 
+  @ApiOperation({ summary: 'List all games (admin view)' })
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games')
@@ -43,6 +56,9 @@ export class GameController {
     return this.gameService.findAll(query, true);
   }
 
+  @ApiOperation({ summary: 'Get game details with tasks (admin)' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id')
@@ -101,6 +117,9 @@ export class GameController {
     return this.gameService.archive(id, user.id, true);
   }
 
+  @ApiOperation({ summary: 'Start a new game run' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('api/admin/games/:id/start-run')
@@ -108,9 +127,12 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.gameService.startRun(id, user.id, true);
+    return this.gameRunService.startRun(id, user.id, true);
   }
 
+  @ApiOperation({ summary: 'End the active game run' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch('api/admin/games/:id/end-run')
@@ -118,7 +140,7 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.gameService.endRun(id, user.id, true);
+    return this.gameRunService.endRun(id, user.id, true);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -128,14 +150,14 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.gameService.restartGame(id, user.id, true);
+    return this.gameRunService.restartGame(id, user.id, true);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/games/:id/runs')
   adminGetRuns(@Param('id', ParseUUIDPipe) id: string) {
-    return this.gameService.getRunHistory(id);
+    return this.gameRunService.getRunHistory(id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -145,7 +167,7 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getRunActivity(id, runId);
+    return this.gameRunService.getRunActivity(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -155,7 +177,7 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getRunTaskCompletions(id, runId);
+    return this.gameRunService.getRunTaskCompletions(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -164,8 +186,15 @@ export class GameController {
   adminGetSessions(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.gameService.getGameSessions(id, runId);
+    return this.gameService.getGameSessions(
+      id,
+      runId,
+      Number(page) || 1,
+      Math.min(Number(limit) || 50, 100),
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -175,7 +204,7 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getGameStats(id, runId);
+    return this.gameAnalyticsService.getGameStats(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -186,7 +215,7 @@ export class GameController {
     @Query('days') days?: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getPlayerActivityTimeSeries(id, Number(days) || 30, runId);
+    return this.gameAnalyticsService.getPlayerActivityTimeSeries(id, Number(days) || 30, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -196,7 +225,7 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getTaskDifficultyStats(id, runId);
+    return this.gameAnalyticsService.getTaskDifficultyStats(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -206,23 +235,28 @@ export class GameController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query('runId') runId?: string,
   ) {
-    return this.gameService.getAiVerificationStats(id, runId);
+    return this.gameAnalyticsService.getAiVerificationStats(id, runId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('api/admin/running-games')
   adminRunningGames() {
-    return this.gameService.getRunningGames();
+    return this.gameRunService.getRunningGames();
   }
 
   // ── Player routes ────────────────────────────────────────────────────────────
 
+  @ApiOperation({ summary: 'List published games (player view)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of published games' })
   @Get('api/games')
   listPublished(@Query() query: ListGamesQueryDto) {
     return this.gameService.findAll(query, false);
   }
 
+  @ApiOperation({ summary: 'Get a published game (player view)' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiResponse({ status: 200, description: 'Game details without sensitive task data' })
   @Get('api/games/:id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.gameService.findOnePublic(id);

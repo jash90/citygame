@@ -2,9 +2,25 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from './jwt.strategy';
+
+/**
+ * Extract the refresh JWT from:
+ * 1. Body field `refreshToken` (mobile clients)
+ * 2. httpOnly cookie `refreshToken` (admin panel)
+ */
+function extractRefreshToken(req: Request): string | null {
+  // Try body first (mobile)
+  const fromBody = ExtractJwt.fromBodyField('refreshToken')(req);
+  if (fromBody) return fromBody;
+
+  // Fall back to httpOnly cookie (admin)
+  const cookieToken = req.cookies?.refreshToken as string | undefined;
+  return cookieToken ?? null;
+}
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -13,7 +29,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     configService: ConfigService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      jwtFromRequest: extractRefreshToken,
       ignoreExpiration: false,
       secretOrKey: configService.getOrThrow<string>('JWT_REFRESH_SECRET'),
       passReqToCallback: false,

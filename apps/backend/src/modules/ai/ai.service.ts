@@ -8,17 +8,20 @@ export interface AiEvaluationResult {
   reasoning: string;
 }
 
-const MODEL = 'claude-sonnet-4-5';
-
 @Injectable()
 export class AiService {
   private readonly client: Anthropic;
   private readonly logger = new Logger(AiService.name);
+  private readonly model: string;
+  private readonly timeoutMs: number;
 
   constructor(private readonly configService: ConfigService) {
+    this.timeoutMs = this.configService.get<number>('AI_TIMEOUT_MS', 30000);
     this.client = new Anthropic({
       apiKey: this.configService.getOrThrow<string>('ANTHROPIC_API_KEY'),
+      timeout: this.timeoutMs,
     });
+    this.model = this.configService.get<string>('ANTHROPIC_MODEL', 'claude-sonnet-4-5');
   }
 
   /**
@@ -50,8 +53,8 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
           : 'image/jpeg'
       ) as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
-      const message = await this.client.messages.create({
-        model: MODEL,
+      const message = await this.createMessage({
+        model: this.model,
         max_tokens: 512,
         system: systemPrompt,
         messages: [
@@ -77,7 +80,7 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
       return {
         score: 0,
         feedback: 'Could not evaluate your photo. Please try again.',
-        reasoning: String(error),
+        reasoning: 'AI evaluation temporarily unavailable',
       };
     }
   }
@@ -100,8 +103,8 @@ Respond ONLY with a JSON object (no markdown) in the form:
     const userMessage = `Task requirement: ${prompt}\n\nPlayer's answer: ${answer}`;
 
     try {
-      const message = await this.client.messages.create({
-        model: MODEL,
+      const message = await this.createMessage({
+        model: this.model,
         max_tokens: 512,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
@@ -113,7 +116,7 @@ Respond ONLY with a JSON object (no markdown) in the form:
       return {
         score: 0,
         feedback: 'Could not evaluate your answer. Please try again.',
-        reasoning: String(error),
+        reasoning: 'AI evaluation temporarily unavailable',
       };
     }
   }
@@ -145,8 +148,8 @@ Respond ONLY with a JSON object (no markdown) in the form:
     city: string,
   ): Promise<string> {
     try {
-      const message = await this.client.messages.create({
-        model: MODEL,
+      const message = await this.createMessage({
+        model: this.model,
         max_tokens: 512,
         messages: [
           {
@@ -175,8 +178,8 @@ Write 2–3 sentences that describe what the player needs to do. Be specific, im
    */
   async generateHints(taskDescription: string, count = 3): Promise<string[]> {
     try {
-      const message = await this.client.messages.create({
-        model: MODEL,
+      const message = await this.createMessage({
+        model: this.model,
         max_tokens: 512,
         messages: [
           {
@@ -207,8 +210,8 @@ Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. 
    */
   async generateAIPrompt(taskType: string, taskDescription: string): Promise<string> {
     try {
-      const message = await this.client.messages.create({
-        model: MODEL,
+      const message = await this.createMessage({
+        model: this.model,
         max_tokens: 256,
         messages: [
           {
@@ -229,6 +232,16 @@ Respond with only the verification prompt text. It should describe what a correc
       this.logger.error('generateAIPrompt failed', error);
       return '';
     }
+  }
+
+  /**
+   * Call the Anthropic API (non-streaming). Timeout is handled via SDK-level
+   * `timeout` option configured in the constructor.
+   */
+  private async createMessage(
+    params: Omit<Parameters<typeof this.client.messages.create>[0], 'stream'>,
+  ): Promise<Anthropic.Message> {
+    return this.client.messages.create({ ...params, stream: false }) as Promise<Anthropic.Message>;
   }
 
   private parseResponse(

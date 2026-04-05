@@ -33,6 +33,7 @@ enum TaskType {
 enum UnlockMethod {
   QR
   GPS
+  NONE
 }
 
 enum SessionStatus {
@@ -73,6 +74,8 @@ model User {
   hintUsages      HintUsage[]
   captainOf       Team[]       @relation("TeamCaptain")
   teamMemberships TeamMember[]
+
+  @@index([pushToken])
 }
 
 model Game {
@@ -147,6 +150,7 @@ model HintUsage {
   session GameSession @relation(fields: [sessionId], references: [id])
 
   @@unique([hintId, userId, sessionId])
+  @@index([sessionId, userId])
 }
 
 model GameRun {
@@ -166,6 +170,10 @@ model GameRun {
   @@index([status, endsAt])
 }
 
+/// Player's game session. Deletion cascade strategy:
+/// - Game → Session: restrict (must archive game instead of deleting)
+/// - User → Session: restrict (user deletion is not currently supported)
+/// If user deletion is needed in the future, migrate to onDelete: SetNull.
 model GameSession {
   id            String        @id @default(uuid())
   gameId        String
@@ -237,4 +245,5 @@ model TaskAttempt {
   user    User        @relation(fields: [userId], references: [id])
 
   @@index([sessionId, taskId])
+  @@index([taskId, status])
 }

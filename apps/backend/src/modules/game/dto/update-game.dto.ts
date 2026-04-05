@@ -1,6 +1,27 @@
 import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
+class NarrativeSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  isNarrative?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  theme?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  prologue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  epilogue?: string;
+}
+
 class GameSettingsDto {
   @IsOptional()
   @IsInt()
@@ -29,6 +50,11 @@ class GameSettingsDto {
   @Min(1)
   @Max(20)
   maxTeamSize?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => NarrativeSettingsDto)
+  narrative?: NarrativeSettingsDto;
 }
 
 export class UpdateGameDto {

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
@@ -19,6 +20,8 @@ import { AdminService } from './admin.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 
+@ApiTags('Admin')
+@ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard, ThrottlerGuard)
 @Roles(UserRole.ADMIN)
 @Controller('api/admin')
@@ -27,11 +30,14 @@ export class AdminController {
 
   private readonly logger = new Logger(AdminController.name);
 
+  @ApiOperation({ summary: 'List users with search and role filter' })
   @Get('users')
   listUsers(@Query() query: ListUsersQueryDto) {
     return this.adminService.listUsers(query);
   }
 
+  @ApiOperation({ summary: 'Change a user role' })
+  @ApiParam({ name: 'id', description: 'User UUID' })
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Patch('users/:id/role')
   async updateUserRole(
@@ -46,16 +52,19 @@ export class AdminController {
     return result;
   }
 
+  @ApiOperation({ summary: 'Get system health and counts' })
   @Get('system/info')
   getSystemInfo() {
     return this.adminService.getSystemInfo();
   }
 
+  @ApiOperation({ summary: 'Get dashboard statistics' })
   @Get('stats')
   getDashboardStats() {
     return this.adminService.getDashboardStats();
   }
 
+  @ApiOperation({ summary: 'Get recent activity feed' })
   @Get('activity')
   getRecentActivity() {
     return this.adminService.getRecentActivity();

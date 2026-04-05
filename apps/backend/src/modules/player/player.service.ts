@@ -3,8 +3,10 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { haversineDistance } from '../../common/utils/geo';
 import {
   AttemptStatus,
   GameSession,
@@ -17,15 +19,12 @@ import {
   UnlockMethod,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { NotificationService } from '../notification/notification.service';
+import { withSerializableRetry } from '../../common/utils/prisma-retry';
 import { RankingGateway } from '../ranking/ranking.gateway';
-import { RankingService } from '../ranking/ranking.service';
 import { TeamService } from '../team/team.service';
 import { VerificationService } from '../task/verification/verification.service';
-
-type GameSettings = {
-  teamMode?: boolean;
-};
+import type { GameSettings } from '../../common/types/game-settings';
+import { ActivityBroadcastService } from './activity-broadcast.service';
 
 const AI_TASK_TYPES = new Set<TaskType>([
   TaskType.PHOTO_AI,
@@ -35,13 +34,14 @@ const AI_TASK_TYPES = new Set<TaskType>([
 
 @Injectable()
 export class PlayerService {
+  private readonly logger = new Logger(PlayerService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly verificationService: VerificationService,
-    private readonly rankingService: RankingService,
     private readonly rankingGateway: RankingGateway,
-    private readonly notificationService: NotificationService,
     private readonly teamService: TeamService,
+    private readonly activityBroadcast: ActivityBroadcastService,
   ) {}
 
   /**
@@ -107,7 +107,8 @@ export class PlayerService {
     });
 
     // Broadcast join activity to admin monitoring
-    void this.broadcastJoinActivity(gameId, userId);
+    void this.activityBroadcast.broadcastJoinActivity(gameId, userId)
+      .catch((err) => this.logger.error('broadcastJoinActivity failed', err));
 
     return session;
   }
@@ -116,6 +117,9 @@ export class PlayerService {
    * Handle session start for a team-mode game.
    * The first team member to call startGame creates the shared session;
    * subsequent members receive the existing active session.
+   *
+   * Uses a serializable transaction to prevent race conditions when multiple
+   * team members join simultaneously.
    */
   private async startTeamGame(
     gameId: string,
@@ -133,50 +137,57 @@ export class PlayerService {
 
     const { teamId } = membership;
 
-    // Check if any team member already has a session for this run — shared team session
-    const existingTeamSession = await this.prisma.gameSession.findFirst({
-      where: { gameId, teamId, gameRunId },
-    });
+    const session = await withSerializableRetry(this.prisma, async (tx) => {
+      // Check if any team member already has a session for this run — shared team session
+      const existingTeamSession = await tx.gameSession.findFirst({
+        where: { gameId, teamId, gameRunId },
+      });
 
-    if (existingTeamSession) {
-      if (existingTeamSession.status === SessionStatus.ACTIVE) {
-        const userSession = await this.prisma.gameSession.findUnique({
-          where: {
-            gameRunId_userId: { gameRunId, userId },
-          },
-        });
-        if (!userSession) {
-          const newUserSession = await this.prisma.gameSession.create({
-            data: {
-              gameId,
-              userId,
-              teamId,
-              gameRunId,
-              status: SessionStatus.ACTIVE,
-              totalPoints: existingTeamSession.totalPoints,
-              currentTaskId: existingTeamSession.currentTaskId,
+      if (existingTeamSession) {
+        if (existingTeamSession.status === SessionStatus.ACTIVE) {
+          const userSession = await tx.gameSession.findUnique({
+            where: {
+              gameRunId_userId: { gameRunId, userId },
             },
           });
-          void this.broadcastJoinActivity(gameId, userId);
-          return newUserSession;
+          if (!userSession) {
+            // Re-read latest points inside transaction to avoid desync
+            const canonicalSession = await tx.gameSession.findFirst({
+              where: { gameId, teamId, gameRunId, status: SessionStatus.ACTIVE },
+              orderBy: { startedAt: 'asc' },
+              select: { totalPoints: true, currentTaskId: true },
+            });
+            return tx.gameSession.create({
+              data: {
+                gameId,
+                userId,
+                teamId,
+                gameRunId,
+                status: SessionStatus.ACTIVE,
+                totalPoints: canonicalSession?.totalPoints ?? 0,
+                currentTaskId: canonicalSession?.currentTaskId ?? existingTeamSession.currentTaskId,
+              },
+            });
+          }
+          return userSession;
         }
-        return userSession;
+        throw new ConflictException('Your team has already played this game run');
       }
-      throw new ConflictException('Your team has already played this game run');
-    }
 
-    const session = await this.prisma.gameSession.create({
-      data: {
-        gameId,
-        userId,
-        teamId,
-        gameRunId,
-        status: SessionStatus.ACTIVE,
-        currentTaskId: firstTaskId,
-      },
+      return tx.gameSession.create({
+        data: {
+          gameId,
+          userId,
+          teamId,
+          gameRunId,
+          status: SessionStatus.ACTIVE,
+          currentTaskId: firstTaskId,
+        },
+      });
     });
 
-    void this.broadcastJoinActivity(gameId, userId);
+    void this.activityBroadcast.broadcastJoinActivity(gameId, userId)
+      .catch((err) => this.logger.error('broadcastJoinActivity failed', err));
 
     return session;
   }
@@ -272,7 +283,7 @@ export class PlayerService {
     userId: string,
     unlockData: Record<string, unknown>,
   ): Promise<{ unlocked: boolean; message: string }> {
-    const session = await this.requireActiveSession(gameId, userId);
+    await this.requireActiveSession(gameId, userId);
 
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, gameId },
@@ -295,7 +306,7 @@ export class PlayerService {
         return { unlocked: false, message: 'GPS coordinates required to unlock this task' };
       }
 
-      const distance = this.haversineDistance(playerLat, playerLng, targetLat, targetLng);
+      const distance = haversineDistance(playerLat, playerLng, targetLat, targetLng);
       if (distance > radiusMeters) {
         return {
           unlocked: false,
@@ -315,6 +326,10 @@ export class PlayerService {
       }
 
       return { unlocked: true, message: 'QR code accepted — task unlocked!' };
+    }
+
+    if (task.unlockMethod === UnlockMethod.NONE) {
+      return { unlocked: true, message: 'Task is open — no unlock required' };
     }
 
     return { unlocked: false, message: 'Unknown unlock method' };
@@ -341,10 +356,6 @@ export class PlayerService {
       throw new NotFoundException(`Task ${taskId} not found in game ${gameId}`);
     }
 
-    const attemptCount = await this.prisma.taskAttempt.count({
-      where: { sessionId: session.id, taskId },
-    });
-
     const result = await this.verificationService.verify(task, submission);
 
     const statusMap: Record<string, AttemptStatus> = {
@@ -356,7 +367,23 @@ export class PlayerService {
     const attemptStatus = statusMap[result.status] ?? AttemptStatus.ERROR;
     const pointsAwarded = Math.round(result.score * task.maxPoints);
 
-    const attempt = await this.prisma.$transaction(async (tx) => {
+    const attempt = await withSerializableRetry(this.prisma, async (tx) => {
+      // ── Step 1: Prevent duplicate CORRECT attempts ──────────────────────────
+      if (attemptStatus === AttemptStatus.CORRECT) {
+        const existingCorrect = await tx.taskAttempt.findFirst({
+          where: { sessionId: session.id, taskId, status: AttemptStatus.CORRECT },
+        });
+        if (existingCorrect) {
+          throw new ConflictException('Task already completed');
+        }
+      }
+
+      // Count attempts inside transaction to avoid race on attemptNumber
+      const attemptCount = await tx.taskAttempt.count({
+        where: { sessionId: session.id, taskId },
+      });
+
+      // ── Step 2: Create the attempt record ──────────────────────────────────
       const newAttempt = await tx.taskAttempt.create({
         data: {
           sessionId: session.id,
@@ -370,6 +397,7 @@ export class PlayerService {
         },
       });
 
+      // ── Step 3: Award points & advance session ─────────────────────────────
       if (attemptStatus === AttemptStatus.CORRECT || attemptStatus === AttemptStatus.PARTIAL) {
         const updatedSession = await tx.gameSession.update({
           where: { id: session.id },
@@ -410,8 +438,8 @@ export class PlayerService {
             });
           }
 
-          // Async: ranking update, WebSocket broadcasts, push notifications
-          void this.handlePostCorrect(
+          // ── Step 4: Async side effects (ranking, WS, push) ──────────────
+          void this.activityBroadcast.handlePostCorrect(
             gameId,
             session.gameRunId,
             userId,
@@ -421,7 +449,7 @@ export class PlayerService {
             updatedSession.totalPoints,
             updatedSession.teamId ?? null,
             newAttempt.id,
-          );
+          ).catch((err) => this.logger.error('handlePostCorrect failed', err));
         }
       }
 
@@ -444,16 +472,13 @@ export class PlayerService {
 
   /**
    * DEV-only: auto-complete a task bypassing verification.
-   * Blocked in production environments.
+   * Only available when DevPlayerController is registered (non-production).
    */
   async devCompleteTask(
     gameId: string,
     taskId: string,
     userId: string,
   ): Promise<TaskAttempt> {
-    if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Dev-complete is not available in production');
-    }
 
     const session = await this.requireActiveSession(gameId, userId);
 
@@ -465,13 +490,22 @@ export class PlayerService {
       throw new NotFoundException(`Task ${taskId} not found in game ${gameId}`);
     }
 
-    const attemptCount = await this.prisma.taskAttempt.count({
-      where: { sessionId: session.id, taskId },
-    });
-
     const pointsAwarded = task.maxPoints;
 
-    const attempt = await this.prisma.$transaction(async (tx) => {
+    const attempt = await withSerializableRetry(this.prisma, async (tx) => {
+      // Prevent duplicate CORRECT attempts
+      const existingCorrect = await tx.taskAttempt.findFirst({
+        where: { sessionId: session.id, taskId, status: AttemptStatus.CORRECT },
+      });
+      if (existingCorrect) {
+        throw new ConflictException('Task already completed');
+      }
+
+      // Count attempts inside transaction to avoid race on attemptNumber
+      const attemptCount = await tx.taskAttempt.count({
+        where: { sessionId: session.id, taskId },
+      });
+
       const newAttempt = await tx.taskAttempt.create({
         data: {
           sessionId: session.id,
@@ -519,7 +553,7 @@ export class PlayerService {
         });
       }
 
-      void this.handlePostCorrect(
+      void this.activityBroadcast.handlePostCorrect(
         gameId,
         session.gameRunId,
         userId,
@@ -529,7 +563,7 @@ export class PlayerService {
         updatedSession.totalPoints,
         updatedSession.teamId ?? null,
         newAttempt.id,
-      );
+      ).catch((err) => this.logger.error('handlePostCorrect failed', err));
 
       return newAttempt;
     });
@@ -574,25 +608,46 @@ export class PlayerService {
       throw new BadRequestException('All hints have already been used');
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.hintUsage.create({
-        data: {
-          hintId: unusedHint.id,
-          userId,
-          sessionId: session.id,
-        },
-      });
+    try {
+      await withSerializableRetry(this.prisma, async (tx) => {
+        await tx.hintUsage.create({
+          data: {
+            hintId: unusedHint.id,
+            userId,
+            sessionId: session.id,
+          },
+        });
 
-      await tx.gameSession.update({
-        where: { id: session.id },
-        data: {
-          totalPoints: { decrement: unusedHint.pointPenalty },
-        },
+        const updatedSession = await tx.gameSession.update({
+          where: { id: session.id },
+          data: {
+            totalPoints: { decrement: unusedHint.pointPenalty },
+          },
+          select: { id: true, totalPoints: true },
+        });
+
+        // Clamp to zero — prevent negative scores
+        if (updatedSession.totalPoints < 0) {
+          await tx.gameSession.update({
+            where: { id: session.id },
+            data: { totalPoints: 0 },
+          });
+        }
       });
-    });
+    } catch (error) {
+      // Unique constraint on [hintId, userId, sessionId] — concurrent duplicate hint request
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Hint already in use');
+      }
+      throw error;
+    }
 
     // Broadcast hint-used activity to admin monitoring
-    void this.broadcastHintActivity(gameId, userId, task.title);
+    void this.activityBroadcast.broadcastHintActivity(gameId, userId, task.title)
+      .catch((err) => this.logger.error('broadcastHintActivity failed', err));
 
     return {
       hint: {
@@ -750,231 +805,4 @@ export class PlayerService {
    * Orchestrates post-correct-answer side effects: ranking updates, WebSocket
    * broadcasts, and push notifications. Handles both solo and team modes.
    */
-  private async handlePostCorrect(
-    gameId: string,
-    runId: string,
-    userId: string,
-    taskId: string,
-    taskTitle: string,
-    pointsAwarded: number,
-    totalPoints: number,
-    teamId: string | null,
-    attemptId: string,
-  ): Promise<void> {
-    if (teamId) {
-      await this.rankingService.updateTeamScore(runId, teamId, totalPoints);
-      const teamRanking = await this.rankingService.getTeamRanking(runId);
-
-      // Retrieve team name for the broadcast payload
-      const team = await this.prisma.team.findUnique({
-        where: { id: teamId },
-        select: { name: true },
-      });
-
-      this.rankingGateway.broadcastTeamUpdate(gameId, {
-        gameId,
-        teamId,
-        teamName: team?.name ?? teamId,
-        ranking: teamRanking,
-      });
-
-      this.rankingGateway.broadcastPlayerCompletedTask({
-        gameId,
-        userId,
-        taskId,
-        pointsAwarded,
-        totalPoints,
-      });
-    } else {
-      await this.rankingService.updateScore(runId, userId, totalPoints);
-      const ranking = await this.rankingService.getRanking(runId);
-      this.rankingGateway.broadcastRankingUpdate(gameId, ranking);
-      this.rankingGateway.broadcastPlayerCompletedTask({
-        gameId,
-        userId,
-        taskId,
-        pointsAwarded,
-        totalPoints,
-      });
-
-      await this.notifyTopRankingChanges(gameId, ranking);
-    }
-
-    await this.onTaskCorrect(gameId, userId, taskId, taskTitle, pointsAwarded, attemptId, teamId);
-  }
-
-  /**
-   * After a correct answer: broadcast activity and push notifications to other
-   * active players (or team members) in the game.
-   */
-  private async onTaskCorrect(
-    gameId: string,
-    userId: string,
-    taskId: string,
-    taskTitle: string,
-    pointsAwarded: number,
-    attemptId: string,
-    teamId: string | null,
-  ): Promise<void> {
-    const player = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true },
-    });
-
-    const playerName = player?.displayName ?? 'Gracz';
-
-    this.rankingGateway.broadcastActivity(gameId, {
-      type: 'task_completed',
-      playerName,
-      details: `ukończył zadanie "${taskTitle}"`,
-      points: pointsAwarded,
-      taskId,
-    });
-
-    // Push notifications to other active players (excluding the current user's team in team mode)
-    const otherSessionsWhere: Prisma.GameSessionWhereInput = {
-      gameId,
-      status: SessionStatus.ACTIVE,
-      userId: { not: userId },
-      ...(teamId ? {} : { teamId: null }),
-    };
-
-    const otherSessions = await this.prisma.gameSession.findMany({
-      where: otherSessionsWhere,
-      select: { userId: true },
-    });
-
-    if (otherSessions.length > 0) {
-      const otherUserIds = otherSessions.map((s) => s.userId);
-      const users = await this.prisma.user.findMany({
-        where: {
-          id: { in: otherUserIds },
-          pushToken: { not: null },
-        },
-        select: { pushToken: true },
-      });
-
-      const tokens = users.map((u) => u.pushToken).filter((t): t is string => t !== null);
-
-      if (tokens.length > 0) {
-        await this.notificationService.sendToMultiple(
-          tokens,
-          'Nowe osiągnięcie',
-          `${playerName} ukończył zadanie "${taskTitle}"! (+${pointsAwarded} pkt)`,
-          { gameId, type: 'task_completed', attemptId },
-        );
-      }
-    }
-
-    // In team mode, notify team members about the completion
-    if (teamId) {
-      await this.notifyTeamMembers(gameId, teamId, userId, playerName, taskTitle, pointsAwarded, attemptId);
-    }
-  }
-
-  /**
-   * Push notification to team members (excluding the solver) that their teammate
-   * completed a task.
-   */
-  private async notifyTeamMembers(
-    gameId: string,
-    teamId: string,
-    solverId: string,
-    solverName: string,
-    taskTitle: string,
-    pointsAwarded: number,
-    attemptId: string,
-  ): Promise<void> {
-    const members = await this.prisma.teamMember.findMany({
-      where: { teamId, userId: { not: solverId } },
-      include: {
-        user: { select: { pushToken: true } },
-      },
-    });
-
-    const tokens = members
-      .map((m) => m.user.pushToken)
-      .filter((t): t is string => t !== null);
-
-    if (tokens.length > 0) {
-      await this.notificationService.sendToMultiple(
-        tokens,
-        'Twój zespół zdobył punkty!',
-        `${solverName} ukończył zadanie "${taskTitle}"! (+${pointsAwarded} pkt)`,
-        { gameId, teamId, type: 'team_task_completed', attemptId },
-      );
-    }
-  }
-
-  /**
-   * Notify players in the top 3 whose position may have changed.
-   */
-  private async notifyTopRankingChanges(
-    gameId: string,
-    ranking: { userId: string; score: number; rank: number }[],
-  ): Promise<void> {
-    const top3 = ranking.slice(0, 3);
-    if (top3.length === 0) return;
-
-    const top3UserIds = top3.map((r) => r.userId);
-    const users = await this.prisma.user.findMany({
-      where: {
-        id: { in: top3UserIds },
-        pushToken: { not: null },
-      },
-      select: { id: true, pushToken: true, displayName: true },
-    });
-
-    for (const user of users) {
-      if (!user.pushToken) continue;
-      const entry = top3.find((r) => r.userId === user.id);
-      if (!entry) continue;
-
-      await this.notificationService.sendPushNotification(
-        user.pushToken,
-        'Ranking zaktualizowany',
-        `Jesteś na miejscu #${entry.rank} z wynikiem ${entry.score} pkt!`,
-        { gameId, type: 'ranking_update', rank: entry.rank },
-      );
-    }
-  }
-
-  private async broadcastJoinActivity(gameId: string, userId: string): Promise<void> {
-    const player = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true },
-    });
-    this.rankingGateway.broadcastActivity(gameId, {
-      type: 'game_joined',
-      playerName: player?.displayName ?? 'Gracz',
-      details: 'dołączył do gry',
-    });
-  }
-
-  private async broadcastHintActivity(
-    gameId: string,
-    userId: string,
-    taskTitle: string,
-  ): Promise<void> {
-    const player = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { displayName: true },
-    });
-    this.rankingGateway.broadcastActivity(gameId, {
-      type: 'hint_used',
-      playerName: player?.displayName ?? 'Gracz',
-      details: `użył podpowiedzi w zadaniu "${taskTitle}"`,
-    });
-  }
-
-  private haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6_371_000;
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
 }
