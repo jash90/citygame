@@ -228,9 +228,6 @@ export class GameService {
 
   /**
    * Transition a DRAFT game to PUBLISHED.
-   */
-  /**
-   * Transition a DRAFT game to PUBLISHED.
    * The game becomes visible to players but is NOT joinable until a run is started.
    */
   async publish(id: string, requesterId: string, isAdmin: boolean): Promise<GameWithCounts> {

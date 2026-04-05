@@ -299,7 +299,7 @@ export const gamesApi = {
 // Storage endpoints
 export const storageApi = {
   presign: (contentType: string, filename: string) =>
-    apiClient.post<PresignResult>('/storage/presign', { contentType, filename }),
+    apiClient.post<PresignResult>('/storage/presign', { contentType, key: filename }),
 };
 
 // Profile endpoints
@@ -430,7 +430,7 @@ export interface RankEntry {
   userId: string;
   displayName: string;
   avatarUrl?: string;
-  points: number;
+  totalPoints: number;
   completedTasks: number;
 }
 

@@ -41,7 +41,7 @@ const PodiumItem = ({ entry, rank }: PodiumItemProps): React.JSX.Element => {
         {entry.displayName}
       </Text>
       <Text className="text-sm font-bold text-primary mb-1">
-        {entry.points} pkt
+        {entry.totalPoints} pkt
       </Text>
 
       <View

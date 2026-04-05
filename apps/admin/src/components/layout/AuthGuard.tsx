@@ -61,14 +61,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }, [clearAndRedirect]);
 
   useEffect(() => {
-    // Fast path: if no cached role, redirect immediately
-    const cachedRole = localStorage.getItem('userRole');
-    if (!cachedRole || cachedRole !== 'ADMIN') {
-      clearAndRedirect();
-      return;
-    }
-
-    // Verify the session cookie is still valid
+    // Always verify the session cookie against the backend
     checkAuth().then((valid) => {
       if (valid) setChecked(true);
     });
