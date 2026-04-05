@@ -3,46 +3,24 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { NetworkError } from '@/components/NetworkError';
 import { useAuthStore } from '@/stores/authStore';
 import { useAuth } from '@/hooks/useAuth';
 import { profileApi } from '@/services/api';
 import { QUERY_KEYS } from '@/lib/constants';
 import { StyledSafeAreaView } from '@/lib/styled';
 
-type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
-
-
-const StatCard = ({
-  label,
-  value,
-  icon,
-  iconColor,
-}: {
-  label: string;
-  value: string | number;
-  icon: IoniconsName;
-  iconColor: string;
-}): React.JSX.Element => (
-  <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16, gap: 4 }}>
-    <Ionicons name={icon} size={24} color={iconColor} />
-    <Text className="text-xl font-extrabold text-secondary">{value}</Text>
-    <Text className="text-xs text-gray-500 text-center">{label}</Text>
-  </Card>
-);
-
 export default function ProfileScreen(): React.JSX.Element {
   const { user, profile: cachedProfile, setProfile } = useAuthStore();
   const { logout, isLoading: isLoggingOut } = useAuth();
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, isError, error, refetch } = useQuery({
     queryKey: QUERY_KEYS.PROFILE,
     queryFn: () => profileApi.get(),
     staleTime: 24 * 60 * 60_000, // 24 hours — profile data doesn't change often
@@ -71,7 +49,6 @@ export default function ProfileScreen(): React.JSX.Element {
   };
 
   const displayUser = profile ?? user;
-  const stats = profile?.stats;
 
   return (
     <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -89,6 +66,11 @@ export default function ProfileScreen(): React.JSX.Element {
           <View className="py-10 items-center">
             <ActivityIndicator size="large" color="#FF6B35" />
           </View>
+        ) : isError ? (
+          <NetworkError
+            message={error?.message ?? 'Nie udało się załadować profilu.'}
+            onRetry={() => void refetch()}
+          />
         ) : (
           <>
             {/* Avatar + name */}

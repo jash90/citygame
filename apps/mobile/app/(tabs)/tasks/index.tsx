@@ -6,12 +6,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { withUniwind } from 'uniwind';
 import { TaskCard } from '@/components/task/TaskCard';
 import { ProgressBar } from '@/components/ui/ProgressBar';
+import { NetworkError } from '@/components/NetworkError';
 import { useTasks, useProgress } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
 import { useGameTimer } from '@/hooks/useGameTimer';
@@ -33,7 +32,7 @@ const EmptyState = (): React.JSX.Element => (
 
 export default function TasksScreen(): React.JSX.Element {
   const { currentGame, currentSession, tasks } = useGameStore();
-  const { isLoading, isFetching, refetch } = useTasks(currentGame?.id ?? '');
+  const { isLoading, isFetching, isError, error, refetch } = useTasks(currentGame?.id ?? '');
   useProgress(currentGame?.id ?? '');
   const router = useRouter();
   const timer = useGameTimer(currentGame?.endsAt);
@@ -92,6 +91,11 @@ export default function TasksScreen(): React.JSX.Element {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
+      ) : isError && tasks.length === 0 ? (
+        <NetworkError
+          message={error?.message ?? 'Nie udało się załadować zadań.'}
+          onRetry={() => void refetch()}
+        />
       ) : (
         <FlatList
           data={tasks}

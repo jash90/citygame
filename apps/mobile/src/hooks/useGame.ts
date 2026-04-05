@@ -60,7 +60,7 @@ export const useProgress = (gameId: string) => {
 };
 
 export const useSubmitTask = () => {
-  const { markTaskCompleted, updateTaskStatus } = useGameStore();
+  const { markTaskCompleted } = useGameStore();
   const queryClient = useQueryClient();
 
   return useMutation({

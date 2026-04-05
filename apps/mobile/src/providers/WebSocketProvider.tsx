@@ -89,7 +89,6 @@ export const WebSocketProvider = ({
       setIsConnected(false);
       setLive(false);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, tokens?.accessToken]);
 
   // Broadcast live location to backend every 5 seconds while in a game

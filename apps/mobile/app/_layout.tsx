@@ -7,11 +7,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { AuthProvider } from '@/providers/AuthProvider';
 import { WebSocketProvider } from '@/providers/WebSocketProvider';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function RootLayout(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
+        <ErrorBoundary>
         <QueryProvider>
           <WebSocketProvider>
             <AuthProvider>
@@ -42,6 +44,7 @@ export default function RootLayout(): React.JSX.Element {
             </AuthProvider>
           </WebSocketProvider>
         </QueryProvider>
+        </ErrorBoundary>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

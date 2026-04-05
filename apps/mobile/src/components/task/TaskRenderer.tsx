@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { withUniwind } from 'uniwind';
 import { useRouter } from 'expo-router';
 import { useGameStore } from '@/stores/gameStore';
 import { useLocationStore } from '@/stores/locationStore';

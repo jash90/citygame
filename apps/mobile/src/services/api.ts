@@ -1,5 +1,15 @@
 import { API_URL, SECURE_STORE_KEYS } from '@/lib/constants';
 import * as SecureStore from 'expo-secure-store';
+import type {
+  UnlockTaskResult,
+  HintResult,
+  TaskSubmission,
+  PresignResult,
+  ActiveSessionResponse,
+  RunAnswerEntry,
+  RunAnswersResponse,
+  UserProfile,
+} from '@citygame/shared';
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -17,6 +27,7 @@ interface ApiError {
 class ApiClient {
   private baseUrl: string;
   private onUnauthorized?: () => void;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -30,9 +41,56 @@ class ApiClient {
     return SecureStore.getItemAsync(SECURE_STORE_KEYS.ACCESS_TOKEN);
   }
 
+  /**
+   * Attempt to refresh the access token using the stored refresh token.
+   * Deduplicates concurrent refresh attempts.
+   */
+  private async tryRefreshToken(): Promise<boolean> {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.doRefreshToken().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  }
+
+  private async doRefreshToken(): Promise<boolean> {
+    try {
+      const refreshToken = await SecureStore.getItemAsync(SECURE_STORE_KEYS.REFRESH_TOKEN);
+      if (!refreshToken) return false;
+
+      const res = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!res.ok) return false;
+
+      const json = (await res.json()) as Record<string, unknown>;
+      const data = (json?.data ?? json) as Record<string, unknown>;
+
+      if (data?.accessToken) {
+        await SecureStore.setItemAsync(SECURE_STORE_KEYS.ACCESS_TOKEN, data.accessToken as string);
+        if (data.refreshToken) {
+          await SecureStore.setItemAsync(SECURE_STORE_KEYS.REFRESH_TOKEN, data.refreshToken as string);
+        }
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   private async request<T>(
     path: string,
     options: RequestOptions = {},
+    isRetry = false,
   ): Promise<T> {
     const { method = 'GET', body, headers = {} } = options;
     const token = await this.getAuthToken();
@@ -53,13 +111,22 @@ class ApiClient {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
+    if (response.status === 401 && !isRetry) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        return this.request<T>(path, options, true);
+      }
+      this.onUnauthorized?.();
+      throw new Error('Unauthorized. Please log in again.');
+    }
+
     if (response.status === 401) {
       this.onUnauthorized?.();
-      throw new Error('Nieautoryzowany dostęp. Zaloguj się ponownie.');
+      throw new Error('Unauthorized. Please log in again.');
     }
 
     if (!response.ok) {
-      let errorMessage = `Błąd serwera: ${response.status}`;
+      let errorMessage = `Server error: ${response.status}`;
       try {
         const errorData = (await response.json()) as ApiError;
         errorMessage = errorData.message ?? errorMessage;
@@ -251,16 +318,10 @@ export interface User {
   avatarUrl?: string;
 }
 
-export interface UserProfile extends User {
-  stats: {
-    gamesPlayed: number;
-    totalPoints: number;
-    completedTasks: number;
-    rank: number;
-  };
-}
+// UserProfile is imported from @citygame/shared
 
-// TaskType enum values matching backend
+// Mobile-specific string literal types. These mirror @citygame/shared enums
+// but are kept as string unions for simpler runtime usage in mappers.
 export type TaskType =
   | 'QR_SCAN'
   | 'GPS_REACH'
@@ -350,13 +411,7 @@ export interface GameProgress {
   gameEnded?: boolean;
 }
 
-// Submission payloads per task type
-export type TaskSubmission =
-  | { scannedCode: string }
-  | { latitude: number; longitude: number }
-  | { answer: string }
-  | { imageUrl: string }
-  | { transcription: string };
+// TaskSubmission imported from @citygame/shared
 
 export interface TaskAttempt {
   status: AttemptStatus;
@@ -368,23 +423,7 @@ export interface UnlockTaskPayload {
   [key: string]: unknown;
 }
 
-export interface UnlockTaskResult {
-  unlocked: boolean;
-  message: string;
-}
-
-export interface HintResult {
-  hint: {
-    content: string;
-    pointPenalty: number;
-  };
-}
-
-export interface PresignResult {
-  uploadUrl: string;
-  fileUrl: string;
-  key: string;
-}
+// UnlockTaskResult, HintResult, PresignResult imported from @citygame/shared
 
 export interface RankEntry {
   rank: number;
@@ -398,35 +437,17 @@ export interface RankEntry {
 // Keep RankingEntry as alias for backward compat with ranking screen
 export type RankingEntry = RankEntry;
 
-export interface ActiveSessionResponse {
-  gameId: string;
-  sessionId: string;
-  gameRunId: string;
-}
-
-export interface RunAnswerEntry {
-  taskId: string;
-  taskTitle: string;
-  taskDescription: string;
-  taskType: TaskType;
-  maxPoints: number;
-  status: AttemptStatus;
-  pointsAwarded: number;
-  submission: Record<string, unknown>;
-  aiResult?: unknown;
-  createdAt: string;
-}
-
-export interface RunAnswersResponse {
-  session: {
-    id: string;
-    status: string;
-    totalPoints: number;
-    startedAt: string;
-    completedAt?: string;
-  };
-  attempts: RunAnswerEntry[];
-}
+// Re-export shared types so existing imports from '@/services/api' continue to work
+export type {
+  UnlockTaskResult,
+  HintResult,
+  TaskSubmission,
+  PresignResult,
+  ActiveSessionResponse,
+  RunAnswerEntry,
+  RunAnswersResponse,
+  UserProfile,
+} from '@citygame/shared';
 
 // Player endpoints
 export const playerApi = {

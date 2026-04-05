@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Podium } from '@/components/ranking/Podium';
 import { RankItem } from '@/components/ranking/RankItem';
 import { LiveIndicator } from '@/components/ranking/LiveIndicator';
+import { NetworkError } from '@/components/NetworkError';
 import { useRankingStore } from '@/stores/rankingStore';
 import { useGameStore } from '@/stores/gameStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -41,14 +42,13 @@ export default function RankingScreen(): React.JSX.Element {
   const { isConnected } = useWebSocket(gameId || undefined);
 
   // Initial fetch via game-scoped ranking endpoint
-  const { data: rankingData, isFetching, refetch } = useRanking(gameId);
+  const { data: rankingData, isFetching, isError, error, refetch } = useRanking(gameId);
 
   // Sync query result into ranking store
   React.useEffect(() => {
     if (rankingData) {
       setRanking(rankingData);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rankingData]);
 
   // No active game session — show empty state
@@ -91,6 +91,11 @@ export default function RankingScreen(): React.JSX.Element {
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#FF6B35" />
         </View>
+      ) : isError && entries.length === 0 ? (
+        <NetworkError
+          message={error?.message ?? 'Nie udało się załadować rankingu.'}
+          onRetry={() => void refetch()}
+        />
       ) : (
         <FlatList
           data={restEntries}

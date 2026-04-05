@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, type ReactNode } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
-import { withUniwind } from 'uniwind';
 import { useAuthStore } from '@/stores/authStore';
 import { useGameStore } from '@/stores/gameStore';
 import { apiClient, playerApi, gamesApi } from '@/services/api';
@@ -110,7 +109,6 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
       removeNotificationSubscription(receivedSub);
       removeNotificationSubscription(responseSub);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   if (isLoading) {

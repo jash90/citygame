@@ -64,6 +64,7 @@ interface GameState {
   clearLastAiResult: () => void;
   setGameEnded: (ended: boolean) => void;
   addRevealedHint: (taskId: string, hint: RevealedHint) => void;
+  /** @deprecated Use `selectTaskHints(taskId)` selector instead. */
   getTaskHints: (taskId: string) => RevealedHint[];
   restoreSession: (game: Game, session: GameSession, tasks: Task[], progress?: GameProgress | null) => void;
   reset: () => void;
@@ -81,6 +82,12 @@ const initialState = {
   lastAiResult: null,
   gameEnded: false,
 };
+
+/** Reactive selector for task hints. Usage: `useGameStore(selectTaskHints(taskId))` */
+export const selectTaskHints =
+  (taskId: string) =>
+  (state: GameState): RevealedHint[] =>
+    state.revealedHints.get(taskId) ?? [];
 
 export const useGameStore = create<GameState>((set) => ({
   ...initialState,
@@ -143,7 +150,7 @@ export const useGameStore = create<GameState>((set) => ({
       return { revealedHints: hints };
     }),
 
-  getTaskHints: (taskId) => {
+  getTaskHints: (taskId: string): RevealedHint[] => {
     return useGameStore.getState().revealedHints.get(taskId) ?? [];
   },
 

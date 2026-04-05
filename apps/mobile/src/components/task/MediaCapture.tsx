@@ -7,7 +7,6 @@ import {
   Image,
   StyleSheet as RNStyleSheet,
 } from 'react-native';
-import { withUniwind } from 'uniwind';
 import { Ionicons } from '@expo/vector-icons';
 import { CameraView } from 'expo-camera';
 import { useCamera } from '@/hooks/useCamera';
@@ -17,8 +16,6 @@ export interface MediaCaptureProps {
   isUploading?: boolean;
   compact?: boolean;
 }
-
-type CaptureState = 'permission' | 'camera' | 'preview';
 
 export const MediaCapture = ({
   onCapture,
