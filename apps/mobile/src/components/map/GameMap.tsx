@@ -1,5 +1,5 @@
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
-import { View, StyleSheet as RNStyleSheet } from 'react-native';
+import { Platform, View, StyleSheet as RNStyleSheet } from 'react-native';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { useLocationStore } from '@/stores/locationStore';
 
@@ -80,20 +80,24 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
               <Marker
                 coordinate={{ latitude: location.lat, longitude: location.lng }}
                 anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={Platform.OS === 'android'}
               >
                 <View
                   style={{
                     width: 16,
                     height: 16,
-                    borderRadius: 9999,
+                    borderRadius: 8,
                     backgroundColor: '#FF6B35',
                     borderWidth: 2,
                     borderColor: '#FFFFFF',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 2,
-                    elevation: 2,
+                    ...(Platform.OS === 'ios'
+                      ? {
+                          shadowColor: '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.1,
+                          shadowRadius: 2,
+                        }
+                      : { elevation: 2 }),
                   }}
                 />
               </Marker>
