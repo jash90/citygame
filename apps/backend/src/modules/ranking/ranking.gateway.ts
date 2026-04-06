@@ -15,6 +15,7 @@ import { RankEntry, TeamRankEntry } from './ranking.service';
 import { createWsJwtMiddleware, type WsUser } from './ws-jwt.middleware';
 import { JoinGameWsDto } from './dto/join-game.ws.dto';
 import { LocationUpdateWsDto } from './dto/location-update.ws.dto';
+import { matchesOrigin } from '../../common/utils/cors';
 
 export interface RankingUpdatePayload {
   gameId: string;
@@ -67,9 +68,17 @@ export interface PlayerLocationPayload {
 @WebSocketGateway({
   namespace: '/ranking',
   cors: {
-    origin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000,http://localhost:3002')
-      .split(',')
-      .map((o) => o.trim()),
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (matchesOrigin(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
   },
 })
