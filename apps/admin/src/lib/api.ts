@@ -55,6 +55,15 @@ function handleUnauthorized(): never {
   throw new Error('Unauthorized');
 }
 
+interface RequestOptions {
+  /**
+   * Skip the automatic token-refresh + redirect-to-login flow on 401.
+   * Use for auth endpoints (login, register) where a 401 means
+   * "invalid credentials", not "expired session".
+   */
+  skipAuthRedirect?: boolean;
+}
+
 /**
  * Core fetch wrapper. Authentication is handled via httpOnly cookies
  * sent automatically by the browser (`credentials: 'include'`).
@@ -64,6 +73,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
   isRetry = false,
+  requestOptions?: RequestOptions,
 ): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -80,30 +90,39 @@ async function request<T>(
     signal: controller.signal,
   }).finally(() => clearTimeout(timeoutId));
 
-  if (response.status === 401 && !isRetry) {
-    // Deduplicate concurrent refresh attempts
-    if (!refreshPromise) {
-      refreshPromise = tryRefreshToken().finally(() => {
-        refreshPromise = null;
-      });
+  // For auth endpoints (login/register), skip auto-refresh & redirect.
+  // A 401 here means "invalid credentials", not "expired session".
+  if (requestOptions?.skipAuthRedirect) {
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Server error' }));
+      throw new Error(error.message ?? `HTTP ${response.status}`);
+    }
+  } else {
+    if (response.status === 401 && !isRetry) {
+      // Deduplicate concurrent refresh attempts
+      if (!refreshPromise) {
+        refreshPromise = tryRefreshToken().finally(() => {
+          refreshPromise = null;
+        });
+      }
+
+      const refreshed = await refreshPromise;
+
+      if (refreshed) {
+        return request<T>(path, options, true, requestOptions);
+      }
+
+      handleUnauthorized();
     }
 
-    const refreshed = await refreshPromise;
-
-    if (refreshed) {
-      return request<T>(path, options, true);
+    if (response.status === 401) {
+      handleUnauthorized();
     }
 
-    handleUnauthorized();
-  }
-
-  if (response.status === 401) {
-    handleUnauthorized();
-  }
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Server error' }));
-    throw new Error(error.message ?? `HTTP ${response.status}`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Server error' }));
+      throw new Error(error.message ?? `HTTP ${response.status}`);
+    }
   }
 
   // 204 No Content
@@ -120,26 +139,26 @@ async function request<T>(
 }
 
 export const api = {
-  get<T>(path: string): Promise<T> {
-    return request<T>(path, { method: 'GET' });
+  get<T>(path: string, opts?: RequestOptions): Promise<T> {
+    return request<T>(path, { method: 'GET' }, false, opts);
   },
 
-  post<T>(path: string, body: unknown): Promise<T> {
+  post<T>(path: string, body: unknown, opts?: RequestOptions): Promise<T> {
     return request<T>(path, {
       method: 'POST',
       body: JSON.stringify(body),
-    });
+    }, false, opts);
   },
 
-  patch<T>(path: string, body: unknown): Promise<T> {
+  patch<T>(path: string, body: unknown, opts?: RequestOptions): Promise<T> {
     return request<T>(path, {
       method: 'PATCH',
       body: JSON.stringify(body),
-    });
+    }, false, opts);
   },
 
-  delete<T>(path: string): Promise<T> {
-    return request<T>(path, { method: 'DELETE' });
+  delete<T>(path: string, opts?: RequestOptions): Promise<T> {
+    return request<T>(path, { method: 'DELETE' }, false, opts);
   },
 };
 

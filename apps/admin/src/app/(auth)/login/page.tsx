@@ -40,7 +40,7 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      const res = await api.post<AuthTokens & { user: { role: string } }>('/api/auth/login', data);
+      const res = await api.post<AuthTokens & { user: { role: string } }>('/api/auth/login', data, { skipAuthRedirect: true });
       const { accessToken, user } = res;
 
       if (user?.role !== 'ADMIN') {

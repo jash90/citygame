@@ -129,35 +129,56 @@ export class AuthController {
   }
 
   /**
+   * Shared cookie options to ensure set and clear use identical attributes.
+   * Browsers require sameSite, secure, httpOnly, and path to match when clearing.
+   *
+   * In production, defaults to SameSite=None + Secure for cross-origin support
+   * (admin on Vercel + backend on Railway are different domains).
+   * Override with COOKIE_SAME_SITE=lax if running same-origin in production.
+   */
+  private getCookieOptions(path: string): {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: 'lax' | 'none';
+    path: string;
+  } {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const envSameSite = process.env.COOKIE_SAME_SITE;
+
+    // Explicit env var takes precedence
+    // In production, default to 'none' for cross-origin cookie support.
+    // In development, default to 'lax'.
+    const sameSite: 'lax' | 'none' =
+      envSameSite === 'lax' ? 'lax' :
+      envSameSite === 'none' ? 'none' :
+      isProduction ? 'none' : 'lax';
+
+    return {
+      httpOnly: true,
+      secure: isProduction || sameSite === 'none',
+      sameSite,
+      path,
+    };
+  }
+
+  /**
    * Set httpOnly cookies for web clients (admin panel).
    * Mobile clients still use the JSON body tokens.
    */
   private setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
-    const isProduction = process.env.NODE_ENV === 'production';
-    // Use 'lax' to allow cookies on same-site navigations and cross-origin
-    // sub-requests within the same registrable domain. 'strict' blocks cookies
-    // on all cross-origin requests, breaking admin↔backend on different hosts.
-    const sameSite: 'lax' | 'none' = process.env.COOKIE_SAME_SITE === 'none' ? 'none' : 'lax';
-
     res.cookie('accessToken', accessToken, {
-      httpOnly: true,
-      secure: isProduction || sameSite === 'none',
-      sameSite,
+      ...this.getCookieOptions('/'),
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/',
     });
 
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: isProduction || sameSite === 'none',
-      sameSite,
+      ...this.getCookieOptions('/api/auth'),
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth',
     });
   }
 
   private clearAuthCookies(res: Response): void {
-    res.clearCookie('accessToken', { path: '/' });
-    res.clearCookie('refreshToken', { path: '/api/auth' });
+    res.clearCookie('accessToken', this.getCookieOptions('/'));
+    res.clearCookie('refreshToken', this.getCookieOptions('/api/auth'));
   }
 }
