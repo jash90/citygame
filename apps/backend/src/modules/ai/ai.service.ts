@@ -357,7 +357,9 @@ Respond with only the verification prompt text. It should describe what a correc
     }
 
     try {
-      const parsed = JSON.parse(text) as AiEvaluationResult;
+      // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
+      const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+      const parsed = JSON.parse(cleaned) as AiEvaluationResult;
       return {
         score: Math.min(1, Math.max(0, Number(parsed.score))),
         feedback: String(parsed.feedback ?? ''),
