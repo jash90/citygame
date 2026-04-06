@@ -95,7 +95,12 @@ export class AiService {
 
   /**
    * Evaluate a photo submission using vision model via OpenRouter.
-   * @param imageUrl  Public URL of the uploaded image.
+   *
+   * The image is fetched server-side and sent as a base64 data URI.
+   * This avoids issues with private/presigned storage URLs that
+   * OpenRouter cannot access directly.
+   *
+   * @param imageUrl  URL of the uploaded image (public, presigned, or internal).
    * @param prompt    Description of what the photo should show.
    * @param threshold Minimum score (0–1) to pass (used by callers).
    */
@@ -112,6 +117,10 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
     const userMessage = `Task requirement: ${prompt}\n\nDoes the provided image meet this requirement? Evaluate carefully.`;
 
     try {
+      // Resolve image to a data URI that OpenRouter can consume.
+      // This handles private R2 URLs, presigned URLs, and public URLs.
+      const dataUri = await this.imageToDataUri(imageUrl);
+
       const messages: ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
         {
@@ -119,7 +128,7 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
           content: [
             {
               type: 'image_url',
-              image_url: { url: imageUrl },
+              image_url: { url: dataUri },
             },
             {
               type: 'text',
@@ -136,7 +145,7 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
       return {
         score: 0,
         feedback: 'Could not evaluate your photo. Please try again.',
-        reasoning: 'AI evaluation temporarily unavailable',
+        reasoning: `AI evaluation failed: ${error instanceof Error ? error.message : 'unknown error'}`,
       };
     }
   }
@@ -273,6 +282,42 @@ Respond with only the verification prompt text. It should describe what a correc
       this.logger.error('generateAIPrompt failed', error);
       return '';
     }
+  }
+
+  /**
+   * Fetch an image from a URL and convert it to a base64 data URI.
+   * Works with public URLs, presigned S3/R2 URLs, and internal endpoints.
+   * Limits download to 20 MB to prevent abuse.
+   */
+  private async imageToDataUri(imageUrl: string): Promise<string> {
+    // If it's already a data URI, return as-is
+    if (imageUrl.startsWith('data:')) {
+      return imageUrl;
+    }
+
+    const res = await fetch(imageUrl, {
+      signal: AbortSignal.timeout(15_000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch image: HTTP ${res.status} from ${imageUrl}`);
+    }
+
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 20 * 1024 * 1024) {
+      throw new Error('Image too large (max 20 MB)');
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+    // Determine MIME type from response or fallback to jpeg
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+    const mimeType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(contentType)
+      ? contentType
+      : 'image/jpeg';
+
+    return `data:${mimeType};base64,${base64}`;
   }
 
   /**

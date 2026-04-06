@@ -124,7 +124,29 @@ describe('AiService', () => {
   });
 
   describe('evaluatePhoto', () => {
-    it('sends image_url in user message content', async () => {
+    const mockFetch = jest.fn();
+    const originalFetch = global.fetch;
+
+    beforeEach(() => {
+      global.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('fetches image and sends as base64 data URI', async () => {
+      // Mock image fetch
+      const fakeImageData = Buffer.from('fake-image-bytes');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Map([['content-type', 'image/jpeg']]) as unknown as Headers,
+        arrayBuffer: () => Promise.resolve(fakeImageData.buffer.slice(
+          fakeImageData.byteOffset,
+          fakeImageData.byteOffset + fakeImageData.byteLength,
+        )),
+      });
+
       mockCreate.mockResolvedValue(
         mockChatResponse(
           JSON.stringify({ score: 0.85, feedback: 'Nice photo', reasoning: 'Matches' }),
@@ -138,6 +160,12 @@ describe('AiService', () => {
       );
 
       expect(result.score).toBe(0.85);
+      // Verify the image was fetched
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://example.com/photo.jpg',
+        expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      );
+      // Verify base64 data URI was sent to OpenRouter
       expect(mockCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           messages: expect.arrayContaining([
@@ -146,7 +174,7 @@ describe('AiService', () => {
               content: expect.arrayContaining([
                 expect.objectContaining({
                   type: 'image_url',
-                  image_url: { url: 'https://example.com/photo.jpg' },
+                  image_url: { url: expect.stringMatching(/^data:image\/jpeg;base64,/) },
                 }),
               ]),
             }),
@@ -155,7 +183,41 @@ describe('AiService', () => {
       );
     });
 
+    it('passes through data URIs without fetching', async () => {
+      const dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANS';
+
+      mockCreate.mockResolvedValue(
+        mockChatResponse(
+          JSON.stringify({ score: 0.9, feedback: 'Good', reasoning: 'ok' }),
+        ),
+      );
+
+      const result = await service.evaluatePhoto(dataUri, 'prompt', 0.5);
+
+      expect(result.score).toBe(0.9);
+      // fetch should NOT have been called for data URIs
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('returns zero score when image fetch fails', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
+
+      const result = await service.evaluatePhoto('https://example.com/missing.jpg', 'prompt', 0.5);
+
+      expect(result.score).toBe(0);
+      expect(result.feedback).toContain('Could not evaluate your photo');
+    });
+
     it('returns zero score on API failure', async () => {
+      const fakeImageData = Buffer.from('img');
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        headers: new Map([['content-type', 'image/jpeg']]) as unknown as Headers,
+        arrayBuffer: () => Promise.resolve(fakeImageData.buffer.slice(
+          fakeImageData.byteOffset,
+          fakeImageData.byteOffset + fakeImageData.byteLength,
+        )),
+      });
       mockCreate.mockRejectedValue(new Error('Vision failed'));
 
       const result = await service.evaluatePhoto('https://example.com/photo.jpg', 'prompt', 0.5);
