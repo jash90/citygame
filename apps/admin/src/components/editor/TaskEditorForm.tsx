@@ -153,11 +153,33 @@ export function TaskEditorForm({
       longitude: task?.longitude ?? 0,
       maxPoints: task?.maxPoints ?? 100,
       timeLimitSec: task?.timeLimitSec,
-      aiPrompt: '',
-      aiThreshold: 0.7,
-      answerHash: '',
-      qrHash: '',
-      gpsRadius: 50,
+      aiPrompt: (() => {
+        const vc = task?.verifyConfig;
+        if (vc && ('prompt' in vc)) return vc.prompt;
+        return '';
+      })(),
+      aiThreshold: (() => {
+        const vc = task?.verifyConfig;
+        if (vc && ('threshold' in vc)) return vc.threshold;
+        return 0.7;
+      })(),
+      answerHash: (() => {
+        const vc = task?.verifyConfig;
+        if (vc && ('answerHash' in vc)) return vc.answerHash;
+        return '';
+      })(),
+      qrHash: (() => {
+        const vc = task?.verifyConfig;
+        if (vc && vc.type === 'QR_SCAN') return vc.expectedHash;
+        const uc = task?.unlockConfig;
+        if (uc && uc.method === 'QR') return uc.expectedHash;
+        return '';
+      })(),
+      gpsRadius: (() => {
+        const vc = task?.verifyConfig;
+        if (vc && vc.type === 'GPS_REACH') return vc.radiusMeters;
+        return 50;
+      })(),
       ...(() => {
         try {
           const ctx = task?.storyContext ? JSON.parse(task.storyContext) : {};

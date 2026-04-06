@@ -64,6 +64,7 @@ export function AIPromptEditor({
   taskDescription = '',
 }: AIPromptEditorProps) {
   const [showPreview, setShowPreview] = useState(false);
+  const [exampleAnswer, setExampleAnswer] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleInsertVariable = (token: string) => {
@@ -89,7 +90,7 @@ export function AIPromptEditor({
 
   const previewText = value
     .replace(/\{\{task_description\}\}/g, taskDescription || '[opis zadania]')
-    .replace(/\{\{player_answer\}\}/g, '[odpowiedź gracza]')
+    .replace(/\{\{player_answer\}\}/g, exampleAnswer || '[odpowiedź gracza]')
     .replace(/\{\{expected_criteria\}\}/g, '[kryteria oceny]');
 
   const charCount = value.length;
@@ -136,14 +137,27 @@ export function AIPromptEditor({
 
       {/* Editor / Preview toggle */}
       {showPreview ? (
-        <div className="rounded-xl border border-orange-200 bg-orange-50/30 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Bot size={14} className="text-[#FF6B35]" />
-            <span className="text-xs font-semibold text-[#FF6B35]">Podgląd promptu</span>
+        <div className="flex flex-col gap-3">
+          {/* Example answer input */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold text-gray-500">Testowa odpowiedź gracza:</label>
+            <input
+              type="text"
+              value={exampleAnswer}
+              onChange={(e) => setExampleAnswer(e.target.value)}
+              placeholder="Wpisz przykładową odpowiedź gracza..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none transition-colors focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+            />
           </div>
-          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-            {previewText || <span className="text-gray-400 italic">Brak treści promptu</span>}
-          </pre>
+          <div className="rounded-xl border border-orange-200 bg-orange-50/30 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Bot size={14} className="text-[#FF6B35]" />
+              <span className="text-xs font-semibold text-[#FF6B35]">Podgląd promptu</span>
+            </div>
+            <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
+              {previewText || <span className="text-gray-400 italic">Brak treści promptu</span>}
+            </pre>
+          </div>
         </div>
       ) : (
         <textarea
