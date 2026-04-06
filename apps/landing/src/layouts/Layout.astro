@@ -58,6 +58,17 @@ const ogImage = '/og-image.png';
 <style is:global>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+  :root {
+    --color-primary: #FF6B35;
+    --color-primary-hover: #e55a26;
+    --color-dark: #1a1a2e;
+    --color-darker: #0d0d1a;
+    --color-text: #1a1a2e;
+    --color-text-muted: #6b7280;
+    --color-bg-light: #f9fafb;
+    --color-border: #f3f4f6;
+  }
+
   *,
   *::before,
   *::after {
@@ -76,4 +87,32 @@ const ogImage = '/og-image.png';
     line-height: 1.6;
     color: #1a1a2e;
   }
+
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+  }
+
+  [data-reveal].revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
 </style>
+
+<script is:inline>
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const delay = entry.target.dataset.revealDelay || 0;
+          setTimeout(() => {
+            entry.target.classList.add('revealed');
+          }, Number(delay));
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -50px 0px' });
+    document.querySelectorAll('[data-reveal]').forEach(el => observer.observe(el));
+  });
+</script>

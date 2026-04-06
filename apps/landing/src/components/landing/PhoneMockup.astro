@@ -1,0 +1,56 @@
+---
+interface Props {
+  src: string;
+  alt: string;
+  class?: string;
+  eager?: boolean;
+}
+
+const { src, alt, class: className, eager = false } = Astro.props;
+---
+
+<div class:list={['phone-frame', className]}>
+  <div class="phone-notch"></div>
+  <img
+    src={src}
+    alt={alt}
+    loading={eager ? 'eager' : 'lazy'}
+    decoding={eager ? 'sync' : 'async'}
+  />
+</div>
+
+<style>
+  .phone-frame {
+    position: relative;
+    width: 280px;
+    aspect-ratio: 75 / 163;
+    border-radius: 2.25rem;
+    border: 5px solid #1a1a2e;
+    overflow: hidden;
+    background: #000;
+    box-shadow:
+      0 20px 40px rgba(0, 0, 0, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+    -webkit-mask-image: -webkit-radial-gradient(white, black);
+    flex-shrink: 0;
+  }
+
+  .phone-notch {
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4.5rem;
+    height: 1.2rem;
+    background: #1a1a2e;
+    border-radius: 1rem;
+    z-index: 2;
+  }
+
+  .phone-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+</style>
