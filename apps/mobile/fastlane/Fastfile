@@ -16,6 +16,8 @@ platform :ios do
   desc "Build and upload to TestFlight"
   lane :beta do
     match(type: "appstore", readonly: is_ci)
+    sh("cd ../ios && pod install")
+    increment_version_number(bump_type: "patch", xcodeproj: "ios/CityGame.xcodeproj")
     increment_build_number(xcodeproj: "ios/CityGame.xcodeproj")
     build_app(
       workspace: "ios/CityGame.xcworkspace",
@@ -33,6 +35,9 @@ platform :ios do
   desc "Build and release to App Store"
   lane :release do
     match(type: "appstore", readonly: is_ci)
+    sh("cd ../ios && pod install")
+    increment_version_number(bump_type: "patch", xcodeproj: "ios/CityGame.xcodeproj")
+    increment_build_number(xcodeproj: "ios/CityGame.xcodeproj")
     build_app(
       workspace: "ios/CityGame.xcworkspace",
       scheme: "CityGame",
