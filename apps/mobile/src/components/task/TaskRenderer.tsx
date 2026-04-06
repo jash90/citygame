@@ -305,6 +305,7 @@ export const TaskRenderer = ({
   };
 
   const isSelfSubmitting = task.type === 'PHOTO_AI' || task.type === 'AUDIO_AI';
+  const isCompleted = task.status === 'completed';
 
   return (
     <View className="gap-4">
@@ -335,13 +336,18 @@ export const TaskRenderer = ({
 
       {!isSelfSubmitting && (
         <TouchableOpacity
-          className={`bg-primary rounded-xl py-4 items-center ${isSubmitting || !readyPayload ? 'opacity-50' : ''}`}
+          className={`rounded-xl py-4 items-center ${isCompleted ? 'bg-green-600 opacity-50' : `bg-primary ${isSubmitting || !readyPayload ? 'opacity-50' : ''}`}`}
           onPress={handleSubmit}
-          disabled={isSubmitting || !readyPayload}
+          disabled={isSubmitting || !readyPayload || isCompleted}
           activeOpacity={0.8}
         >
           {isSubmitting ? (
             <ActivityIndicator color="white" size="small" />
+          ) : isCompleted ? (
+            <View className="flex-row items-center gap-2">
+              <Ionicons name="checkmark-circle" size={20} color="white" />
+              <Text className="text-white text-base font-bold">Approved</Text>
+            </View>
           ) : (
             <Text className="text-white text-base font-bold">Wyślij odpowiedź</Text>
           )}
