@@ -94,6 +94,7 @@ function AIVerifySection({
           onChange={onPromptChange}
           taskType={type}
           taskDescription={description}
+          threshold={threshold}
         />
       </Field>
       <Field label="Próg akceptacji (0.0–1.0)" hint="Np. 0.7 = 70% pewności wymagane do zaliczenia">
