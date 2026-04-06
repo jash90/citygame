@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Users, Server } from 'lucide-react';
+import { Users, Server, Bot } from 'lucide-react';
 import { UserManagementTab } from '@/components/settings/UserManagementTab';
 import { SystemInfoTab } from '@/components/settings/SystemInfoTab';
+import { AiModelTab } from '@/components/settings/AiModelTab';
 
 const tabs = [
   { id: 'users', label: 'Użytkownicy', icon: <Users size={16} /> },
+  { id: 'ai', label: 'Model AI', icon: <Bot size={16} /> },
   { id: 'system', label: 'System', icon: <Server size={16} /> },
 ] as const;
 
@@ -16,7 +18,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('users');
 
   return (
-    <div className="flex flex-col gap-6 max-w-4xl">
+    <div className="flex flex-col gap-6 max-w-5xl">
       <div>
         <h2 className="text-2xl font-bold text-gray-900">Ustawienia</h2>
         <p className="text-gray-500 text-sm mt-1">Zarządzanie platformą</p>
@@ -42,6 +44,7 @@ export default function SettingsPage() {
 
       {/* Tab content */}
       {activeTab === 'users' && <UserManagementTab />}
+      {activeTab === 'ai' && <AiModelTab />}
       {activeTab === 'system' && <SystemInfoTab />}
     </div>
   );
