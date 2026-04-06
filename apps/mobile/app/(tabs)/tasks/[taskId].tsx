@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyledSafeAreaView } from '@/lib/styled';
 import { TaskTypeBadge } from '@/components/ui/Badge';
 import { TaskRenderer } from '@/components/task/TaskRenderer';
-import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
 import { StoryContextCard } from '@/components/task/StoryContextCard';
 import { useSubmitTask, useUnlockTask, useHint, useDevComplete } from '@/hooks/useGame';
 import { useGameStore } from '@/stores/gameStore';
@@ -412,11 +411,6 @@ export default function TaskDetailScreen(): React.JSX.Element {
                 isSubmitting={submitMutation.isPending}
               />
             </View>
-
-            {/* AI verification status (shown when submission is pending AI check) */}
-            {isAiTask && submitMutation.isPending ? (
-              <AIVerificationStatus status="processing" />
-            ) : null}
 
             {/* Hints */}
             {currentSession && task.hintCount > 0 && (

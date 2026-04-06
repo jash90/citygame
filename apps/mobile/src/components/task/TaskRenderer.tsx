@@ -21,7 +21,7 @@ import type { Task, TaskSubmission } from '@/services/api';
 
 interface TaskRendererProps {
   task: Task;
-  onSubmit: (submission: TaskSubmission) => void;
+  onSubmit: (submission: TaskSubmission) => void | Promise<void>;
   isSubmitting?: boolean;
 }
 
@@ -189,7 +189,7 @@ async function uploadFileToR2(
 const PhotoAITaskInput = ({
   onSubmit,
 }: {
-  onSubmit: (submission: TaskSubmission) => void;
+  onSubmit: (submission: TaskSubmission) => void | Promise<void>;
 }): React.JSX.Element => {
   const [aiStatus, setAiStatus] = useState<AiStatus>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -204,7 +204,10 @@ const PhotoAITaskInput = ({
         `task-photo-${Date.now()}.jpg`,
         { aiStatus, uploadProgress, setAiStatus, setUploadProgress },
       );
-      onSubmit({ imageUrl: fileUrl });
+      await onSubmit({ imageUrl: fileUrl });
+      // Reset after parent finishes (navigates or shows error alert)
+      setAiStatus('idle');
+      setUploadProgress(0);
     } catch {
       setAiStatus('error');
     } finally {
@@ -239,7 +242,7 @@ const PhotoAITaskInput = ({
 const AudioAITaskInput = ({
   onSubmit,
 }: {
-  onSubmit: (submission: TaskSubmission) => void;
+  onSubmit: (submission: TaskSubmission) => void | Promise<void>;
 }): React.JSX.Element => {
   const [aiStatus, setAiStatus] = useState<AiStatus>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -252,7 +255,10 @@ const AudioAITaskInput = ({
         `task-audio-${Date.now()}.m4a`,
         { aiStatus, uploadProgress, setAiStatus, setUploadProgress },
       );
-      onSubmit({ transcription: fileUrl });
+      await onSubmit({ transcription: fileUrl });
+      // Reset after parent finishes (navigates or shows error alert)
+      setAiStatus('idle');
+      setUploadProgress(0);
     } catch {
       setAiStatus('error');
     }
