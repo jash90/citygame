@@ -1,14 +1,23 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Bot, Eye, EyeOff, Hash } from 'lucide-react';
+import { Bot, Eye, EyeOff, Hash, Play, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { TaskType } from '@citygame/shared';
+import { api } from '@/lib/api';
+
+interface AiTestResult {
+  score: number;
+  feedback: string;
+  reasoning: string;
+  passed: boolean;
+}
 
 interface AIPromptEditorProps {
   value: string;
   onChange: (value: string) => void;
   taskType: TaskType.PHOTO_AI | TaskType.TEXT_AI | TaskType.AUDIO_AI;
   taskDescription?: string;
+  threshold?: number;
 }
 
 const VARIABLES = [
@@ -62,10 +71,35 @@ export function AIPromptEditor({
   onChange,
   taskType,
   taskDescription = '',
+  threshold = 0.7,
 }: AIPromptEditorProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [exampleAnswer, setExampleAnswer] = useState('');
+  const [testAnswer, setTestAnswer] = useState('');
+  const [testResult, setTestResult] = useState<AiTestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [isTesting, setIsTesting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleTestPrompt = async () => {
+    if (!testAnswer.trim() || !value.trim()) return;
+    setIsTesting(true);
+    setTestResult(null);
+    setTestError(null);
+    try {
+      const result = await api.post<AiTestResult>('/api/admin/ai/test-prompt', {
+        prompt: value,
+        testAnswer: testAnswer.trim(),
+        threshold,
+        taskType,
+      });
+      setTestResult(result);
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'Błąd testowania promptu');
+    } finally {
+      setIsTesting(false);
+    }
+  };
 
   const handleInsertVariable = (token: string) => {
     const el = textareaRef.current;
@@ -177,6 +211,99 @@ export function AIPromptEditor({
           <Bot size={11} />
           ~{tokenEstimate} tokenów
         </span>
+      </div>
+
+      {/* Test AI Prompt */}
+      <div className="flex flex-col gap-2.5 pt-3 mt-1 border-t border-gray-100">
+        <div className="flex items-center gap-2">
+          <Play size={13} className="text-[#FF6B35]" />
+          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Testuj prompt AI</span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={testAnswer}
+            onChange={(e) => setTestAnswer(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleTestPrompt(); } }}
+            placeholder="Wpisz testową odpowiedź gracza..."
+            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none transition-colors focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+          />
+          <button
+            type="button"
+            onClick={handleTestPrompt}
+            disabled={isTesting || !testAnswer.trim() || !value.trim()}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-[#FF6B35] text-white hover:bg-[#e55a26] disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          >
+            {isTesting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            {isTesting ? 'Testowanie...' : 'Testuj'}
+          </button>
+        </div>
+
+        {testError && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
+            <AlertCircle size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-red-700">{testError}</p>
+          </div>
+        )}
+
+        {testResult && (
+          <div className={`rounded-xl border p-4 ${
+            testResult.passed
+              ? 'bg-green-50/50 border-green-200'
+              : 'bg-red-50/50 border-red-200'
+          }`}>
+            {/* Score header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                {testResult.passed
+                  ? <CheckCircle size={16} className="text-green-600" />
+                  : <XCircle size={16} className="text-red-500" />
+                }
+                <span className={`text-sm font-semibold ${
+                  testResult.passed ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  {testResult.passed ? 'Zaliczone' : 'Niezaliczone'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Wynik:</span>
+                <span className={`text-lg font-bold tabular-nums ${
+                  testResult.passed ? 'text-green-600' : 'text-red-500'
+                }`}>
+                  {testResult.score.toFixed(2)}
+                </span>
+                <span className="text-xs text-gray-400">/ {threshold.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Score bar */}
+            <div className="relative h-2 bg-gray-200 rounded-full mb-3 overflow-hidden">
+              <div
+                className={`absolute inset-y-0 left-0 rounded-full transition-all ${
+                  testResult.passed ? 'bg-green-500' : 'bg-red-400'
+                }`}
+                style={{ width: `${Math.min(100, testResult.score * 100)}%` }}
+              />
+              <div
+                className="absolute inset-y-0 w-0.5 bg-gray-600"
+                style={{ left: `${threshold * 100}%` }}
+                title={`Próg: ${threshold}`}
+              />
+            </div>
+
+            {/* Feedback */}
+            <div className="flex flex-col gap-2">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Odpowiedź AI dla gracza:</p>
+                <p className="text-sm text-gray-700">{testResult.feedback}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-500 mb-1">Rozumowanie AI:</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{testResult.reasoning}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

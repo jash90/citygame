@@ -9,6 +9,7 @@ import { GenerateDescriptionDto } from './dto/generate-description.dto';
 import { GenerateHintsDto } from './dto/generate-hints.dto';
 import { GeneratePromptDto } from './dto/generate-prompt.dto';
 import { SetModelDto } from './dto/set-model.dto';
+import { TestPromptDto } from './dto/test-prompt.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth('access-token')
@@ -62,6 +63,24 @@ export class AiController {
       dto.count ?? 3,
     );
     return { hints };
+  }
+
+  @ApiOperation({ summary: 'Test an AI verification prompt with a sample answer' })
+  @Post('test-prompt')
+  async testPrompt(
+    @Body() dto: TestPromptDto,
+  ): Promise<{ score: number; feedback: string; reasoning: string; passed: boolean }> {
+    const result = await this.aiService.evaluateText(
+      dto.testAnswer,
+      dto.prompt,
+      dto.threshold,
+    );
+    return {
+      score: result.score,
+      feedback: result.feedback,
+      reasoning: result.reasoning,
+      passed: result.score >= dto.threshold,
+    };
   }
 
   @ApiOperation({ summary: 'Generate an AI verification prompt for a task' })
