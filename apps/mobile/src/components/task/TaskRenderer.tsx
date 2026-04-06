@@ -286,10 +286,7 @@ export const TaskRenderer = ({
   isSubmitting = false,
 }: TaskRendererProps): React.JSX.Element => {
   const [readyPayload, setReadyPayload] = useState<TaskSubmission | null>(null);
-  const [textAiStatus, setTextAiStatus] = useState<AiStatus>('idle');
 
-  const isAiType =
-    task.type === 'PHOTO_AI' || task.type === 'AUDIO_AI' || task.type === 'TEXT_AI';
   const isTextType =
     task.type === 'TEXT_EXACT' ||
     task.type === 'TEXT_AI' ||
@@ -298,7 +295,6 @@ export const TaskRenderer = ({
 
   const handleSubmit = (): void => {
     if (!readyPayload) return;
-    if (task.type === 'TEXT_AI') setTextAiStatus('processing');
     onSubmit(readyPayload);
   };
 
@@ -329,10 +325,6 @@ export const TaskRenderer = ({
 
       {task.type === 'AUDIO_AI' && (
         <AudioAITaskInput onSubmit={onSubmit} />
-      )}
-
-      {task.type === 'TEXT_AI' && isAiType && (
-        <AIVerificationStatus status={textAiStatus} />
       )}
 
       {!isSelfSubmitting && (
