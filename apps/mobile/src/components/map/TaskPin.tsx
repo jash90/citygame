@@ -1,5 +1,5 @@
-import React from 'react';
-import { View } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { Platform, View } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import type { Task } from '@/services/api';
@@ -35,6 +35,14 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
   const pinColor = STATUS_COLORS[task.status];
   const icon = TASK_TYPE_ICONS[task.type] ?? 'location';
 
+  // On Android, custom marker views need at least one render pass with
+  // tracksViewChanges=true before they can be frozen. We flip the flag
+  // after the view has been laid out to avoid the "invisible pin" bug.
+  const [rendered, setRendered] = useState(Platform.OS !== 'android');
+  const handleLayout = useCallback(() => {
+    if (!rendered) setRendered(true);
+  }, [rendered]);
+
   return (
     <Marker
       coordinate={{
@@ -42,24 +50,28 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
         longitude: task.location.lng,
       }}
       onPress={() => onPress?.(task)}
-      tracksViewChanges={false}
+      tracksViewChanges={!rendered}
+      anchor={{ x: 0.5, y: 1 }}
     >
-      <View style={{ alignItems: 'center' }}>
+      <View style={{ alignItems: 'center' }} onLayout={handleLayout}>
         <View
           style={{
             width: 40,
             height: 40,
-            borderRadius: 9999,
+            borderRadius: 20,
             alignItems: 'center',
             justifyContent: 'center',
             borderWidth: 2,
             borderColor: '#FFFFFF',
             backgroundColor: pinColor,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 4,
-            elevation: 4,
+            ...(Platform.OS === 'ios'
+              ? {
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 4,
+                }
+              : { elevation: 4 }),
           }}
         >
           <Ionicons name={icon} size={18} color="#FFFFFF" />
