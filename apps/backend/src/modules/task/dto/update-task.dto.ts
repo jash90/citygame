@@ -33,6 +33,11 @@ export class UpdateTaskDto {
   unlockMethod?: UnlockMethod;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  orderIndex?: number;
+
+  @IsOptional()
   @IsNumber()
   @Min(-90)
   @Max(90)

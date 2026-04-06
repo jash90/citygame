@@ -110,6 +110,7 @@ export class TaskService {
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.unlockMethod !== undefined) data.unlockMethod = dto.unlockMethod;
+    if (dto.orderIndex !== undefined) data.orderIndex = dto.orderIndex;
     if (dto.latitude !== undefined) data.latitude = dto.latitude;
     if (dto.longitude !== undefined) data.longitude = dto.longitude;
     if (dto.unlockConfig !== undefined) data.unlockConfig = dto.unlockConfig as Prisma.InputJsonValue;
