@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -8,6 +8,7 @@ import { AiService } from './ai.service';
 import { GenerateDescriptionDto } from './dto/generate-description.dto';
 import { GenerateHintsDto } from './dto/generate-hints.dto';
 import { GeneratePromptDto } from './dto/generate-prompt.dto';
+import { SetModelDto } from './dto/set-model.dto';
 
 @ApiTags('AI')
 @ApiBearerAuth('access-token')
@@ -16,6 +17,27 @@ import { GeneratePromptDto } from './dto/generate-prompt.dto';
 @Controller('api/admin/ai')
 export class AiController {
   constructor(private readonly aiService: AiService) {}
+
+  @ApiOperation({ summary: 'List available OpenRouter models' })
+  @Get('models')
+  async listModels() {
+    const models = await this.aiService.listModels();
+    const activeModel = this.aiService.getActiveModel();
+    return { models, activeModel };
+  }
+
+  @ApiOperation({ summary: 'Get current AI model configuration' })
+  @Get('config')
+  getConfig() {
+    return { activeModel: this.aiService.getActiveModel() };
+  }
+
+  @ApiOperation({ summary: 'Change the active AI model' })
+  @Patch('config')
+  setModel(@Body() dto: SetModelDto) {
+    this.aiService.setActiveModel(dto.model);
+    return { activeModel: this.aiService.getActiveModel() };
+  }
 
   @ApiOperation({ summary: 'Generate a task description using AI' })
   @Post('generate-description')

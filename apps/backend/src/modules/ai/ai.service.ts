@@ -9,20 +9,41 @@ export interface AiEvaluationResult {
   reasoning: string;
 }
 
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  description: string;
+  context_length: number;
+  pricing: { prompt: string; completion: string };
+  architecture: {
+    modality: string;
+    input_modalities: string[];
+    output_modalities: string[];
+  };
+  top_provider: { context_length: number; max_completion_tokens: number };
+}
+
 @Injectable()
 export class AiService {
   private readonly client: OpenAI;
   private readonly logger = new Logger(AiService.name);
-  private readonly model: string;
+  private model: string;
+  private readonly baseUrl: string;
   private readonly timeoutMs: number;
+
+  /** Cached model list from OpenRouter */
+  private modelsCache: OpenRouterModel[] | null = null;
+  private modelsCacheExpiry = 0;
+  private static readonly CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 
   constructor(private readonly configService: ConfigService) {
     this.timeoutMs = this.configService.get<number>('AI_TIMEOUT_MS', 30000);
+    this.baseUrl = this.configService.get<string>(
+      'OPENROUTER_BASE_URL',
+      'https://openrouter.ai/api/v1',
+    );
     this.client = new OpenAI({
-      baseURL: this.configService.get<string>(
-        'OPENROUTER_BASE_URL',
-        'https://openrouter.ai/api/v1',
-      ),
+      baseURL: this.baseUrl,
       apiKey: this.configService.getOrThrow<string>('OPENROUTER_API_KEY'),
       timeout: this.timeoutMs,
       defaultHeaders: {
@@ -34,6 +55,42 @@ export class AiService {
       'OPENROUTER_MODEL',
       'anthropic/claude-sonnet-4-5',
     );
+  }
+
+  /** Get the currently active model ID. */
+  getActiveModel(): string {
+    return this.model;
+  }
+
+  /** Change the active model at runtime (persists until restart). */
+  setActiveModel(modelId: string): void {
+    this.model = modelId;
+    this.logger.log(`AI model changed to: ${modelId}`);
+  }
+
+  /**
+   * Fetch available models from OpenRouter with caching.
+   * The endpoint is public and doesn't require auth.
+   */
+  async listModels(): Promise<OpenRouterModel[]> {
+    if (this.modelsCache && Date.now() < this.modelsCacheExpiry) {
+      return this.modelsCache;
+    }
+
+    try {
+      const res = await fetch(`${this.baseUrl.replace('/v1', '')}/v1/models`, {
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) throw new Error(`OpenRouter API ${res.status}`);
+      const json = (await res.json()) as { data: OpenRouterModel[] };
+
+      this.modelsCache = json.data ?? [];
+      this.modelsCacheExpiry = Date.now() + AiService.CACHE_TTL_MS;
+      return this.modelsCache;
+    } catch (error) {
+      this.logger.error('Failed to fetch OpenRouter models', error);
+      return this.modelsCache ?? [];
+    }
   }
 
   /**
