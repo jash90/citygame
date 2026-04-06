@@ -1,4 +1,6 @@
 ---
+import PhoneMockup from './PhoneMockup.astro';
+
 const steps = [
   {
     number: '01',
@@ -11,31 +13,39 @@ const steps = [
     icon: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>',
     title: 'Dołącz do gry',
     description: 'Przeglądaj dostępne gry w Twoim mieście i dołącz do aktywnej sesji jednym kliknięciem.',
+    screenshot: '/screenshots/game-selection.png',
   },
   {
     number: '03',
     icon: '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>',
     title: 'Odkrywaj miasto',
     description: 'Podążaj za mapą, rozwiązuj zagadki, zbieraj wskazówki i zdobywaj punkty eksplorując miasto.',
+    screenshot: '/screenshots/interactive-map.png',
   },
 ];
 ---
 
 <section id="jak-to-dziala" class="section">
   <div class="container">
-    <div class="header">
+    <div class="header" data-reveal>
       <p class="label">Jak to działa</p>
       <h2>Trzy kroki do przygody</h2>
     </div>
 
     <div class="steps">
       {steps.map((step, index) => (
-        <div class="step">
+        <div class="step" data-reveal data-reveal-delay={index * 150}>
           {index < steps.length - 1 && <div class="connector" />}
-          <div class="step-icon-wrapper">
-            <div class="step-icon">
-              <Fragment set:html={step.icon} />
-            </div>
+          <div class="step-visual">
+            {step.screenshot ? (
+              <div class="step-phone">
+                <PhoneMockup src={step.screenshot} alt={step.title} />
+              </div>
+            ) : (
+              <div class="step-icon">
+                <Fragment set:html={step.icon} />
+              </div>
+            )}
             <span class="step-number">{step.number}</span>
           </div>
           <h3>{step.title}</h3>
@@ -50,6 +60,17 @@ const steps = [
   .section {
     padding: 5rem 0;
     background: #f9fafb;
+    position: relative;
+  }
+
+  .section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 107, 53, 0.15), transparent);
   }
 
   .container {
@@ -81,7 +102,7 @@ const steps = [
   .steps {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 2.5rem;
   }
 
   .step {
@@ -93,11 +114,12 @@ const steps = [
     display: none;
   }
 
-  .step-icon-wrapper {
+  .step-visual {
     position: relative;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
+    margin-bottom: 1.25rem;
   }
 
   .step-icon {
@@ -109,9 +131,15 @@ const steps = [
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1.25rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     color: #FF6B35;
+  }
+
+  .step-phone :global(.phone-frame) {
+    width: 120px;
+    box-shadow:
+      0 15px 35px rgba(0, 0, 0, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
   }
 
   .step-number {
@@ -128,6 +156,7 @@ const steps = [
     color: white;
     font-size: 0.75rem;
     font-weight: 700;
+    z-index: 3;
   }
 
   .step h3 {
@@ -159,11 +188,15 @@ const steps = [
     .connector {
       display: block;
       position: absolute;
-      top: 2.5rem;
+      top: 4.5rem;
       left: 60%;
       width: 80%;
       height: 1px;
       background: #e5e7eb;
+    }
+
+    .step-phone :global(.phone-frame) {
+      width: 130px;
     }
   }
 </style>
