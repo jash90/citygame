@@ -479,8 +479,8 @@ export class PlayerService {
     taskId: string,
     userId: string,
   ): Promise<TaskAttempt> {
-    if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException('Dev endpoints are disabled in production');
+    if (process.env.ENABLE_DEV_ENDPOINTS !== 'true') {
+      throw new ForbiddenException('Dev endpoints are disabled (set ENABLE_DEV_ENDPOINTS=true)');
     }
 
     const session = await this.requireActiveSession(gameId, userId);
