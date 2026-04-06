@@ -16,7 +16,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.36.3",
     "@aws-sdk/client-s3": "^3.726.0",
     "@aws-sdk/s3-request-presigner": "^3.726.0",
     "@citygame/shared": "workspace:*",
@@ -28,6 +27,7 @@
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/platform-socket.io": "^10.4.15",
     "@nestjs/schedule": "^6.1.1",
+    "@nestjs/swagger": "^11.2.6",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^10.4.15",
     "@prisma/client": "^6.2.1",
@@ -37,12 +37,12 @@
     "cookie-parser": "^1.4.7",
     "expo-server-sdk": "^6.1.0",
     "ioredis": "^5.4.2",
+    "openai": "^6.33.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^3.24.1",
-    "@nestjs/swagger": "^11.2.6"
+    "zod": "^3.24.1"
   },
   "prisma": {
     "schema": "src/prisma/schema.prisma"
