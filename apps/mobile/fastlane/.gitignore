@@ -1,0 +1,11 @@
+# Fastlane auto-generated reports
+report.xml
+Preview.html
+screenshots/**/*.png
+test_output
+
+# Build artifacts
+README.md
+
+# Credentials (double-safe — also in root .gitignore)
+.env
