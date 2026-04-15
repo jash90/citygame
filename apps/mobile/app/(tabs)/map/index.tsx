@@ -4,14 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { withUniwind } from 'uniwind';
 import { Ionicons } from '@expo/vector-icons';
-import { GameMap, type GameMapHandle } from '@/components/map/GameMap';
-import { TaskPin } from '@/components/map/TaskPin';
-import { GameBrowser } from '@/components/game/GameBrowser';
-import { useLocation } from '@/hooks/useLocation';
-import { useProgress } from '@/hooks/useGame';
-import { useGameStore } from '@/stores/gameStore';
-import { useGameTimer } from '@/hooks/useGameTimer';
-import type { Task } from '@/services/api';
+import { GameMap, type GameMapHandle } from '@/features/map/components/GameMap';
+import { TaskPin } from '@/features/map/components/TaskPin';
+import { GameBrowser } from '@/features/game/components/GameBrowser';
+import { useLocation } from '@/features/map/hooks/useLocation';
+import { useProgress } from '@/features/game/hooks/useGameQueries';
+import { useGameStore } from '@/features/game/stores/gameStore';
+import { useGameTimer } from '@/features/game/hooks/useGameTimer';
+import type { Task } from '@/shared/types/api.types';
 
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 

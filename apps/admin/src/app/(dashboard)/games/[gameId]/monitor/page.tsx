@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronDown, ChevronUp, Activity, CheckCircle, MapPin, Loader2 } from 'lucide-react';
-import { adminApi } from '@/lib/api';
+import { adminApi } from '@/lib/admin-api';
 import type { Game, Task } from '@citygame/shared';
 import { useMonitor } from '@/hooks/useMonitor';
 import { GameTimer } from '@/components/monitor/GameTimer';

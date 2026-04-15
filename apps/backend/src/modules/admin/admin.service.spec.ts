@@ -1,8 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { SessionStatus, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 const mockPrisma = {
   user: {
@@ -24,6 +25,10 @@ const mockPrisma = {
   $queryRaw: jest.fn(),
 };
 
+const mockConfigService = {
+  get: jest.fn().mockReturnValue('1.0.0'),
+};
+
 describe('AdminService', () => {
   let service: AdminService;
 
@@ -42,6 +47,7 @@ describe('AdminService', () => {
       providers: [
         AdminService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 

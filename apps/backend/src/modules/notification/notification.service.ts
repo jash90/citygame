@@ -1,18 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+
+export const EXPO_CLIENT = 'EXPO_CLIENT';
 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
-  private readonly expo = new Expo();
+
+  constructor(@Inject(EXPO_CLIENT) private readonly expo: Expo) {}
 
   /**
    * Send a push notification to a single Expo push token.
-   *
-   * @param pushToken  Expo push token stored on the user record.
-   * @param title      Notification title.
-   * @param body       Notification body text.
-   * @param data       Optional arbitrary data payload.
    */
   async sendPushNotification(
     pushToken: string,
@@ -37,11 +35,6 @@ export class NotificationService {
   /**
    * Send the same push notification to multiple Expo push tokens.
    * Automatically chunks requests per Expo SDK limits.
-   *
-   * @param tokens  Array of Expo push tokens.
-   * @param title   Notification title.
-   * @param body    Notification body text.
-   * @param data    Optional arbitrary data payload.
    */
   async sendToMultiple(
     tokens: string[],

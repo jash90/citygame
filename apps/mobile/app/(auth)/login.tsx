@@ -8,12 +8,12 @@ import {
   Pressable,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { API_URL, WS_URL } from '@/lib/constants';
+import { API_URL, WS_URL } from '@/shared/lib/constants';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components/ui/Button';
-import { useAuth } from '@/hooks/useAuth';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { Button } from '@/shared/components/ui/Button';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function LoginScreen(): React.JSX.Element {
   const [email, setEmail] = useState('');

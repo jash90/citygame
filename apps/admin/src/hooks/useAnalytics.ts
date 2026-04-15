@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { adminApi, type GameStats } from '@/lib/api';
+import { adminApi, type GameStats } from '@/lib/admin-api';
 import type { GameSession } from '@citygame/shared';
 
 export type AnalyticsPeriod = '7d' | '30d' | 'all';

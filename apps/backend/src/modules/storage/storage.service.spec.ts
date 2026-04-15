@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { StorageService } from './storage.service';
+import { StorageService, S3_CLIENT } from './storage.service';
 
 // Mock AWS SDK
 jest.mock('@aws-sdk/client-s3', () => ({
@@ -27,6 +27,10 @@ describe('StorageService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
+        {
+          provide: S3_CLIENT,
+          useValue: {},
+        },
         {
           provide: ConfigService,
           useValue: {
@@ -67,6 +71,10 @@ describe('StorageService with CDN URL', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StorageService,
+        {
+          provide: S3_CLIENT,
+          useValue: {},
+        },
         {
           provide: ConfigService,
           useValue: {

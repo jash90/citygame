@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, Max, Min, MinLength } from 'class-validator';
+import { IsNumber, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class TestPromptDto {
   @IsString()

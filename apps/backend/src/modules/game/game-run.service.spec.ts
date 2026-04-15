@@ -31,7 +31,7 @@ function makeGame(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockPrisma: Record<string, any> = {
   game: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
   gameRun: {
@@ -192,15 +192,7 @@ describe('GameRunService', () => {
     });
   });
 
-  describe('getRunActivity', () => {
-    it('returns empty array when no active run', async () => {
-      mockPrisma.gameRun.findFirst.mockResolvedValue(null);
-      mockPrisma.gameRun.findUnique.mockResolvedValue(null);
-
-      const result = await service.getRunActivity(uid('game'));
-      expect(result).toEqual([]);
-    });
-  });
+  // NOTE: getRunActivity tests moved to GameRunActivityService spec
 
   describe('getRunningGames', () => {
     it('returns games with active runs', async () => {

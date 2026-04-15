@@ -1,42 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { LogOut, User } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { disconnectRankingSocket } from '@/lib/ws';
+import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 
 interface HeaderProps {
   title: string;
 }
 
 export function Header({ title }: HeaderProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
+  const logout = useLogout();
+  const { user } = useCurrentUser();
   const [userName, setUserName] = useState('Admin');
 
   useEffect(() => {
-    // Fetch current user email from the cookie-authenticated API
-    api.get<{ email: string }>('/api/auth/me')
-      .then((me) => {
-        if (me?.email) setUserName(me.email);
-      })
-      .catch(() => {
-        // Non-critical — fall back to "Admin"
-      });
-  }, []);
+    if (user?.email) setUserName(user.email);
+  }, [user]);
 
-  const handleLogout = async () => {
-    try {
-      await api.post('/api/auth/logout', {});
-    } catch {
-      // Ignore — clean up locally regardless
-    }
-    localStorage.removeItem('userRole');
-    disconnectRankingSocket();
-    queryClient.clear();
-    router.replace('/login');
+  const handleLogout = () => {
+    void logout();
   };
 
   return (

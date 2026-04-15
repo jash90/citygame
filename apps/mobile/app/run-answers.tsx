@@ -8,9 +8,9 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useRunAnswers } from '@/hooks/useGame';
-import { StyledSafeAreaView } from '@/lib/styled';
-import type { RunAnswerEntry } from '@/services/api';
+import { useRunAnswers } from '@/features/game/hooks/useGameQueries';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
+import type { RunAnswerEntry } from '@citygame/shared';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 

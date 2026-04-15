@@ -1,4 +1,4 @@
-import { NotImplementedException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { TaskType } from '@prisma/client';
 import { VerificationService } from './verification.service';
 import { VerificationResult, VerificationStrategy } from './strategies/verification-strategy.interface';
@@ -98,10 +98,10 @@ describe('VerificationService', () => {
       expect(mockTextExact.verify).toHaveBeenCalledWith({ answerHash: 'h' }, { answer: 'a' });
     });
 
-    it('should throw NotImplementedException for unknown type', async () => {
+    it('should throw BadRequestException for unknown type', async () => {
       await expect(
         service.verifyStep('UNKNOWN_TYPE', {}, {}),
-      ).rejects.toThrow(NotImplementedException);
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

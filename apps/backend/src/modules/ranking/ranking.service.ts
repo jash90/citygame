@@ -10,26 +10,6 @@ export interface RankEntry {
   rank: number;
 }
 
-export interface TeamRankEntry {
-  teamId: string;
-  score: number;
-  rank: number;
-}
-
-export interface EnrichedTeamRankEntry {
-  teamId: string;
-  name: string;
-  memberCount: number;
-  totalPoints: number;
-  rank: number;
-}
-
-export interface UserRankResult {
-  userId: string;
-  score: number;
-  rank: number | null;
-}
-
 export interface EnrichedRankEntry {
   userId: string;
   displayName: string;
@@ -37,6 +17,12 @@ export interface EnrichedRankEntry {
   totalPoints: number;
   completedTasks: number;
   rank: number;
+}
+
+export interface UserRankResult {
+  userId: string;
+  score: number;
+  rank: number | null;
 }
 
 /** TTL for ranking sorted sets — 7 days after last update. */
@@ -51,7 +37,6 @@ export class RankingService {
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
     private readonly prisma: PrismaService,
   ) {
-    // Track Redis availability
     this.redis.on('error', () => {
       if (this.redisAvailable) {
         this.logger.warn('Redis connection lost — ranking will use DB fallback');
@@ -64,28 +49,13 @@ export class RankingService {
       }
       this.redisAvailable = true;
     });
-    // Set initial state
     this.redisAvailable = this.redis.status === 'ready';
   }
 
-  /**
-   * Redis key for the sorted set of a run's player leaderboard.
-   * Scoped by runId so each game run has its own ranking.
-   */
   private rankingKey(runId: string): string {
     return `ranking:run:${runId}`;
   }
 
-  /**
-   * Redis key for the sorted set of a run's team leaderboard.
-   */
-  private teamRankingKey(runId: string): string {
-    return `ranking:run:${runId}:teams`;
-  }
-
-  /**
-   * Resolve the active run ID for a game. Used by endpoints that don't have a runId.
-   */
   async getActiveRunId(gameId: string): Promise<string | null> {
     const run = await this.prisma.gameRun.findFirst({
       where: { gameId, status: 'ACTIVE' },
@@ -94,11 +64,6 @@ export class RankingService {
     return run?.id ?? null;
   }
 
-  /**
-   * Update (or add) a player's score in the run leaderboard sorted set.
-   * Uses ZADD with the absolute score (not an increment).
-   * Silently degrades when Redis is unavailable.
-   */
   async updateScore(runId: string, userId: string, points: number): Promise<void> {
     try {
       const key = this.rankingKey(runId);
@@ -109,10 +74,6 @@ export class RankingService {
     }
   }
 
-  /**
-   * Get the top-N entries in a run leaderboard, highest score first.
-   * Falls back to Prisma when Redis is unavailable.
-   */
   async getRanking(runId: string, limit = 50): Promise<RankEntry[]> {
     try {
       const results = await this.redis.zrevrangebyscore(
@@ -138,13 +99,9 @@ export class RankingService {
       this.logger.warn(`Redis getRanking failed for run ${runId}, using DB fallback`, error);
     }
 
-    // DB fallback: query sessions directly (also used when Redis is degraded)
     return this.getRankingFromDb(runId, limit);
   }
 
-  /**
-   * Fallback: compute ranking from database when Redis is unavailable.
-   */
   private async getRankingFromDb(runId: string, limit: number): Promise<RankEntry[]> {
     const sessions = await this.prisma.gameSession.findMany({
       where: { gameRunId: runId },
@@ -160,10 +117,6 @@ export class RankingService {
     }));
   }
 
-  /**
-   * Get the top-N leaderboard entries enriched with Prisma user profile data.
-   * Scoped to a specific run. Falls back to userId as display name if the user record is missing.
-   */
   async getRankingWithNames(runId: string, limit = 50): Promise<EnrichedRankEntry[]> {
     const rawEntries = await this.getRanking(runId, limit);
 
@@ -173,7 +126,6 @@ export class RankingService {
 
     const userIds = rawEntries.map((e) => e.userId);
 
-    // Single query: fetch user profiles + completed task counts via session join
     const sessions = await this.prisma.gameSession.findMany({
       where: { gameRunId: runId, userId: { in: userIds } },
       select: {
@@ -187,7 +139,6 @@ export class RankingService {
       },
     });
 
-    // Build lookup maps from the single query result
     const userMap = new Map<string, { displayName: string; avatarUrl: string | null }>();
     const countMap = new Map<string, number>();
 
@@ -215,104 +166,6 @@ export class RankingService {
     });
   }
 
-  /**
-   * Update (or add) a team's score in the run team leaderboard sorted set.
-   * Silently degrades when Redis is unavailable.
-   */
-  async updateTeamScore(runId: string, teamId: string, points: number): Promise<void> {
-    try {
-      const key = this.teamRankingKey(runId);
-      await this.redis.zadd(key, points, teamId);
-      await this.redis.expire(key, RANKING_TTL_SECONDS);
-    } catch (error) {
-      this.logger.error(`Redis updateTeamScore failed for run ${runId}`, error);
-    }
-  }
-
-  /**
-   * Get the top-N team entries in a run leaderboard, highest score first.
-   * Falls back to Prisma when Redis is unavailable.
-   */
-  async getTeamRanking(runId: string, limit = 50): Promise<TeamRankEntry[]> {
-    try {
-      const results = await this.redis.zrevrangebyscore(
-        this.teamRankingKey(runId),
-        '+inf',
-        '-inf',
-        'WITHSCORES',
-        'LIMIT',
-        0,
-        limit,
-      );
-
-      if (this.redisAvailable && results.length > 0) {
-        const entries: TeamRankEntry[] = [];
-        for (let i = 0; i < results.length; i += 2) {
-          const teamId = results[i] as string;
-          const score = parseFloat(results[i + 1] as string);
-          entries.push({ teamId, score, rank: entries.length + 1 });
-        }
-        return entries;
-      }
-    } catch (error) {
-      this.logger.warn(`Redis getTeamRanking failed for run ${runId}, using DB fallback`, error);
-    }
-
-    // DB fallback: aggregate team scores from sessions
-    const teamSessions = await this.prisma.gameSession.groupBy({
-      by: ['teamId'],
-      where: { gameRunId: runId, teamId: { not: null } },
-      _max: { totalPoints: true },
-      orderBy: { _max: { totalPoints: 'desc' } },
-      take: limit,
-    });
-
-    return teamSessions
-      .filter((s) => s.teamId !== null)
-      .map((s, i) => ({
-        teamId: s.teamId!,
-        score: s._max.totalPoints ?? 0,
-        rank: i + 1,
-      }));
-  }
-
-  /**
-   * Get the top-N team leaderboard entries enriched with team name and member count.
-   */
-  async getTeamRankingWithNames(runId: string, limit = 50): Promise<EnrichedTeamRankEntry[]> {
-    const rawEntries = await this.getTeamRanking(runId, limit);
-
-    if (rawEntries.length === 0) {
-      return [];
-    }
-
-    const teamIds = rawEntries.map((e) => e.teamId);
-    const teams = await this.prisma.team.findMany({
-      where: { id: { in: teamIds } },
-      select: {
-        id: true,
-        name: true,
-        _count: { select: { members: true } },
-      },
-    });
-
-    const teamMap = new Map(teams.map((t) => [t.id, t]));
-
-    return rawEntries.map((entry) => {
-      const team = teamMap.get(entry.teamId);
-      return {
-        teamId: entry.teamId,
-        name: team?.name ?? entry.teamId,
-        memberCount: team?._count.members ?? 0,
-        totalPoints: entry.score,
-        rank: entry.rank,
-      };
-    });
-  }
-
-  /**
-   * Get a single user's rank and score in a run (1-based, highest score = rank 1).
-   */
   async getUserRank(runId: string, userId: string): Promise<UserRankResult> {
     try {
       const [scoreStr, rank] = await Promise.all([
@@ -328,7 +181,6 @@ export class RankingService {
     } catch (error) {
       this.logger.warn(`Redis getUserRank failed for run ${runId}`, error);
 
-      // DB fallback
       const session = await this.prisma.gameSession.findUnique({
         where: { gameRunId_userId: { gameRunId: runId, userId } },
         select: { totalPoints: true },

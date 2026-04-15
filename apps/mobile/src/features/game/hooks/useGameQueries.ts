@@ -1,0 +1,93 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { gamesApi } from '@/features/game/services/games.api';
+import { playerApi } from '@/features/game/services/player.api';
+import { useGameStore } from '@/features/game/stores/gameStore';
+import { QUERY_KEYS } from '@/shared/lib/constants';
+
+export const useGames = () => {
+  return useQuery({
+    queryKey: QUERY_KEYS.GAMES,
+    queryFn: () => gamesApi.list(),
+  });
+};
+
+export const useGame = (gameId: string) => {
+  const { setGame, setTasks } = useGameStore();
+
+  return useQuery({
+    queryKey: QUERY_KEYS.GAME(gameId),
+    queryFn: async () => {
+      const game = await gamesApi.get(gameId);
+      setGame(game);
+      if (game.tasks) {
+        setTasks(game.tasks);
+      }
+      return game;
+    },
+    enabled: Boolean(gameId),
+  });
+};
+
+export const useStartGame = () => {
+  const { setSession } = useGameStore();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (gameId: string) => gamesApi.start(gameId),
+    onSuccess: (session) => {
+      setSession(session);
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.GAMES });
+    },
+  });
+};
+
+export const useProgress = (gameId: string) => {
+  const { updateProgress, setGameEnded } = useGameStore();
+
+  return useQuery({
+    queryKey: ['progress', gameId] as const,
+    queryFn: async () => {
+      const data = await gamesApi.progress(gameId);
+      updateProgress(data);
+      if (data.gameEnded) {
+        setGameEnded(true);
+      }
+      return data;
+    },
+    enabled: Boolean(gameId),
+    refetchInterval: 30_000,
+  });
+};
+
+export const useActiveSession = () => {
+  return useQuery({
+    queryKey: ['active-session'] as const,
+    queryFn: () => playerApi.activeSession(),
+    retry: false,
+  });
+};
+
+export const useRunAnswers = (gameId: string, runNumber: number) => {
+  return useQuery({
+    queryKey: ['run-answers', gameId, runNumber] as const,
+    queryFn: () => playerApi.runAnswers(gameId, runNumber),
+    enabled: Boolean(gameId),
+  });
+};
+
+// Keep useTasks for backward compat — tasks are now embedded in the game response
+export const useTasks = (gameId: string) => {
+  const { setTasks } = useGameStore();
+
+  return useQuery({
+    queryKey: QUERY_KEYS.TASKS(gameId),
+    queryFn: async () => {
+      const game = await gamesApi.get(gameId);
+      const tasks = game.tasks ?? [];
+      setTasks(tasks);
+      return tasks;
+    },
+    enabled: Boolean(gameId),
+    staleTime: 60_000, // 1 minute — avoid refetch on every tab switch
+  });
+};

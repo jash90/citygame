@@ -4,10 +4,10 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryProvider } from '@/providers/QueryProvider';
-import { AuthProvider } from '@/providers/AuthProvider';
-import { WebSocketProvider } from '@/providers/WebSocketProvider';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { QueryProvider } from '@/shared/providers/QueryProvider';
+import { AuthProvider } from '@/shared/providers/AuthProvider';
+import { WebSocketProvider } from '@/shared/providers/WebSocketProvider';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
 export default function RootLayout(): React.JSX.Element {
   return (

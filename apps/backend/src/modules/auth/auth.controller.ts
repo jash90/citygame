@@ -15,6 +15,7 @@ import { Request as ExpressRequest, Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { AuthService } from './auth.service';
+import { AuthCookieService } from './auth-cookie.service';
 import { LoginDto } from './dto/login.dto';
 import { PushTokenDto } from './dto/push-token.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -30,7 +31,10 @@ interface RequestWithUser extends ExpressRequest {
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly authCookieService: AuthCookieService,
+  ) {}
 
   @ApiOperation({ summary: 'Register a new player account' })
   @ApiResponse({ status: 201, description: 'Account created, tokens returned' })
@@ -43,7 +47,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.register(dto);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    this.authCookieService.setAuthCookies(res, result.accessToken, result.refreshToken);
     return result;
   }
 
@@ -58,7 +62,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken);
+    this.authCookieService.setAuthCookies(res, result.accessToken, result.refreshToken);
     return result;
   }
 
@@ -81,7 +85,7 @@ export class AuthController {
     }
 
     const tokens = await this.authService.refreshTokens(req.user.id, rawRefreshToken);
-    this.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+    this.authCookieService.setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
     return tokens;
   }
 
@@ -94,7 +98,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     await this.authService.logout(user.id);
-    this.clearAuthCookies(res);
+    this.authCookieService.clearAuthCookies(res);
     return { message: 'Logged out' };
   }
 
@@ -126,59 +130,5 @@ export class AuthController {
     @Body() dto: PushTokenDto,
   ) {
     return this.authService.updatePushToken(user.id, dto.pushToken);
-  }
-
-  /**
-   * Shared cookie options to ensure set and clear use identical attributes.
-   * Browsers require sameSite, secure, httpOnly, and path to match when clearing.
-   *
-   * In production, defaults to SameSite=None + Secure for cross-origin support
-   * (admin on Vercel + backend on Railway are different domains).
-   * Override with COOKIE_SAME_SITE=lax if running same-origin in production.
-   */
-  private getCookieOptions(path: string): {
-    httpOnly: boolean;
-    secure: boolean;
-    sameSite: 'lax' | 'none';
-    path: string;
-  } {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const envSameSite = process.env.COOKIE_SAME_SITE;
-
-    // Explicit env var takes precedence
-    // In production, default to 'none' for cross-origin cookie support.
-    // In development, default to 'lax'.
-    const sameSite: 'lax' | 'none' =
-      envSameSite === 'lax' ? 'lax' :
-      envSameSite === 'none' ? 'none' :
-      isProduction ? 'none' : 'lax';
-
-    return {
-      httpOnly: true,
-      secure: isProduction || sameSite === 'none',
-      sameSite,
-      path,
-    };
-  }
-
-  /**
-   * Set httpOnly cookies for web clients (admin panel).
-   * Mobile clients still use the JSON body tokens.
-   */
-  private setAuthCookies(res: Response, accessToken: string, refreshToken: string): void {
-    res.cookie('accessToken', accessToken, {
-      ...this.getCookieOptions('/'),
-      maxAge: 15 * 60 * 1000, // 15 minutes
-    });
-
-    res.cookie('refreshToken', refreshToken, {
-      ...this.getCookieOptions('/api/auth'),
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-  }
-
-  private clearAuthCookies(res: Response): void {
-    res.clearCookie('accessToken', this.getCookieOptions('/'));
-    res.clearCookie('refreshToken', this.getCookieOptions('/api/auth'));
   }
 }

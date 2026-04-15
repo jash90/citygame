@@ -3,7 +3,7 @@ import { GameExpiryService } from './game-expiry.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockPrisma: Record<string, any> = {
   gameRun: {
     findMany: jest.fn(),

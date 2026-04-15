@@ -17,7 +17,7 @@ describe('WsJwtMiddleware', () => {
         auth: token ? { token } : {},
       },
       data: {},
-    } as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    } as any;  
   }
 
   it('rejects connection with no token', () => {

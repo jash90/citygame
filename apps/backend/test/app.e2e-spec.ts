@@ -21,7 +21,6 @@ describe('CityGame API (e2e)', () => {
   // Auth tokens populated during test flow
   let accessToken: string;
   let refreshToken: string;
-  let userId: string;
   let adminAccessToken: string;
 
   const testUser = {

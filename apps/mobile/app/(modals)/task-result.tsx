@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AIVerificationStatus } from '@/components/task/AIVerificationStatus';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { AIVerificationStatus } from '@/features/task/components/AIVerificationStatus';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function TaskResultModal(): React.JSX.Element {
   const router = useRouter();

@@ -18,7 +18,10 @@ export async function withSerializableRetry<T>(
 ): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await (prisma.$transaction as Function)(fn, {
+      return await (prisma.$transaction as (
+        fn: (tx: Prisma.TransactionClient) => Promise<T>,
+        options: { isolationLevel: Prisma.TransactionIsolationLevel },
+      ) => Promise<T>)(fn, {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {
