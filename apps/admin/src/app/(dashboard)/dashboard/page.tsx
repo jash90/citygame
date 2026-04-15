@@ -3,12 +3,12 @@
 import Link from 'next/link';
 import { Gamepad2, Users, ListChecks, Activity, Clock, CheckCircle2, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { adminApi } from '@/lib/admin-api';
+import { api } from '@/shared/lib/api';
+import { adminApi } from '@/shared/lib/admin-api';
 import type { Game } from '@citygame/shared';
-import { StatsCard } from '@/components/dashboard/StatsCard';
-import { GameTable } from '@/components/dashboard/GameTable';
-import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
+import { StatsCard } from '@/features/dashboard/components/StatsCard';
+import { GameTable } from '@/features/dashboard/components/GameTable';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
 interface DashboardStats {
   activeGames: number;

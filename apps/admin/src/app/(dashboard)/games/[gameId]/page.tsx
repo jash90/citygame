@@ -4,13 +4,13 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Edit, Activity, BarChart3, Loader2, Calendar, MapPin, Users, ListChecks } from 'lucide-react';
-import { api } from '@/lib/api';
-import { adminApi } from '@/lib/admin-api';
+import { api } from '@/shared/lib/api';
+import { adminApi } from '@/shared/lib/admin-api';
 import type { Game } from '@citygame/shared';
-import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
-import { GameSettingsEditor } from '@/components/game/GameSettingsEditor';
-import { GameRunControl } from '@/components/game/GameRunControl';
-import { GameRunHistory } from '@/components/game/GameRunHistory';
+import { GameStatusBadge } from '@/features/dashboard/components/GameStatusBadge';
+import { GameSettingsEditor } from '@/features/game/components/GameSettingsEditor';
+import { GameRunControl } from '@/features/game/components/GameRunControl';
+import { GameRunHistory } from '@/features/game/components/GameRunHistory';
 
 interface GameDetailResponse extends Game {
   tasks?: unknown[];

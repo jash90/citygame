@@ -5,17 +5,17 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronDown, ChevronUp, Activity, CheckCircle, MapPin, Loader2 } from 'lucide-react';
-import { adminApi } from '@/lib/admin-api';
+import { adminApi } from '@/shared/lib/admin-api';
 import type { Game, Task } from '@citygame/shared';
-import { useMonitor } from '@/hooks/useMonitor';
-import { GameTimer } from '@/components/monitor/GameTimer';
-import { PlayerActivityFeed } from '@/components/monitor/PlayerActivityFeed';
-import { TaskProgressBars } from '@/components/monitor/TaskProgressBars';
-import { AIErrorPanel } from '@/components/monitor/AIErrorPanel';
+import { useMonitor } from '@/features/monitor/hooks/useMonitor';
+import { GameTimer } from '@/features/monitor/components/GameTimer';
+import { PlayerActivityFeed } from '@/features/monitor/components/PlayerActivityFeed';
+import { TaskProgressBars } from '@/features/monitor/components/TaskProgressBars';
+import { AIErrorPanel } from '@/features/monitor/components/AIErrorPanel';
 import dynamic from 'next/dynamic';
 
 const LiveMapMonitor = dynamic(
-  () => import('@/components/monitor/LiveMapMonitor').then((m) => m.LiveMapMonitor),
+  () => import('@/features/monitor/components/LiveMapMonitor').then((m) => m.LiveMapMonitor),
   { ssr: false, loading: () => <div className="flex items-center justify-center h-full text-gray-400 text-sm">Ładowanie mapy…</div> },
 );
 

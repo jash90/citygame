@@ -7,11 +7,22 @@ Next.js 15 with React 19, Tailwind v4, React Hook Form + Zod, React Query, Leafl
 
 ## Architecture
 
-- `src/app/` — Next.js App Router pages (route groups: `(auth)`, `(dashboard)`).
-- `src/components/` — UI components grouped by domain (`analytics/`, `dashboard/`, `editor/`, `game/`, `layout/`, `monitor/`, `settings/`).
-- `src/hooks/` — Custom React hooks for data fetching and state logic.
-- `src/lib/` — Utility functions and API client configuration.
-- `src/providers/` — React Context providers.
+Feature-based structure (mirrors `apps/mobile`):
+
+- `src/app/` — Next.js App Router pages (route groups: `(auth)`, `(dashboard)`). Pages compose feature components — no business logic.
+- `src/features/` — Self-contained feature modules, each with its own `components/` and `hooks/`:
+  - `auth/` — Authentication (AuthGuard, useAuth).
+  - `dashboard/` — Dashboard overview (StatsCard, GameTable, GameStatusBadge).
+  - `editor/` — Task editor (TaskEditorForm, AI generation, hints, location).
+  - `game/` — Game settings and run control.
+  - `analytics/` — Game analytics charts and tables.
+  - `monitor/` — Live game monitoring (WebSocket-driven).
+  - `settings/` — Admin settings (users, AI models, system info).
+- `src/shared/` — Cross-cutting concerns:
+  - `components/` — Layout shell (Header, Sidebar, ErrorBoundary).
+  - `hooks/` — Shared hooks (useWebSocket).
+  - `lib/` — API client, admin API, JWT, WebSocket, utilities.
+  - `providers/` — React Query provider.
 
 ## SOLID — Frontend Specific
 

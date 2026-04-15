@@ -5,10 +5,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Plus, Loader2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api } from '@/shared/lib/api';
 import type { Task, CreateTaskDto } from '@citygame/shared';
-import { TaskList } from '@/components/editor/TaskList';
-import { TaskEditorForm } from '@/components/editor/TaskEditorForm';
+import { TaskList } from '@/features/editor/components/TaskList';
+import { TaskEditorForm } from '@/features/editor/components/TaskEditorForm';
 
 type EditorMode = 'select' | 'create' | 'edit';
 

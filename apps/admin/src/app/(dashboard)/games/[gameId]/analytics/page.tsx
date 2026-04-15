@@ -11,16 +11,16 @@ import {
   AlertCircle,
 } from 'lucide-react';
 
-import { useAnalytics, type AnalyticsPeriod } from '@/hooks/useAnalytics';
-import { MetricCard } from '@/components/analytics/MetricCard';
-import { PlayerActivityChart } from '@/components/analytics/PlayerActivityChart';
-import { TaskFunnelChart } from '@/components/analytics/TaskFunnelChart';
-import { ScoreDistributionChart } from '@/components/analytics/ScoreDistributionChart';
-import { TaskDifficultyChart } from '@/components/analytics/TaskDifficultyChart';
-import { ChartCard } from '@/components/analytics/Cards';
-import { AnalyticsHeader } from '@/components/analytics/AnalyticsHeader';
-import { TopPlayersTable } from '@/components/analytics/TopPlayersTable';
-import { AiVerificationTable } from '@/components/analytics/AiVerificationTable';
+import { useAnalytics, type AnalyticsPeriod } from '@/features/analytics/hooks/useAnalytics';
+import { MetricCard } from '@/features/analytics/components/MetricCard';
+import { PlayerActivityChart } from '@/features/analytics/components/PlayerActivityChart';
+import { TaskFunnelChart } from '@/features/analytics/components/TaskFunnelChart';
+import { ScoreDistributionChart } from '@/features/analytics/components/ScoreDistributionChart';
+import { TaskDifficultyChart } from '@/features/analytics/components/TaskDifficultyChart';
+import { ChartCard } from '@/features/analytics/components/Cards';
+import { AnalyticsHeader } from '@/features/analytics/components/AnalyticsHeader';
+import { TopPlayersTable } from '@/features/analytics/components/TopPlayersTable';
+import { AiVerificationTable } from '@/features/analytics/components/AiVerificationTable';
 
 export default function AnalyticsPage() {
   const { gameId } = useParams<{ gameId: string }>();
