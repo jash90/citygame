@@ -203,54 +203,12 @@ describe('GameService', () => {
     });
   });
 
-  // ── publish ─────────────────────────────────────────────────────────────
+  // NOTE: publish/unpublish/archive tests moved to GameStatusService spec
 
-  describe('publish', () => {
-    it('transitions DRAFT → PUBLISHED', async () => {
-      const game = makeGame({ status: GameStatus.DRAFT, creatorId: 'creator-1' });
-      mockPrisma.game.findUnique.mockResolvedValue(game);
-      mockPrisma.game.update.mockResolvedValue({
-        ...game,
-        status: GameStatus.PUBLISHED,
-      });
+  // NOTE: startRun/endRun tests moved to game-run.service.spec.ts
+  // NOTE: getGameStats tests moved to game-analytics.service.spec.ts────────────
 
-      const result = await service.publish(game.id, 'creator-1', false);
-      expect(result.status).toBe(GameStatus.PUBLISHED);
-    });
-
-    it('throws ForbiddenException if already published', async () => {
-      const game = makeGame({ status: GameStatus.PUBLISHED, creatorId: 'creator-1' });
-      mockPrisma.game.findUnique.mockResolvedValue(game);
-
-      await expect(service.publish(game.id, 'creator-1', false))
-        .rejects.toThrow(ForbiddenException);
-    });
-  });
-
-  // ── archive ─────────────────────────────────────────────────────────────
-
-  describe('archive', () => {
-    it('transitions to ARCHIVED', async () => {
-      const game = makeGame({ status: GameStatus.PUBLISHED, creatorId: 'creator-1' });
-      mockPrisma.game.findUnique.mockResolvedValue(game);
-      mockPrisma.game.update.mockResolvedValue({
-        ...game,
-        status: GameStatus.ARCHIVED,
-      });
-
-      const result = await service.archive(game.id, 'creator-1', false);
-      expect(result.status).toBe(GameStatus.ARCHIVED);
-    });
-
-    it('throws ForbiddenException if already archived', async () => {
-      const game = makeGame({ status: GameStatus.ARCHIVED, creatorId: 'creator-1' });
-      mockPrisma.game.findUnique.mockResolvedValue(game);
-
-      await expect(service.archive(game.id, 'creator-1', false))
-        .rejects.toThrow(ForbiddenException);
-    });
-  });
-
+  // NOTE: publish/unpublish/archive tests moved to GameStatusService spec
 
   // NOTE: startRun/endRun tests moved to game-run.service.spec.ts
   // NOTE: getGameStats tests moved to game-analytics.service.spec.ts

@@ -4,9 +4,6 @@ import { GameAnalyticsService } from './game-analytics.service';
 import { GameService } from './game.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
-const uid = (prefix = 'id') => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockPrisma: Record<string, any> = {
   gameSession: { groupBy: jest.fn() },
   taskAttempt: {

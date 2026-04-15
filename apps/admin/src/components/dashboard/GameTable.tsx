@@ -2,19 +2,11 @@
 
 import Link from 'next/link';
 import { Eye, Edit, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import type { Game } from '@citygame/shared';
+import { useRecentGames } from '@/hooks/useAdminApi';
 import { GameStatusBadge } from './GameStatusBadge';
 
 export function GameTable() {
-  const { data: games, isLoading, error } = useQuery<Game[]>({
-    queryKey: ['admin-games', 'dashboard'],
-    queryFn: async () => {
-      const res = await api.get<{ items: Game[] }>('/api/admin/games?limit=5');
-      return Array.isArray(res) ? res : res?.items ?? [];
-    },
-  });
+  const { data: games, isLoading, error } = useRecentGames(5);
 
   if (isLoading) {
     return (

@@ -1,19 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Loader2, ShieldCheck, User as UserIcon } from 'lucide-react';
-import { api } from '@/lib/api';
+import { useCurrentUser } from '@/hooks/useAuth';
+import { useUsers, useUpdateUserRole } from '@/hooks/useAdminApi';
 import { UserRole } from '@citygame/shared';
 import type { UserListItem } from '@citygame/shared';
-
-interface UsersResponse {
-  items: UserListItem[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
 
 const roleBadge: Record<string, { label: string; cls: string }> = {
   ADMIN: { label: 'Admin', cls: 'bg-purple-100 text-purple-700' },
@@ -21,21 +13,12 @@ const roleBadge: Record<string, { label: string; cls: string }> = {
 };
 
 export function UserManagementTab() {
-  const queryClient = useQueryClient();
+  const { user: currentUser } = useCurrentUser();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Fetch current user ID from the cookie-authenticated API
-    api.get<{ id: string }>('/api/auth/me')
-      .then((me) => setCurrentUserId(me.id))
-      .catch(() => setCurrentUserId(null));
-  }, []);
 
   // Debounce search input — 300ms delay
   useEffect(() => {
@@ -55,20 +38,13 @@ export function UserManagementTab() {
     return () => clearTimeout(timer);
   }, [confirmingId]);
 
-  const params = new URLSearchParams();
-  params.set('page', String(page));
-  params.set('limit', '20');
-  if (debouncedSearch) {
-    // Strip SQL LIKE wildcards to prevent unexpected matching
-    const sanitized = debouncedSearch.replace(/[%_]/g, '');
-    if (sanitized) params.set('search', sanitized);
-  }
-  if (roleFilter) params.set('role', roleFilter);
-
-  const { data, isLoading } = useQuery<UsersResponse>({
-    queryKey: ['admin-users', page, debouncedSearch, roleFilter],
-    queryFn: () => api.get(`/api/admin/users?${params.toString()}`),
+  const { data, isLoading } = useUsers({
+    page,
+    search: debouncedSearch,
+    role: roleFilter || undefined,
   });
+
+  const roleMutation = useUpdateUserRole();
 
   // Auto-correct page if current page is empty (e.g. users deleted by another admin)
   useEffect(() => {
@@ -77,17 +53,8 @@ export function UserManagementTab() {
     }
   }, [data, page]);
 
-  const roleMutation = useMutation({
-    mutationFn: ({ userId, role }: { userId: string; role: UserRole }) =>
-      api.patch(`/api/admin/users/${userId}/role`, { role }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      setConfirmingId(null);
-    },
-  });
-
   const handleRoleToggle = (user: UserListItem) => {
-    if (user.id === currentUserId) return;
+    if (user.id === currentUser?.id) return;
 
     const newRole = user.role === UserRole.ADMIN ? UserRole.PLAYER : UserRole.ADMIN;
     if (confirmingId === user.id) {
@@ -187,7 +154,7 @@ export function UserManagementTab() {
                       {new Date(user.createdAt).toLocaleDateString('pl-PL')}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {user.id === currentUserId ? (
+                      {user.id === currentUser?.id ? (
                         <span className="text-xs text-gray-400 italic">Ty</span>
                       ) : (
                         <button

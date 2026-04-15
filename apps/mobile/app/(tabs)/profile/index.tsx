@@ -7,14 +7,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { NetworkError } from '@/components/NetworkError';
-import { useAuthStore } from '@/stores/authStore';
-import { useAuth } from '@/hooks/useAuth';
-import { profileApi } from '@/services/api';
-import { QUERY_KEYS } from '@/lib/constants';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { Card } from '@/shared/components/ui/Card';
+import { Button } from '@/shared/components/ui/Button';
+import { NetworkError } from '@/shared/components/NetworkError';
+import { useAuthStore } from '@/features/auth/stores/authStore';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { profileApi } from '@/features/profile/services/profile.api';
+import { QUERY_KEYS } from '@/shared/lib/constants';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, profile: cachedProfile, setProfile } = useAuthStore();

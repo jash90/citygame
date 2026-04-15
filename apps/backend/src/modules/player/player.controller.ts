@@ -15,7 +15,9 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RankingService } from '../ranking/ranking.service';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
 import { UnlockTaskDto } from './dto/unlock-task.dto';
+import { PlayerQueryService } from './player-query.service';
 import { PlayerService } from './player.service';
+import { PlayerTaskService } from './player-task.service';
 
 @ApiTags('Player')
 @ApiBearerAuth('access-token')
@@ -24,6 +26,8 @@ import { PlayerService } from './player.service';
 export class PlayerController {
   constructor(
     private readonly playerService: PlayerService,
+    private readonly playerTaskService: PlayerTaskService,
+    private readonly playerQueryService: PlayerQueryService,
     private readonly rankingService: RankingService,
   ) {}
 
@@ -31,7 +35,7 @@ export class PlayerController {
   @ApiResponse({ status: 200, description: 'Active session or null' })
   @Get('api/player/active-session')
   getActiveSession(@CurrentUser() user: CurrentUserPayload) {
-    return this.playerService.getMyActiveSession(user.id);
+    return this.playerQueryService.getMyActiveSession(user.id);
   }
 
   @ApiOperation({ summary: 'Get answers for a specific past run' })
@@ -44,7 +48,7 @@ export class PlayerController {
     @Param('runNumber', ParseIntPipe) runNumber: number,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.playerService.getRunAnswers(gameId, runNumber, user.id);
+    return this.playerQueryService.getRunAnswers(gameId, runNumber, user.id);
   }
 
   @ApiOperation({ summary: 'Get leaderboard for the active run' })
@@ -83,7 +87,7 @@ export class PlayerController {
     @Param('gameId') gameId: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.playerService.getProgress(gameId, user.id);
+    return this.playerQueryService.getProgress(gameId, user.id);
   }
 
   @ApiOperation({ summary: 'Unlock a task via GPS or QR' })
@@ -97,7 +101,7 @@ export class PlayerController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: UnlockTaskDto,
   ) {
-    return this.playerService.unlockTask(gameId, taskId, user.id, dto.unlockData);
+    return this.playerTaskService.unlockTask(gameId, taskId, user.id, dto.unlockData);
   }
 
   @ApiOperation({ summary: 'Submit an answer for a task' })
@@ -112,7 +116,7 @@ export class PlayerController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: SubmitAnswerDto,
   ) {
-    return this.playerService.submitAnswer(gameId, taskId, user.id, dto.submission);
+    return this.playerTaskService.submitAnswer(gameId, taskId, user.id, dto.submission);
   }
 
   @ApiOperation({ summary: 'Use a hint for a task' })
@@ -126,6 +130,6 @@ export class PlayerController {
     @Param('taskId') taskId: string,
     @CurrentUser() user: CurrentUserPayload,
   ) {
-    return this.playerService.useHint(gameId, taskId, user.id);
+    return this.playerTaskService.useHint(gameId, taskId, user.id);
   }
 }

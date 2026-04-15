@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { Gamepad2, Users, ListChecks, Activity, Clock, CheckCircle2, Play } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api, adminApi } from '@/lib/api';
+import { api } from '@/lib/api';
+import { adminApi } from '@/lib/admin-api';
 import type { Game } from '@citygame/shared';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { GameTable } from '@/components/dashboard/GameTable';

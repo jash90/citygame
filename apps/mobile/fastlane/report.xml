@@ -5,52 +5,52 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: app_store_connect_api_key" time="0.001856">
+      <testcase classname="fastlane.lanes" name="0: app_store_connect_api_key" time="0.006294">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: is_ci" time="0.000109">
+      <testcase classname="fastlane.lanes" name="1: is_ci" time="0.000181">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: match" time="6.291877">
+      <testcase classname="fastlane.lanes" name="2: match" time="4.593095">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: cd ../ios &amp;&amp; pod install" time="14.330652">
+      <testcase classname="fastlane.lanes" name="3: cd ../ios &amp;&amp; pod install" time="18.203303">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="4: increment_version_number" time="0.221668">
+      <testcase classname="fastlane.lanes" name="4: increment_version_number" time="0.330996">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="5: increment_build_number" time="0.325522">
+      <testcase classname="fastlane.lanes" name="5: increment_build_number" time="0.43061">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="6: build_app" time="141.956049">
+      <testcase classname="fastlane.lanes" name="6: build_app" time="220.922708">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="7: upload_to_testflight" time="77.404492">
+      <testcase classname="fastlane.lanes" name="7: upload_to_testflight" time="89.785348">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="8: clean_build_artifacts" time="0.002842">
+      <testcase classname="fastlane.lanes" name="8: clean_build_artifacts" time="0.009461">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="9: rm -rf ../ios/build" time="0.022055">
+      <testcase classname="fastlane.lanes" name="9: rm -rf ../ios/build" time="0.037554">
         
       </testcase>
     

@@ -5,10 +5,13 @@
     "dev:backend": "turbo run dev --filter=@citygame/backend",
     "dev:admin": "turbo run dev --filter=@citygame/admin",
     "dev:mobile": "turbo run dev --filter=@citygame/mobile",
+    "dev:landing": "turbo run dev --filter=@citygame/landing",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "format": "prettier --write 'apps/**/src/**/*.{ts,tsx}' 'apps/mobile/app/**/*.{ts,tsx}' 'apps/landing/src/**/*.astro' 'packages/**/src/**/*.{ts,tsx}'",
+    "format:check": "prettier --check 'apps/**/src/**/*.{ts,tsx}' 'apps/mobile/app/**/*.{ts,tsx}' 'apps/landing/src/**/*.astro' 'packages/**/src/**/*.{ts,tsx}'",
     "db:migrate": "turbo run db:migrate --filter=@citygame/backend",
     "db:generate": "turbo run db:generate --filter=@citygame/backend",
     "db:seed": "turbo run db:seed --filter=@citygame/backend"

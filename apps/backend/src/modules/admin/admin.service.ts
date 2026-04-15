@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma, SessionStatus, UserRole } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
@@ -10,7 +11,10 @@ import { ListUsersQueryDto } from './dto/list-users-query.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async listUsers(query: ListUsersQueryDto) {
     const page = query.page ?? 1;
@@ -121,7 +125,9 @@ export class AdminService {
       sessionCount,
       activeSessionCount,
       dbHealthy,
-      version: process.env.APP_VERSION ?? process.env.npm_package_version ?? '1.0.0',
+      version: this.configService.get<string>('APP_VERSION') ??
+        this.configService.get<string>('npm_package_version') ??
+        '1.0.0',
     };
   }
 

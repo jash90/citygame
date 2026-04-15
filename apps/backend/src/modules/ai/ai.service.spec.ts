@@ -1,17 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { AiService } from './ai.service';
+import { AiService, OPENAI_CLIENT } from './ai.service';
 
 // ── Mock OpenAI SDK (OpenRouter uses OpenAI-compatible API) ──────────────────
 
 const mockCreate = jest.fn();
 
+const mockOpenAIClient = {
+  chat: { completions: { create: mockCreate } },
+};
+
 jest.mock('openai', () => {
   return {
     __esModule: true,
-    default: jest.fn().mockImplementation(() => ({
-      chat: { completions: { create: mockCreate } },
-    })),
+    default: jest.fn(),
   };
 });
 
@@ -45,6 +47,7 @@ describe('AiService', () => {
       providers: [
         AiService,
         { provide: ConfigService, useValue: mockConfig },
+        { provide: OPENAI_CLIENT, useValue: mockOpenAIClient },
       ],
     }).compile();
 

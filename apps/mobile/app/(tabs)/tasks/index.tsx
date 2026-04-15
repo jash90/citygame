@@ -8,14 +8,14 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { TaskCard } from '@/components/task/TaskCard';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { NetworkError } from '@/components/NetworkError';
-import { useTasks, useProgress } from '@/hooks/useGame';
-import { useGameStore } from '@/stores/gameStore';
-import { useGameTimer } from '@/hooks/useGameTimer';
-import type { Task } from '@/services/api';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { TaskCard } from '@/features/task/components/TaskCard';
+import { ProgressBar } from '@/shared/components/ui/ProgressBar';
+import { NetworkError } from '@/shared/components/NetworkError';
+import { useTasks, useProgress } from '@/features/game/hooks/useGameQueries';
+import { useGameStore } from '@/features/game/stores/gameStore';
+import { useGameTimer } from '@/features/game/hooks/useGameTimer';
+import type { Task } from '@/shared/types/api.types';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 
 const EmptyState = (): React.JSX.Element => (

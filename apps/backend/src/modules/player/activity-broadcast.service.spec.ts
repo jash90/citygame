@@ -2,10 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ActivityBroadcastService } from './activity-broadcast.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RankingService } from '../ranking/ranking.service';
+import { TeamRankingService } from '../ranking/team-ranking.service';
 import { RankingGateway } from '../ranking/ranking.gateway';
 import { NotificationService } from '../notification/notification.service';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 const mockPrisma: Record<string, any> = {
   user: { findUnique: jest.fn(), findMany: jest.fn() },
   team: { findUnique: jest.fn() },
@@ -16,6 +17,9 @@ const mockPrisma: Record<string, any> = {
 const mockRanking = {
   updateScore: jest.fn(),
   getRanking: jest.fn().mockResolvedValue([]),
+};
+
+const mockTeamRanking = {
   updateTeamScore: jest.fn(),
   getTeamRanking: jest.fn().mockResolvedValue([]),
 };
@@ -43,6 +47,7 @@ describe('ActivityBroadcastService', () => {
         ActivityBroadcastService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RankingService, useValue: mockRanking },
+        { provide: TeamRankingService, useValue: mockTeamRanking },
         { provide: RankingGateway, useValue: mockGateway },
         { provide: NotificationService, useValue: mockNotification },
       ],
@@ -113,8 +118,8 @@ describe('ActivityBroadcastService', () => {
     });
 
     it('updates team ranking for team mode', async () => {
-      mockRanking.updateTeamScore.mockResolvedValue(undefined);
-      mockRanking.getTeamRanking.mockResolvedValue([]);
+      mockTeamRanking.updateTeamScore.mockResolvedValue(undefined);
+      mockTeamRanking.getTeamRanking.mockResolvedValue([]);
       mockPrisma.team.findUnique.mockResolvedValue({ name: 'Team Alpha' });
       mockPrisma.user.findUnique.mockResolvedValue({ displayName: 'Alice' });
       mockPrisma.gameSession.findMany.mockResolvedValue([]);
@@ -125,7 +130,7 @@ describe('ActivityBroadcastService', () => {
         50, 150, 'team-1', 'attempt-1',
       );
 
-      expect(mockRanking.updateTeamScore).toHaveBeenCalledWith('run-1', 'team-1', 150);
+      expect(mockTeamRanking.updateTeamScore).toHaveBeenCalledWith('run-1', 'team-1', 150);
       expect(mockGateway.broadcastTeamUpdate).toHaveBeenCalled();
     });
 

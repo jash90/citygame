@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Sparkles, X, Check, Loader2, ChevronDown } from 'lucide-react';
-import { api } from '@/lib/api';
+import { useGenerateTaskContent } from '@/hooks/useAdminApi';
 
 type GenerationType = 'description' | 'hints' | 'prompt';
 
@@ -56,23 +56,26 @@ export function AIGenerateButton({
   const [loading, setLoading] = useState<GenerationType | null>(null);
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const mutation = useGenerateTaskContent(gameId);
 
-  const handleGenerate = async (type: GenerationType) => {
+  const handleGenerate = (type: GenerationType) => {
     setError(null);
     setResult(null);
     setLoading(type);
 
-    try {
-      const data = await api.post<{ content: string }>(
-        `/api/admin/games/${gameId}/generate-task-content`,
-        { type, title: taskTitle, description: taskDescription, taskType },
-      );
-      setResult({ type, content: data.content });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Błąd generowania');
-    } finally {
-      setLoading(null);
-    }
+    mutation.mutate(
+      { type, title: taskTitle, description: taskDescription, taskType },
+      {
+        onSuccess: (data) => {
+          setResult({ type, content: data.content });
+          setLoading(null);
+        },
+        onError: (err) => {
+          setError(err instanceof Error ? err.message : 'Błąd generowania');
+          setLoading(null);
+        },
+      },
+    );
   };
 
   const handleApply = () => {

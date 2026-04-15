@@ -1,70 +1,69 @@
 import { matchesOrigin, getAllowedOrigins } from './cors';
 
+const envFromRecord = (env: Record<string, string | undefined>) =>
+  (key: string) => env[key];
+
 describe('CORS utils', () => {
-  const originalEnv = process.env.CORS_ORIGIN;
-
-  afterEach(() => {
-    if (originalEnv !== undefined) {
-      process.env.CORS_ORIGIN = originalEnv;
-    } else {
-      delete process.env.CORS_ORIGIN;
-    }
-  });
-
   describe('getAllowedOrigins', () => {
     it('parses comma-separated origins', () => {
-      process.env.CORS_ORIGIN = 'http://a.com, http://b.com';
-      expect(getAllowedOrigins()).toEqual(['http://a.com', 'http://b.com']);
+      const getEnv = envFromRecord({ CORS_ORIGIN: 'http://a.com, http://b.com' });
+      expect(getAllowedOrigins(getEnv)).toEqual(['http://a.com', 'http://b.com']);
     });
 
     it('returns defaults when env is unset', () => {
-      delete process.env.CORS_ORIGIN;
-      expect(getAllowedOrigins()).toEqual([
+      const getEnv = envFromRecord({});
+      expect(getAllowedOrigins(getEnv)).toEqual([
         'http://localhost:3000',
         'http://localhost:3002',
       ]);
+    });
+
+    it('includes vercel wildcard in production', () => {
+      const getEnv = envFromRecord({ NODE_ENV: 'production' });
+      expect(getAllowedOrigins(getEnv)).toContain('*.vercel.app');
     });
   });
 
   describe('matchesOrigin', () => {
     it('matches exact origin', () => {
-      process.env.CORS_ORIGIN = 'http://localhost:3000';
-      expect(matchesOrigin('http://localhost:3000')).toBe(true);
+      const getEnv = envFromRecord({ CORS_ORIGIN: 'http://localhost:3000' });
+      expect(matchesOrigin('http://localhost:3000', getEnv)).toBe(true);
     });
 
     it('rejects non-matching origin', () => {
-      process.env.CORS_ORIGIN = 'http://localhost:3000';
-      expect(matchesOrigin('http://evil.com')).toBe(false);
+      const getEnv = envFromRecord({ CORS_ORIGIN: 'http://localhost:3000' });
+      expect(matchesOrigin('http://evil.com', getEnv)).toBe(false);
     });
 
     it('matches wildcard pattern for citygame subdomain', () => {
-      process.env.CORS_ORIGIN = '*.vercel.app';
-      expect(matchesOrigin('https://citygame-admin.vercel.app')).toBe(true);
+      const getEnv = envFromRecord({ CORS_ORIGIN: '*.vercel.app' });
+      expect(matchesOrigin('https://citygame-admin.vercel.app', getEnv)).toBe(true);
     });
 
     it('matches wildcard for citygame preview deploy', () => {
-      process.env.CORS_ORIGIN = '*.vercel.app';
-      expect(matchesOrigin('https://citygame-abc123.vercel.app')).toBe(true);
+      const getEnv = envFromRecord({ CORS_ORIGIN: '*.vercel.app' });
+      expect(matchesOrigin('https://citygame-abc123.vercel.app', getEnv)).toBe(true);
     });
 
     it('rejects wildcard for non-citygame subdomain', () => {
-      process.env.CORS_ORIGIN = '*.vercel.app';
-      expect(matchesOrigin('https://evil-app.vercel.app')).toBe(false);
+      const getEnv = envFromRecord({ CORS_ORIGIN: '*.vercel.app' });
+      expect(matchesOrigin('https://evil-app.vercel.app', getEnv)).toBe(false);
     });
 
     it('supports multiple comma-separated origins', () => {
-      process.env.CORS_ORIGIN =
-        'http://localhost:3000,https://citygame.vercel.app';
-      expect(matchesOrigin('https://citygame.vercel.app')).toBe(true);
-      expect(matchesOrigin('http://localhost:3000')).toBe(true);
-      expect(matchesOrigin('http://other.com')).toBe(false);
+      const getEnv = envFromRecord({
+        CORS_ORIGIN: 'http://localhost:3000,https://citygame.vercel.app',
+      });
+      expect(matchesOrigin('https://citygame.vercel.app', getEnv)).toBe(true);
+      expect(matchesOrigin('http://localhost:3000', getEnv)).toBe(true);
+      expect(matchesOrigin('http://other.com', getEnv)).toBe(false);
     });
 
     it('handles mixed exact and wildcard patterns', () => {
-      process.env.CORS_ORIGIN = 'http://localhost:3000,*.vercel.app';
-      expect(matchesOrigin('http://localhost:3000')).toBe(true);
-      expect(matchesOrigin('https://citygame-admin.vercel.app')).toBe(true);
-      expect(matchesOrigin('https://evil.vercel.app')).toBe(false);
+      const getEnv = envFromRecord({ CORS_ORIGIN: 'http://localhost:3000,*.vercel.app' });
+      expect(matchesOrigin('http://localhost:3000', getEnv)).toBe(true);
+      expect(matchesOrigin('https://citygame-admin.vercel.app', getEnv)).toBe(true);
+      expect(matchesOrigin('https://evil.vercel.app', getEnv)).toBe(false);
     });
   });
 });

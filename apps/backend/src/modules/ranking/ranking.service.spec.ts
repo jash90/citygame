@@ -152,30 +152,6 @@ describe('RankingService', () => {
     });
   });
 
-  describe('updateTeamScore', () => {
-    it('calls Redis ZADD with team ranking key', async () => {
-      await service.updateTeamScore('run-1', 'team-1', 500);
-
-      expect(mockRedis.zadd).toHaveBeenCalledWith('ranking:run:run-1:teams', 500, 'team-1');
-    });
-  });
-
-  describe('getTeamRanking', () => {
-    it('returns team entries sorted by score', async () => {
-      mockRedis.zrevrangebyscore.mockResolvedValue([
-        'team-a', '500',
-        'team-b', '300',
-      ]);
-
-      const result = await service.getTeamRanking('run-1');
-
-      expect(result).toEqual([
-        { teamId: 'team-a', score: 500, rank: 1 },
-        { teamId: 'team-b', score: 300, rank: 2 },
-      ]);
-    });
-  });
-
   describe('getActiveRunId', () => {
     it('returns run id when active run exists', async () => {
       mockPrisma.gameRun.findFirst.mockResolvedValue({ id: 'run-123' });

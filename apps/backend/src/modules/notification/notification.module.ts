@@ -1,9 +1,16 @@
 import { Global, Module } from '@nestjs/common';
-import { NotificationService } from './notification.service';
+import { Expo } from 'expo-server-sdk';
+import { NotificationService, EXPO_CLIENT } from './notification.service';
 
 @Global()
 @Module({
-  providers: [NotificationService],
+  providers: [
+    {
+      provide: EXPO_CLIENT,
+      useFactory: () => new Expo(),
+    },
+    NotificationService,
+  ],
   exports: [NotificationService],
 })
 export class NotificationModule {}

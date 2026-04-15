@@ -1,17 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { api, tryRefreshToken } from '@/lib/api';
+import { useCurrentUser } from '@/hooks/useAuth';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-}
-
-interface MeResponse {
-  id: string;
-  role: string;
 }
 
 /**
@@ -20,59 +15,28 @@ interface MeResponse {
  */
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
-  const [checked, setChecked] = useState(false);
+  const { user, checked, recheck } = useCurrentUser();
 
   const clearAndRedirect = useCallback(() => {
     localStorage.removeItem('userRole');
     router.replace('/login');
   }, [router]);
 
-  const checkAuth = useCallback(async () => {
-    try {
-      // Verify cookie session by calling the backend
-      const me = await api.get<MeResponse>('/api/auth/me');
-
-      if (me.role !== 'ADMIN') {
-        clearAndRedirect();
-        return false;
-      }
-
-      // Keep cached role in sync
-      localStorage.setItem('userRole', me.role);
-      return true;
-    } catch {
-      // Session expired or invalid — try refresh
-      const refreshed = await tryRefreshToken();
-      if (refreshed) {
-        try {
-          const me = await api.get<MeResponse>('/api/auth/me');
-          if (me.role === 'ADMIN') {
-            localStorage.setItem('userRole', me.role);
-            return true;
-          }
-        } catch {
-          // Refresh succeeded but /me failed — bail
-        }
-      }
-
-      clearAndRedirect();
-      return false;
-    }
-  }, [clearAndRedirect]);
-
   useEffect(() => {
-    // Always verify the session cookie against the backend
-    checkAuth().then((valid) => {
-      if (valid) setChecked(true);
-    });
+    if (checked && (!user || user.role !== 'ADMIN')) {
+      clearAndRedirect();
+    } else if (user?.role === 'ADMIN') {
+      localStorage.setItem('userRole', user.role);
+    }
+  }, [checked, user, clearAndRedirect]);
 
-    // Re-validate every 60 seconds
+  // Re-validate every 60 seconds
+  useEffect(() => {
     const interval = setInterval(() => {
-      checkAuth();
+      recheck();
     }, 60_000);
-
     return () => clearInterval(interval);
-  }, [checkAuth, clearAndRedirect]);
+  }, [recheck]);
 
   if (!checked) {
     return (

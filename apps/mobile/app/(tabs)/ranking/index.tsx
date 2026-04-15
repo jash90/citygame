@@ -7,17 +7,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Podium } from '@/components/ranking/Podium';
-import { RankItem } from '@/components/ranking/RankItem';
-import { LiveIndicator } from '@/components/ranking/LiveIndicator';
-import { NetworkError } from '@/components/NetworkError';
-import { useRankingStore } from '@/stores/rankingStore';
-import { useGameStore } from '@/stores/gameStore';
-import { useAuthStore } from '@/stores/authStore';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useRanking } from '@/hooks/useGame';
-import type { RankEntry } from '@/services/api';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { Podium } from '@/features/ranking/components/Podium';
+import { RankItem } from '@/features/ranking/components/RankItem';
+import { LiveIndicator } from '@/features/ranking/components/LiveIndicator';
+import { NetworkError } from '@/shared/components/NetworkError';
+import { useRankingStore } from '@/features/ranking/stores/rankingStore';
+import { useGameStore } from '@/features/game/stores/gameStore';
+import { useAuthStore } from '@/features/auth/stores/authStore';
+import { useWebSocket } from '@/shared/hooks/useWebSocket';
+import { useRanking } from '@/features/ranking/hooks/useRanking';
+import type { RankEntry } from '@/shared/types/api.types';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 
 const EmptyState = (): React.JSX.Element => (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/lib/theme';
+import { colors } from '@/shared/lib/theme';
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 

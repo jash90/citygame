@@ -10,8 +10,10 @@
  * In production, if CORS_ORIGIN is not set, allows citygame*.vercel.app
  * and localhost origins as sensible defaults.
  */
-export function getAllowedOrigins(): string[] {
-  const raw = process.env.CORS_ORIGIN;
+export function getAllowedOrigins(
+  getEnv: (key: string) => string | undefined,
+): string[] {
+  const raw = getEnv('CORS_ORIGIN');
 
   if (raw) {
     return raw.split(',').map((o) => o.trim());
@@ -20,7 +22,7 @@ export function getAllowedOrigins(): string[] {
   // Sensible defaults when CORS_ORIGIN is not explicitly configured
   const defaults = ['http://localhost:3000', 'http://localhost:3002'];
 
-  if (process.env.NODE_ENV === 'production') {
+  if (getEnv('NODE_ENV') === 'production') {
     // In production, also allow Vercel preview/production deployments
     defaults.push('*.vercel.app');
   }
@@ -33,8 +35,11 @@ export function getAllowedOrigins(): string[] {
  * Supports exact string matches and *.domain.tld wildcard patterns
  * (restricted to subdomains starting with "citygame" for safety).
  */
-export function matchesOrigin(origin: string): boolean {
-  const allowedOrigins = getAllowedOrigins();
+export function matchesOrigin(
+  origin: string,
+  getEnv: (key: string) => string | undefined,
+): boolean {
+  const allowedOrigins = getAllowedOrigins(getEnv);
   return allowedOrigins.some((pattern) => {
     if (pattern.startsWith('*.')) {
       const suffix = pattern.slice(1); // e.g. ".vercel.app"

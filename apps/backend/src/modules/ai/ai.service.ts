@@ -1,13 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { extractText, parseResponse } from './ai-evaluation.utils';
+import type { AiEvaluationResult } from './ai-evaluation.utils';
 
-export interface AiEvaluationResult {
-  score: number;
-  feedback: string;
-  reasoning: string;
-}
+export const OPENAI_CLIENT = 'OPENAI_CLIENT';
 
 export interface OpenRouterModel {
   id: string;
@@ -25,53 +23,37 @@ export interface OpenRouterModel {
 
 @Injectable()
 export class AiService {
-  private readonly client: OpenAI;
   private readonly logger = new Logger(AiService.name);
   private model: string;
   private readonly baseUrl: string;
-  private readonly timeoutMs: number;
 
-  /** Cached model list from OpenRouter */
   private modelsCache: OpenRouterModel[] | null = null;
   private modelsCacheExpiry = 0;
-  private static readonly CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+  private static readonly CACHE_TTL_MS = 10 * 60 * 1000;
 
-  constructor(private readonly configService: ConfigService) {
-    this.timeoutMs = this.configService.get<number>('AI_TIMEOUT_MS', 30000);
+  constructor(
+    private readonly configService: ConfigService,
+    @Inject(OPENAI_CLIENT) private readonly client: OpenAI,
+  ) {
     this.baseUrl = this.configService.get<string>(
       'OPENROUTER_BASE_URL',
       'https://openrouter.ai/api/v1',
     );
-    this.client = new OpenAI({
-      baseURL: this.baseUrl,
-      apiKey: this.configService.getOrThrow<string>('OPENROUTER_API_KEY'),
-      timeout: this.timeoutMs,
-      defaultHeaders: {
-        'HTTP-Referer': this.configService.get<string>('APP_URL', 'https://citygame.pl'),
-        'X-Title': 'CityGame',
-      },
-    });
     this.model = this.configService.get<string>(
       'OPENROUTER_MODEL',
       'anthropic/claude-sonnet-4-5',
     );
   }
 
-  /** Get the currently active model ID. */
   getActiveModel(): string {
     return this.model;
   }
 
-  /** Change the active model at runtime (persists until restart). */
   setActiveModel(modelId: string): void {
     this.model = modelId;
     this.logger.log(`AI model changed to: ${modelId}`);
   }
 
-  /**
-   * Fetch available models from OpenRouter with caching.
-   * The endpoint is public and doesn't require auth.
-   */
   async listModels(): Promise<OpenRouterModel[]> {
     if (this.modelsCache && Date.now() < this.modelsCacheExpiry) {
       return this.modelsCache;
@@ -93,53 +75,34 @@ export class AiService {
     }
   }
 
-  /**
-   * Evaluate a photo submission using vision model via OpenRouter.
-   *
-   * The image is fetched server-side and sent as a base64 data URI.
-   * This avoids issues with private/presigned storage URLs that
-   * OpenRouter cannot access directly.
-   *
-   * @param imageUrl  URL of the uploaded image (public, presigned, or internal).
-   * @param prompt    Description of what the photo should show.
-   * @param threshold Minimum score (0–1) to pass (used by callers).
-   */
   async evaluatePhoto(
     imageUrl: string,
     prompt: string,
-    threshold: number,
+    _threshold: number,
   ): Promise<AiEvaluationResult> {
-    const systemPrompt = `You are a game verification assistant. Evaluate whether the submitted photo meets the task requirement.
+    try {
+      const dataUri = await this.imageToDataUri(imageUrl);
+      const messages: ChatCompletionMessageParam[] = [
+        {
+          role: 'system',
+          content: `You are a game verification assistant. Evaluate whether the submitted photo meets the task requirement.
 Respond ONLY with a JSON object (no markdown) in the form:
 {"score": <0.0-1.0>, "feedback": "<player-facing message>", "reasoning": "<internal reasoning>"}
-The score must reflect how well the photo meets the requirement. 1.0 = fully meets, 0.0 = does not meet.`;
-
-    const userMessage = `Task requirement: ${prompt}\n\nDoes the provided image meet this requirement? Evaluate carefully.`;
-
-    try {
-      // Resolve image to a data URI that OpenRouter can consume.
-      // This handles private R2 URLs, presigned URLs, and public URLs.
-      const dataUri = await this.imageToDataUri(imageUrl);
-
-      const messages: ChatCompletionMessageParam[] = [
-        { role: 'system', content: systemPrompt },
+The score must reflect how well the photo meets the requirement. 1.0 = fully meets, 0.0 = does not meet.`,
+        },
         {
           role: 'user',
           content: [
-            {
-              type: 'image_url',
-              image_url: { url: dataUri },
-            },
+            { type: 'image_url', image_url: { url: dataUri } },
             {
               type: 'text',
-              text: userMessage,
+              text: `Task requirement: ${prompt}\n\nDoes the provided image meet this requirement? Evaluate carefully.`,
             },
           ],
         },
       ];
-
       const response = await this.createChatCompletion(messages, 512);
-      return this.parseResponse(response, threshold);
+      return parseResponse(response, this.logger);
     } catch (error) {
       this.logger.error('Photo evaluation failed', error);
       return {
@@ -150,31 +113,26 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
     }
   }
 
-  /**
-   * Evaluate a free-text answer using AI via OpenRouter.
-   * @param answer    The player's text answer.
-   * @param prompt    The task question / evaluation criteria.
-   * @param threshold Minimum score to pass (used by callers).
-   */
   async evaluateText(
     answer: string,
     prompt: string,
-    threshold: number,
+    _threshold: number,
   ): Promise<AiEvaluationResult> {
-    const systemPrompt = `You are a game verification assistant. Evaluate whether a player's answer meets the task requirement.
-Respond ONLY with a JSON object (no markdown) in the form:
-{"score": <0.0-1.0>, "feedback": "<player-facing message>", "reasoning": "<internal reasoning>"}`;
-
-    const userMessage = `Task requirement: ${prompt}\n\nPlayer's answer: ${answer}`;
-
     try {
       const messages: ChatCompletionMessageParam[] = [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage },
+        {
+          role: 'system',
+          content: `You are a game verification assistant. Evaluate whether a player's answer meets the task requirement.
+Respond ONLY with a JSON object (no markdown) in the form:
+{"score": <0.0-1.0>, "feedback": "<player-facing message>", "reasoning": "<internal reasoning>"}`,
+        },
+        {
+          role: 'user',
+          content: `Task requirement: ${prompt}\n\nPlayer's answer: ${answer}`,
+        },
       ];
-
       const response = await this.createChatCompletion(messages, 512);
-      return this.parseResponse(response, threshold);
+      return parseResponse(response, this.logger);
     } catch (error) {
       this.logger.error('Text evaluation failed', error);
       return {
@@ -185,12 +143,6 @@ Respond ONLY with a JSON object (no markdown) in the form:
     }
   }
 
-  /**
-   * Evaluate an audio transcription using AI via OpenRouter.
-   * @param transcription The transcribed text of the audio recording.
-   * @param prompt        Task evaluation criteria.
-   * @param threshold     Minimum score to pass (used by callers).
-   */
   async evaluateAudio(
     transcription: string,
     prompt: string,
@@ -203,9 +155,6 @@ Respond ONLY with a JSON object (no markdown) in the form:
     );
   }
 
-  /**
-   * Generate a task description for a given title, type and city.
-   */
   async generateTaskDescription(
     title: string,
     type: string,
@@ -223,18 +172,14 @@ City: ${city}
 Write 2–3 sentences that describe what the player needs to do. Be specific, immersive, and historically accurate where relevant. Respond with only the description text, no extra formatting.`,
         },
       ];
-
       const response = await this.createChatCompletion(messages, 512);
-      return this.extractText(response);
+      return extractText(response);
     } catch (error) {
       this.logger.error('generateTaskDescription failed', error);
       return '';
     }
   }
 
-  /**
-   * Generate an array of hint strings for a task description.
-   */
   async generateHints(taskDescription: string, count = 3): Promise<string[]> {
     try {
       const messages: ChatCompletionMessageParam[] = [
@@ -246,9 +191,8 @@ Task description: "${taskDescription}"
 Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. No markdown or extra text.`,
         },
       ];
-
       const response = await this.createChatCompletion(messages, 512);
-      const text = this.extractText(response);
+      const text = extractText(response);
       const parsed = JSON.parse(text) as unknown;
       if (Array.isArray(parsed)) {
         return (parsed as unknown[]).map(String).slice(0, count);
@@ -260,10 +204,10 @@ Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. 
     }
   }
 
-  /**
-   * Generate an AI verification prompt for a task.
-   */
-  async generateAIPrompt(taskType: string, taskDescription: string): Promise<string> {
+  async generateAIPrompt(
+    taskType: string,
+    taskDescription: string,
+  ): Promise<string> {
     try {
       const messages: ChatCompletionMessageParam[] = [
         {
@@ -275,54 +219,51 @@ Task description: "${taskDescription}"
 Respond with only the verification prompt text. It should describe what a correct submission looks like and what the AI should look for. No extra formatting.`,
         },
       ];
-
       const response = await this.createChatCompletion(messages, 256);
-      return this.extractText(response);
+      return extractText(response);
     } catch (error) {
       this.logger.error('generateAIPrompt failed', error);
       return '';
     }
   }
 
-  /**
-   * Fetch an image from a URL and convert it to a base64 data URI.
-   * Works with public URLs, presigned S3/R2 URLs, and internal endpoints.
-   * Limits download to 20 MB to prevent abuse.
-   */
+  // ── Private helpers ─────────────────────────────────────────────────────
+
   private async imageToDataUri(imageUrl: string): Promise<string> {
-    // If it's already a data URI, return as-is
     if (imageUrl.startsWith('data:')) {
       return imageUrl;
     }
 
-    const res = await fetch(imageUrl, {
-      signal: AbortSignal.timeout(15_000),
-    });
-
+    const res = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) {
-      throw new Error(`Failed to fetch image: HTTP ${res.status} from ${imageUrl}`);
+      throw new Error(
+        `Failed to fetch image: HTTP ${res.status} from ${imageUrl}`,
+      );
     }
 
     const contentLength = res.headers.get('content-length');
-    if (contentLength && parseInt(contentLength, 10) > 20 * 1024 * 1024) {
+    if (
+      contentLength &&
+      parseInt(contentLength, 10) > 20 * 1024 * 1024
+    ) {
       throw new Error('Image too large (max 20 MB)');
     }
 
     const arrayBuffer = await res.arrayBuffer();
     const base64 = Buffer.from(arrayBuffer).toString('base64');
-
-    // Determine MIME type from response or fallback to jpeg
     const contentType = res.headers.get('content-type') ?? 'image/jpeg';
-    const mimeType = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(contentType)
+    const mimeType = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+    ].includes(contentType)
       ? contentType
       : 'image/jpeg';
 
     return `data:${mimeType};base64,${base64}`;
   }
 
-  /**
-   * Call OpenRouter chat completions API (non-streaming).
-   */
   private async createChatCompletion(
     messages: ChatCompletionMessageParam[],
     maxTokens: number,
@@ -333,45 +274,5 @@ Respond with only the verification prompt text. It should describe what a correc
       max_tokens: maxTokens,
       temperature: 0.3,
     });
-  }
-
-  /**
-   * Extract text content from the first choice in a chat completion response.
-   */
-  private extractText(response: OpenAI.Chat.Completions.ChatCompletion): string {
-    const content = response.choices?.[0]?.message?.content;
-    return content?.trim() ?? '';
-  }
-
-  private parseResponse(
-    response: OpenAI.Chat.Completions.ChatCompletion,
-    _threshold: number,
-  ): AiEvaluationResult {
-    const text = this.extractText(response);
-    if (!text) {
-      return {
-        score: 0,
-        feedback: 'Unexpected AI response format',
-        reasoning: 'No text content in response',
-      };
-    }
-
-    try {
-      // Strip markdown code fences if present (```json ... ``` or ``` ... ```)
-      const cleaned = text.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-      const parsed = JSON.parse(cleaned) as AiEvaluationResult;
-      return {
-        score: Math.min(1, Math.max(0, Number(parsed.score))),
-        feedback: String(parsed.feedback ?? ''),
-        reasoning: String(parsed.reasoning ?? ''),
-      };
-    } catch {
-      this.logger.warn(`Failed to parse AI response: ${text}`);
-      return {
-        score: 0,
-        feedback: 'Could not parse evaluation result',
-        reasoning: text,
-      };
-    }
   }
 }

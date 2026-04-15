@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useGameStore } from '@/stores/gameStore';
+import { useGameStore } from '@/features/game/stores/gameStore';
 
 const OVERLAY_SIZE = 260;
 

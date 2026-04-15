@@ -3,14 +3,8 @@
 import { useState, useRef } from 'react';
 import { Bot, Eye, EyeOff, Hash, Play, Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { TaskType } from '@citygame/shared';
-import { api } from '@/lib/api';
-
-interface AiTestResult {
-  score: number;
-  feedback: string;
-  reasoning: string;
-  passed: boolean;
-}
+import { useTestAiPrompt } from '@/hooks/useAdminApi';
+import type { AiTestResult } from '@/hooks/useAdminApi';
 
 interface AIPromptEditorProps {
   value: string;
@@ -78,27 +72,21 @@ export function AIPromptEditor({
   const [testAnswer, setTestAnswer] = useState('');
   const [testResult, setTestResult] = useState<AiTestResult | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const testMutation = useTestAiPrompt();
 
-  const handleTestPrompt = async () => {
+  const handleTestPrompt = () => {
     if (!testAnswer.trim() || !value.trim()) return;
-    setIsTesting(true);
     setTestResult(null);
     setTestError(null);
-    try {
-      const result = await api.post<AiTestResult>('/api/admin/ai/test-prompt', {
-        prompt: value,
-        testAnswer: testAnswer.trim(),
-        threshold,
-        taskType,
-      });
-      setTestResult(result);
-    } catch (err) {
-      setTestError(err instanceof Error ? err.message : 'Błąd testowania promptu');
-    } finally {
-      setIsTesting(false);
-    }
+
+    testMutation.mutate(
+      { prompt: value, testAnswer: testAnswer.trim(), threshold, taskType },
+      {
+        onSuccess: (result) => setTestResult(result),
+        onError: (err) => setTestError(err instanceof Error ? err.message : 'Błąd testowania promptu'),
+      },
+    );
   };
 
   const handleInsertVariable = (token: string) => {
@@ -231,11 +219,11 @@ export function AIPromptEditor({
           <button
             type="button"
             onClick={handleTestPrompt}
-            disabled={isTesting || !testAnswer.trim() || !value.trim()}
+            disabled={testMutation.isPending || !testAnswer.trim() || !value.trim()}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-[#FF6B35] text-white hover:bg-[#e55a26] disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
           >
-            {isTesting ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            {isTesting ? 'Testowanie...' : 'Testuj'}
+            {testMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            {testMutation.isPending ? 'Testowanie...' : 'Testuj'}
           </button>
         </div>
 

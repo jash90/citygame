@@ -1,24 +1,24 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotificationService } from './notification.service';
+import { NotificationService, EXPO_CLIENT } from './notification.service';
 
-// Mock Expo SDK
 const mockSendPushNotificationsAsync = jest.fn().mockResolvedValue([]);
 const mockChunkPushNotifications = jest.fn((messages: unknown[]) => [messages]);
 
+const mockExpo = {
+  sendPushNotificationsAsync: mockSendPushNotificationsAsync,
+  chunkPushNotifications: mockChunkPushNotifications,
+};
+
+// Mock static method
 jest.mock('expo-server-sdk', () => {
+  const ActualExpo = jest.requireActual('expo-server-sdk').Expo;
   return {
-    Expo: jest.fn().mockImplementation(() => ({
-      sendPushNotificationsAsync: mockSendPushNotificationsAsync,
-      chunkPushNotifications: mockChunkPushNotifications,
-    })),
+    Expo: Object.assign(
+      jest.fn(() => mockExpo),
+      { isExpoPushToken: ActualExpo.isExpoPushToken },
+    ),
   };
 });
-
-// Access static methods on the mock
-const ExpoMock = jest.requireMock('expo-server-sdk').Expo;
-ExpoMock.isExpoPushToken = jest.fn((token: string) =>
-  token.startsWith('ExponentPushToken['),
-);
 
 describe('NotificationService', () => {
   let service: NotificationService;
@@ -27,7 +27,10 @@ describe('NotificationService', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationService],
+      providers: [
+        NotificationService,
+        { provide: EXPO_CLIENT, useValue: mockExpo },
+      ],
     }).compile();
 
     service = module.get(NotificationService);
@@ -51,12 +54,7 @@ describe('NotificationService', () => {
     });
 
     it('skips invalid tokens', async () => {
-      await service.sendPushNotification(
-        'invalid-token',
-        'Title',
-        'Body',
-      );
-
+      await service.sendPushNotification('invalid-token', 'Title', 'Body');
       expect(mockSendPushNotificationsAsync).not.toHaveBeenCalled();
     });
   });
@@ -80,7 +78,6 @@ describe('NotificationService', () => {
         'Body',
       );
 
-      // Should only include the valid token
       expect(mockChunkPushNotifications).toHaveBeenCalledWith([
         expect.objectContaining({ to: 'ExponentPushToken[valid]' }),
       ]);
@@ -88,7 +85,6 @@ describe('NotificationService', () => {
 
     it('does nothing with empty token list', async () => {
       await service.sendToMultiple([], 'Title', 'Body');
-
       expect(mockChunkPushNotifications).not.toHaveBeenCalled();
       expect(mockSendPushNotificationsAsync).not.toHaveBeenCalled();
     });

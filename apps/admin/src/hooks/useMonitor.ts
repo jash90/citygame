@@ -3,138 +3,22 @@
 import { useEffect, useReducer, useCallback } from 'react';
 import { useWebSocket } from './useWebSocket';
 import type { ConnectionStatus } from './useWebSocket';
+import {
+  monitorReducer,
+  type ActivityEntry,
+  type TaskProgressEntry,
+  type AIErrorEntry,
+  type PlayerLocation,
+  type MonitorStats,
+} from './useMonitor.types';
 
-export interface ActivityEntry {
-  id: string;
-  timestamp: Date;
-  playerName: string;
-  action: 'task_completed' | 'hint_used' | 'game_joined' | 'game_completed';
-  details: string;
-  points?: number;
-}
-
-export interface TaskProgressEntry {
-  taskId: string;
-  title: string;
-  type: string;
-  completions: number;
-  total: number;
-}
-
-export interface AIErrorEntry {
-  id: string;
-  taskName: string;
-  playerName: string;
-  errorMessage: string;
-  timestamp: Date;
-}
-
-export interface PlayerLocation {
-  userId: string;
-  displayName: string;
-  latitude: number;
-  longitude: number;
-  heading?: number | null;
-  accuracy?: number | null;
-}
-
-export interface MonitorStats {
-  activePlayers: number;
-  totalCompletions: number;
-  elapsedSeconds: number;
-}
-
-interface MonitorState {
-  activities: ActivityEntry[];
-  taskProgress: TaskProgressEntry[];
-  aiErrors: AIErrorEntry[];
-  playerLocations: PlayerLocation[];
-  stats: MonitorStats;
-}
-
-type MonitorAction =
-  | { type: 'ADD_ACTIVITY'; payload: ActivityEntry }
-  | { type: 'SET_ACTIVITIES'; payload: ActivityEntry[] }
-  | { type: 'SET_TASK_PROGRESS'; payload: TaskProgressEntry[] }
-  | { type: 'INCREMENT_TASK'; payload: { taskId: string } }
-  | { type: 'ADD_AI_ERROR'; payload: AIErrorEntry }
-  | { type: 'REMOVE_AI_ERROR'; payload: { id: string } }
-  | { type: 'SET_STATS'; payload: Partial<MonitorStats> }
-  | { type: 'SET_PLAYER_LOCATIONS'; payload: PlayerLocation[] }
-  | { type: 'INCREMENT_COMPLETIONS' }
-  | { type: 'INCREMENT_PLAYERS' }
-  | { type: 'TICK_ELAPSED' };
-
-function monitorReducer(state: MonitorState, action: MonitorAction): MonitorState {
-  switch (action.type) {
-    case 'ADD_ACTIVITY':
-      return {
-        ...state,
-        activities: [action.payload, ...state.activities].slice(0, 100),
-      };
-
-    case 'SET_ACTIVITIES':
-      return {
-        ...state,
-        activities: action.payload.slice(0, 100),
-      };
-
-    case 'SET_TASK_PROGRESS':
-      return { ...state, taskProgress: action.payload };
-
-    case 'INCREMENT_TASK':
-      return {
-        ...state,
-        taskProgress: state.taskProgress.map((t) =>
-          t.taskId === action.payload.taskId
-            ? { ...t, completions: t.completions + 1 }
-            : t,
-        ),
-      };
-
-    case 'ADD_AI_ERROR':
-      return {
-        ...state,
-        aiErrors: [action.payload, ...state.aiErrors].slice(0, 50),
-      };
-
-    case 'REMOVE_AI_ERROR':
-      return {
-        ...state,
-        aiErrors: state.aiErrors.filter((e) => e.id !== action.payload.id),
-      };
-
-    case 'SET_STATS':
-      return { ...state, stats: { ...state.stats, ...action.payload } };
-
-    case 'SET_PLAYER_LOCATIONS':
-      return { ...state, playerLocations: action.payload };
-
-    case 'INCREMENT_COMPLETIONS':
-      return {
-        ...state,
-        stats: { ...state.stats, totalCompletions: state.stats.totalCompletions + 1 },
-      };
-
-    case 'INCREMENT_PLAYERS':
-      return {
-        ...state,
-        stats: { ...state.stats, activePlayers: state.stats.activePlayers + 1 },
-      };
-
-    case 'TICK_ELAPSED':
-      return {
-        ...state,
-        stats: {
-          ...state.stats,
-          elapsedSeconds: state.stats.elapsedSeconds + 1,
-        },
-      };
-
-    default:
-      return state;
-  }
-}
+export type {
+  ActivityEntry,
+  TaskProgressEntry,
+  AIErrorEntry,
+  PlayerLocation,
+  MonitorStats,
+};
 
 interface UseMonitorOptions {
   gameId: string;
@@ -170,12 +54,15 @@ export function useMonitor({
       activePlayers: initialPlayerCount,
       totalCompletions: initialCompletions,
       elapsedSeconds: startedAt
-        ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+        ? Math.floor(
+            (Date.now() - new Date(startedAt).getTime()) / 1000,
+          )
         : 0,
     },
   });
 
-  const { status, joinGame, leaveGame, onEvent, connectEpoch } = useWebSocket();
+  const { status, joinGame, leaveGame, onEvent, connectEpoch } =
+    useWebSocket();
 
   // Sync initial stats when async data arrives
   useEffect(() => {
@@ -190,13 +77,14 @@ export function useMonitor({
     }
   }, [initialPlayerCount, initialCompletions]);
 
-  // Sync elapsed time when startedAt changes
   useEffect(() => {
     if (startedAt) {
       dispatch({
         type: 'SET_STATS',
         payload: {
-          elapsedSeconds: Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000),
+          elapsedSeconds: Math.floor(
+            (Date.now() - new Date(startedAt).getTime()) / 1000,
+          ),
         },
       });
     }
@@ -241,14 +129,19 @@ export function useMonitor({
           action,
           details: event.details,
           points: event.points,
-          timestamp: event.timestamp ? new Date(event.timestamp) : new Date(),
+          timestamp: event.timestamp
+            ? new Date(event.timestamp)
+            : new Date(),
         },
       });
 
       if (action === 'task_completed') {
         dispatch({ type: 'INCREMENT_COMPLETIONS' });
         if (event.taskId) {
-          dispatch({ type: 'INCREMENT_TASK', payload: { taskId: event.taskId } });
+          dispatch({
+            type: 'INCREMENT_TASK',
+            payload: { taskId: event.taskId },
+          });
         }
       }
       if (action === 'game_joined') {
@@ -256,9 +149,12 @@ export function useMonitor({
       }
     });
 
-    const offTaskComplete = onEvent<{ taskId: string }>('task_completed', ({ taskId }) => {
-      dispatch({ type: 'INCREMENT_TASK', payload: { taskId } });
-    });
+    const offTaskComplete = onEvent<{ taskId: string }>(
+      'task_completed',
+      ({ taskId }) => {
+        dispatch({ type: 'INCREMENT_TASK', payload: { taskId } });
+      },
+    );
 
     const offAiError = onEvent<{
       id: string;
@@ -273,9 +169,12 @@ export function useMonitor({
       });
     });
 
-    const offPlayerCount = onEvent<{ count: number }>('player_count', ({ count }) => {
-      dispatch({ type: 'SET_STATS', payload: { activePlayers: count } });
-    });
+    const offPlayerCount = onEvent<{ count: number }>(
+      'player_count',
+      ({ count }) => {
+        dispatch({ type: 'SET_STATS', payload: { activePlayers: count } });
+      },
+    );
 
     const offPlayerLocations = onEvent<{
       players: PlayerLocation[];
@@ -296,13 +195,19 @@ export function useMonitor({
     dispatch({ type: 'REMOVE_AI_ERROR', payload: { id: errorId } });
   }, []);
 
-  const setTaskProgress = useCallback((tasks: TaskProgressEntry[]) => {
-    dispatch({ type: 'SET_TASK_PROGRESS', payload: tasks });
-  }, []);
+  const setTaskProgress = useCallback(
+    (tasks: TaskProgressEntry[]) => {
+      dispatch({ type: 'SET_TASK_PROGRESS', payload: tasks });
+    },
+    [],
+  );
 
-  const setActivities = useCallback((activities: ActivityEntry[]) => {
-    dispatch({ type: 'SET_ACTIVITIES', payload: activities });
-  }, []);
+  const setActivities = useCallback(
+    (activities: ActivityEntry[]) => {
+      dispatch({ type: 'SET_ACTIVITIES', payload: activities });
+    },
+    [],
+  );
 
   return {
     activities: state.activities,

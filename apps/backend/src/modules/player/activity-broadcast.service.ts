@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { RankingGateway } from '../ranking/ranking.gateway';
 import { RankingService } from '../ranking/ranking.service';
+import { TeamRankingService } from '../ranking/team-ranking.service';
 
 @Injectable()
 export class ActivityBroadcastService {
@@ -12,6 +13,7 @@ export class ActivityBroadcastService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rankingService: RankingService,
+    private readonly teamRankingService: TeamRankingService,
     private readonly rankingGateway: RankingGateway,
     private readonly notificationService: NotificationService,
   ) {}
@@ -32,8 +34,8 @@ export class ActivityBroadcastService {
     attemptId: string,
   ): Promise<void> {
     if (teamId) {
-      await this.rankingService.updateTeamScore(runId, teamId, totalPoints);
-      const teamRanking = await this.rankingService.getTeamRanking(runId);
+      await this.teamRankingService.updateTeamScore(runId, teamId, totalPoints);
+      const teamRanking = await this.teamRankingService.getTeamRanking(runId);
 
       const team = await this.prisma.team.findUnique({
         where: { id: teamId },

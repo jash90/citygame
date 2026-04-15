@@ -1,9 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { Users, Gamepad2, Play, Activity, Database, Loader2 } from 'lucide-react';
-import { api } from '@/lib/api';
-import type { SystemInfo } from '@citygame/shared';
+import { useSystemInfo } from '@/hooks/useAdminApi';
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -23,11 +21,7 @@ function StatCard({ icon, label, value, accent }: StatCardProps) {
 }
 
 export function SystemInfoTab() {
-  const { data, isLoading, error } = useQuery<SystemInfo>({
-    queryKey: ['system-info'],
-    queryFn: () => api.get('/api/admin/system/info'),
-    refetchInterval: 30_000,
-  });
+  const { data, isLoading, error } = useSystemInfo();
 
   if (isLoading) {
     return (

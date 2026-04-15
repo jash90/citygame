@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useGameStore } from '@/stores/gameStore';
-import { StyledSafeAreaView } from '@/lib/styled';
+import { useGameStore } from '@/features/game/stores/gameStore';
+import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function GameSummaryScreen(): React.JSX.Element {
   const router = useRouter();

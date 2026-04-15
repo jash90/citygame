@@ -9,6 +9,31 @@
       "types": "./dist/index.d.ts",
       "import": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./src/types/index.ts",
+      "default": "./dist/types/index.js"
+    },
+    "./types/*": {
+      "types": "./dist/types/*.d.ts",
+      "import": "./src/types/*.ts",
+      "default": "./dist/types/*.js"
+    },
+    "./validation": {
+      "types": "./dist/validation/index.d.ts",
+      "import": "./src/validation/index.ts",
+      "default": "./dist/validation/index.js"
+    },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "import": "./src/constants/index.ts",
+      "default": "./dist/constants/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./src/utils/index.ts",
+      "default": "./dist/utils/index.js"
     }
   },
   "scripts": {

@@ -2,7 +2,8 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  NotImplementedException,
+  Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { Task, TaskType } from '@prisma/client';
 import { AudioAiStrategy } from './strategies/audio-ai.strategy';
@@ -49,6 +50,8 @@ export class VerificationService {
    * Dispatch verification to the appropriate strategy for the task type.
    * All task types including AI-based ones (PHOTO_AI, TEXT_AI, AUDIO_AI, CIPHER)
    * are handled via registered strategies.
+   *
+   * Returns UNSUPPORTED result instead of throwing — callers decide how to handle it.
    */
   async verify(
     task: Task,
@@ -57,9 +60,15 @@ export class VerificationService {
     const strategy = this.strategies[task.type];
 
     if (!strategy) {
-      throw new NotImplementedException(
+      Logger.warn(
         `No verification strategy registered for task type ${task.type}`,
+        VerificationService.name,
       );
+      return {
+        status: 'ERROR',
+        score: 0,
+        feedback: `Task type ${task.type} is not supported`,
+      };
     }
 
     const config = task.verifyConfig as Record<string, unknown>;
@@ -69,6 +78,9 @@ export class VerificationService {
   /**
    * Verify a single sub-step by its type string.
    * Used internally by MixedStrategy to delegate each sub-step to the correct strategy.
+   *
+   * Throws BadRequestException for truly invalid sub-step types (caller misconfiguration)
+   * rather than NotImplementedException — the strategy map is the single source of truth.
    */
   async verifyStep(
     type: string,
@@ -79,8 +91,8 @@ export class VerificationService {
     const strategy = this.strategies[taskType];
 
     if (!strategy) {
-      throw new NotImplementedException(
-        `No verification strategy registered for sub-step type ${type}`,
+      throw new BadRequestException(
+        `Invalid sub-step type: ${type}`,
       );
     }
 

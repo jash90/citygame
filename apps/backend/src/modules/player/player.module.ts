@@ -1,21 +1,28 @@
-import { Module, Type } from '@nestjs/common';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { RankingModule } from '../ranking/ranking.module';
 import { TaskModule } from '../task/task.module';
 import { TeamModule } from '../team/team.module';
 import { ActivityBroadcastService } from './activity-broadcast.service';
 import { DevPlayerController } from './dev-player.controller';
 import { PlayerController } from './player.controller';
+import { PlayerDevService } from './player-dev.service';
+import { PlayerHintService } from './player-hint.service';
+import { PlayerQueryService } from './player-query.service';
 import { PlayerService } from './player.service';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const controllers: Type<any>[] = [PlayerController];
-if (process.env.ENABLE_DEV_ENDPOINTS === 'true') {
-  controllers.push(DevPlayerController);
-}
+import { PlayerTaskService } from './player-task.service';
 
 @Module({
-  imports: [TaskModule, RankingModule, TeamModule],
-  controllers,
-  providers: [PlayerService, ActivityBroadcastService],
+  imports: [ConfigModule, TaskModule, RankingModule, TeamModule],
+  controllers: [PlayerController, DevPlayerController],
+  providers: [
+    PlayerService,
+    PlayerTaskService,
+    PlayerHintService,
+    PlayerQueryService,
+    PlayerDevService,
+    ActivityBroadcastService,
+  ],
+  exports: [PlayerService, PlayerTaskService, PlayerQueryService],
 })
 export class PlayerModule {}
