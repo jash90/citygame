@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { api } from '@/lib/api';
+import { api } from '@/shared/lib/api';
 import type { CreateGameDto, Game } from '@citygame/shared';
 
 const createGameSchema = z.object({

@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
-import { Header } from '@/components/layout/Header';
-import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
-import { AuthGuard } from '@/components/layout/AuthGuard';
+import { Sidebar } from '@/shared/components/Sidebar';
+import { Header } from '@/shared/components/Header';
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
+import { AuthGuard } from '@/features/auth/components/AuthGuard';
 
 interface DashboardLayoutProps {
   children: ReactNode;

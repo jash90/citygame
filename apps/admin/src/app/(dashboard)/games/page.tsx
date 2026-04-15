@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, Eye, Edit, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { api } from '@/lib/api';
-import { pluralizePl } from '@/lib/pluralize';
+import { api } from '@/shared/lib/api';
+import { pluralizePl } from '@/shared/lib/pluralize';
 import type { Game } from '@citygame/shared';
-import { GameStatusBadge } from '@/components/dashboard/GameStatusBadge';
+import { GameStatusBadge } from '@/features/dashboard/components/GameStatusBadge';
 
 interface GamesResponse {
   items: Game[];

@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { Users, Server, Bot } from 'lucide-react';
-import { UserManagementTab } from '@/components/settings/UserManagementTab';
-import { SystemInfoTab } from '@/components/settings/SystemInfoTab';
-import { AiModelTab } from '@/components/settings/AiModelTab';
+import { UserManagementTab } from '@/features/settings/components/UserManagementTab';
+import { SystemInfoTab } from '@/features/settings/components/SystemInfoTab';
+import { AiModelTab } from '@/features/settings/components/AiModelTab';
 
 const tabs = [
   { id: 'users', label: 'Użytkownicy', icon: <Users size={16} /> },

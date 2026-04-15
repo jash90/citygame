@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { MapPin, Loader2 } from 'lucide-react';
-import { api } from '@/lib/api';
-import { setWsToken } from '@/lib/ws';
+import { api } from '@/shared/lib/api';
+import { setWsToken } from '@/shared/lib/ws';
 import type { AuthTokens } from '@citygame/shared';
 
 const loginSchema = z.object({
