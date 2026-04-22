@@ -15,19 +15,33 @@ export function getAllowedOrigins(
 ): string[] {
   const raw = getEnv('CORS_ORIGIN');
 
-  if (raw) {
-    return raw.split(',').map((o) => o.trim());
-  }
+  const loopbackDev = [
+    // Browser admin
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3002',
+    // iOS React Native WebSocket sends the target host as Origin on the
+    // simulator (e.g. http://127.0.0.1:3001 / http://localhost:3001), so the
+    // backend needs to accept its own loopback origin for the WS handshake.
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    // Expo Metro bundler (some RN configs echo this as Origin)
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+  ];
 
-  // Sensible defaults when CORS_ORIGIN is not explicitly configured
-  const defaults = ['http://localhost:3000', 'http://localhost:3002'];
+  if (raw) {
+    const configured = raw.split(',').map((o) => o.trim());
+    return [...configured, ...loopbackDev];
+  }
 
   if (getEnv('NODE_ENV') === 'production') {
     // In production, also allow Vercel preview/production deployments
-    defaults.push('*.vercel.app');
+    return [...loopbackDev, '*.vercel.app'];
   }
 
-  return defaults;
+  return loopbackDev;
 }
 
 /**

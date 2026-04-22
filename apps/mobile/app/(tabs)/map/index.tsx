@@ -4,10 +4,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { withUniwind } from 'uniwind';
 import { Ionicons } from '@expo/vector-icons';
+import { haversineDistance } from '@citygame/shared';
 import { GameMap, type GameMapHandle } from '@/features/map/components/GameMap';
 import { TaskPin } from '@/features/map/components/TaskPin';
 import { GameBrowser } from '@/features/game/components/GameBrowser';
 import { useLocation } from '@/features/map/hooks/useLocation';
+import { useLocationStore } from '@/features/map/stores/locationStore';
+import { filterVisibleTasks } from '@/features/map/utils/pinVisibility';
+
+const PIN_TAP_DISTANCE_METERS = 10;
 import { useProgress } from '@/features/game/hooks/useGameQueries';
 import { useGameStore } from '@/features/game/stores/gameStore';
 import { useGameTimer } from '@/features/game/hooks/useGameTimer';
@@ -18,6 +23,7 @@ const StyledSafeAreaView = withUniwind(SafeAreaView);
 export default function MapScreen(): React.JSX.Element {
   const { hasPermission, requestPermission } = useLocation();
   const { tasks, currentGame, currentSession, completedTaskIds, collectedClues, gameEnded, reset, setGameEnded } = useGameStore();
+  const playerLocation = useLocationStore((s) => s.location);
   const router = useRouter();
   const mapRef = useRef<GameMapHandle>(null);
   const [showJournal, setShowJournal] = useState(false);
@@ -94,22 +100,45 @@ export default function MapScreen(): React.JSX.Element {
   };
 
   const handleTaskPinPress = (task: Task): void => {
-    if (task.status === 'locked') {
-      // Navigate to task detail where the unlock flow lives
-      router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'map' } } as never);
-    } else if (task.status === 'available') {
-      router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'map' } } as never);
+    if (task.status === 'completed' || !task.location) return;
+
+    if (!playerLocation) {
+      Alert.alert('Brak lokalizacji', 'Poczekaj na ustalenie Twojej pozycji.');
+      return;
     }
-    // completed tasks are not interactive from the map
+
+    const meters = haversineDistance(
+      playerLocation.lat,
+      playerLocation.lng,
+      task.location.lat,
+      task.location.lng,
+    );
+
+    if (meters > PIN_TAP_DISTANCE_METERS) {
+      Alert.alert(
+        'Podejdź bliżej',
+        `Aby rozpocząć to zadanie, musisz być w odległości ${PIN_TAP_DISTANCE_METERS} m od punktu. Obecnie jesteś ~${Math.round(meters)} m.`,
+      );
+      return;
+    }
+
+    router.push({ pathname: '/(tabs)/tasks/[taskId]', params: { taskId: task.id, from: 'map' } } as never);
   };
 
   const completedCount = completedTaskIds.size;
   const totalCount = tasks.length;
 
+  const visibleTasks = filterVisibleTasks({
+    tasks,
+    playerLocation,
+    completedTaskIds,
+    revealDistanceMeters: currentGame.pinRevealDistanceMeters,
+  });
+
   return (
     <View className="flex-1">
       <GameMap ref={mapRef}>
-        {tasks.map((task) =>
+        {visibleTasks.map((task) =>
           task.location ? (
             <TaskPin
               key={task.id}

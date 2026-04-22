@@ -11,6 +11,7 @@ export interface GameSettings {
   teamMode?: boolean;
   minTeamSize?: number;
   maxTeamSize?: number;
+  pinRevealDistanceMeters?: number;
   narrative?: {
     isNarrative?: boolean;
     theme?: string;

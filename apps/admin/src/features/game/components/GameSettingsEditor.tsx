@@ -25,6 +25,12 @@ const gameSettingsSchema = z
       .min(1)
       .optional()
       .or(z.literal('')),
+    pinRevealDistanceMeters: z.coerce
+      .number()
+      .min(20, 'Min. 20 m')
+      .max(1000, 'Maks. 1000 m')
+      .optional()
+      .or(z.literal('')),
     allowLateJoin: z.boolean().optional(),
     allowHints: z.boolean().optional(),
     teamMode: z.boolean().optional(),
@@ -97,6 +103,7 @@ export function GameSettingsEditor({
     defaultValues: {
       maxPlayers: settings.maxPlayers ?? '',
       timeLimitMinutes: settings.timeLimitMinutes ?? '',
+      pinRevealDistanceMeters: settings.pinRevealDistanceMeters ?? '',
       allowLateJoin: settings.allowLateJoin ?? false,
       allowHints: settings.allowHints ?? true,
       teamMode: settings.teamMode ?? false,
@@ -144,6 +151,10 @@ export function GameSettingsEditor({
         data.timeLimitMinutes === ''
           ? undefined
           : Number(data.timeLimitMinutes),
+      pinRevealDistanceMeters:
+        data.pinRevealDistanceMeters === ''
+          ? undefined
+          : Number(data.pinRevealDistanceMeters),
       allowLateJoin: data.allowLateJoin,
       allowHints: data.allowHints,
       teamMode: data.teamMode,

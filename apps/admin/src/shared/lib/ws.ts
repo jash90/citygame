@@ -53,20 +53,36 @@ export function getRankingSocket(): Socket {
     return rankingSocket;
   }
 
+  // Use the callback form so the current token is re-read on every (re)connect
+  // attempt. Mutating a plain auth object is not enough: socket.io evaluates
+  // the function each time, so fresh tokens fetched after connect_error are
+  // actually applied on retry.
   rankingSocket = io(`${WS_URL}/ranking`, {
-    auth: { token: currentWsToken },
+    auth: (cb) => cb({ token: currentWsToken ?? '' }),
     transports: ['websocket'],
     autoConnect: false,
   });
 
-  // On auth error, fetch a fresh token and retry once
+  // On auth error, fetch a fresh token and explicitly reconnect.
+  // Socket.io does not auto-retry an initial connect failure triggered by
+  // middleware rejection, so we have to kick off another connect ourselves.
+  let isRefreshing = false;
   rankingSocket.on('connect_error', async (err) => {
-    if (err.message === 'Authentication required' || err.message === 'Invalid authentication token') {
+    if (
+      err.message !== 'Authentication required' &&
+      err.message !== 'Invalid authentication token'
+    ) {
+      return;
+    }
+    if (isRefreshing) return;
+    isRefreshing = true;
+    try {
       const freshToken = await fetchWsToken();
-      if (freshToken && rankingSocket) {
-        (rankingSocket.auth as Record<string, unknown>).token = freshToken;
-        // Socket.io will auto-retry with backoff; updating auth is sufficient
+      if (freshToken && rankingSocket && !rankingSocket.connected) {
+        rankingSocket.connect();
       }
+    } finally {
+      isRefreshing = false;
     }
   });
 
@@ -76,7 +92,15 @@ export function getRankingSocket(): Socket {
 export function connectRankingSocket(): Socket {
   const socket = getRankingSocket();
   if (!socket.connected) {
-    socket.connect();
+    // If we don't have a token yet, fetch one first so the initial handshake
+    // carries it — otherwise the first connect always fails.
+    if (!currentWsToken) {
+      void fetchWsToken().then(() => {
+        if (socket && !socket.connected) socket.connect();
+      });
+    } else {
+      socket.connect();
+    }
   }
   return socket;
 }

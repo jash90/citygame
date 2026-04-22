@@ -13,6 +13,7 @@ export function mapGame(bg: BackendGame): Game {
     endsAt: bg.activeRun?.endsAt ?? undefined,
     activeRunId: bg.activeRun?.id ?? undefined,
     isRunning: bg.activeRun?.status === 'ACTIVE',
+    pinRevealDistanceMeters: bg.settings?.pinRevealDistanceMeters,
     narrative: bg.settings?.narrative as Game['narrative'],
     tasks: bg.tasks?.map(mapTask),
   };

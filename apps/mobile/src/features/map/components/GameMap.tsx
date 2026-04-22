@@ -1,4 +1,4 @@
-import React, { useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
 import { Platform, View, StyleSheet as RNStyleSheet } from 'react-native';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { useLocationStore } from '@/features/map/stores/locationStore';
@@ -36,6 +36,7 @@ const MAP_STYLE = [
 export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
   ({ initialRegion, children, onMapPress }, ref) => {
     const mapRef = useRef<MapView>(null);
+    const isMapReady = useRef(false);
     const { location, accuracy } = useLocationStore();
 
     const mapRegion: Region = location
@@ -63,6 +64,51 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
       },
     }));
 
+    // Keep the user dot on-screen. Two triggers:
+    //  1. Location change — re-center if the player has drifted off-screen.
+    //  2. Manual pan (onRegionChangeComplete) — if the user dragged the dot
+    //     out of view, snap back after a brief delay.
+    // getMapBoundaries() throws before the native AIRMap view is attached, so
+    // it's guarded by isMapReady + a swallowed catch.
+    const lastRecenterAtRef = useRef(0);
+
+    const ensureUserVisible = React.useCallback(async (): Promise<void> => {
+      const map = mapRef.current;
+      const loc = useLocationStore.getState().location;
+      if (!map || !loc || !isMapReady.current) return;
+
+      let bounds: Awaited<ReturnType<typeof map.getMapBoundaries>>;
+      try {
+        bounds = await map.getMapBoundaries();
+      } catch {
+        return;
+      }
+      const { northEast, southWest } = bounds;
+      const outside =
+        loc.lat > northEast.latitude ||
+        loc.lat < southWest.latitude ||
+        loc.lng > northEast.longitude ||
+        loc.lng < southWest.longitude;
+      if (!outside) return;
+
+      const now = Date.now();
+      if (now - lastRecenterAtRef.current < 500) return;
+      lastRecenterAtRef.current = now;
+      map.animateToRegion(
+        {
+          latitude: loc.lat,
+          longitude: loc.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        500,
+      );
+    }, []);
+
+    useEffect(() => {
+      void ensureUserVisible();
+    }, [location?.lat, location?.lng, ensureUserVisible]);
+
     return (
       <View className="flex-1">
         <MapView
@@ -73,6 +119,12 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
           showsUserLocation={false}
           showsMyLocationButton={false}
           showsCompass={false}
+          onMapReady={() => {
+            isMapReady.current = true;
+          }}
+          onRegionChangeComplete={() => {
+            void ensureUserVisible();
+          }}
           onPress={(e) => onMapPress?.(e.nativeEvent.coordinate)}
         >
           {location ? (

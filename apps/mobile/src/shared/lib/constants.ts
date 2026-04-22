@@ -1,8 +1,13 @@
-export const API_URL: string =
-  process.env.EXPO_PUBLIC_API_URL || "";
+const DEV_API_URL = 'http://127.0.0.1:3001/api';
+const DEV_WS_URL = 'http://127.0.0.1:3001';
 
-export const WS_URL: string =
-  process.env.EXPO_PUBLIC_WS_URL || "";
+export const API_URL: string = __DEV__
+  ? DEV_API_URL
+  : process.env.EXPO_PUBLIC_API_URL || '';
+
+export const WS_URL: string = __DEV__
+  ? DEV_WS_URL
+  : process.env.EXPO_PUBLIC_WS_URL || '';
 
 export const SECURE_STORE_KEYS = {
   ACCESS_TOKEN: 'citygame_access_token',
