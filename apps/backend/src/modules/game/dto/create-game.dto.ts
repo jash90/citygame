@@ -68,6 +68,12 @@ class GameSettingsDto {
   maxTeamSize?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(20)
+  @Max(1000)
+  pinRevealDistanceMeters?: number;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => NarrativeSettingsDto)
   narrative?: NarrativeSettingsDto;

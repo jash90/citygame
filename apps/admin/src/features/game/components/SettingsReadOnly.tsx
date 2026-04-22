@@ -39,6 +39,14 @@ export function SettingsReadOnly({ settings, onEdit }: SettingsReadOnlyProps) {
           </dd>
         </div>
         <div>
+          <dt className="text-gray-500">Odległość ujawnienia pinezki</dt>
+          <dd className="font-medium text-gray-800 mt-0.5">
+            {settings.pinRevealDistanceMeters
+              ? `${settings.pinRevealDistanceMeters} m`
+              : '100 m (domyślnie)'}
+          </dd>
+        </div>
+        <div>
           <dt className="text-gray-500">Dołączanie po starcie</dt>
           <dd className="font-medium text-gray-800 mt-0.5">
             {settings.allowLateJoin ? 'Tak' : 'Nie'}

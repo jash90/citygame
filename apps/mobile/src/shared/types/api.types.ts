@@ -16,7 +16,11 @@ export interface BackendGame {
   description: string;
   city: string;
   coverImageUrl?: string;
-  settings: { timeLimitMinutes?: number; [key: string]: unknown };
+  settings: {
+    timeLimitMinutes?: number;
+    pinRevealDistanceMeters?: number;
+    [key: string]: unknown;
+  };
   currentRun: number;
   activeRun?: BackendActiveRun | null;
   taskCount: number;
@@ -104,6 +108,8 @@ export interface Game {
   endsAt?: string;
   activeRunId?: string;
   isRunning?: boolean;
+  /** Distance (meters) within which an upcoming task pin is revealed on the map. */
+  pinRevealDistanceMeters?: number;
   narrative?: NarrativeSettings;
   tasks?: Task[];
 }

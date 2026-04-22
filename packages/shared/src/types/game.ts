@@ -34,8 +34,18 @@ export interface GameSettings {
   teamMode?: boolean;
   minTeamSize?: number;
   maxTeamSize?: number;
+  /**
+   * Distance (meters) within which an upcoming task pin appears on the map
+   * once the previous task has been completed. The first task is always
+   * visible. Defaults to DEFAULT_PIN_REVEAL_DISTANCE_METERS when unset.
+   */
+  pinRevealDistanceMeters?: number;
   narrative?: NarrativeSettings;
 }
+
+export const DEFAULT_PIN_REVEAL_DISTANCE_METERS = 100;
+export const MIN_PIN_REVEAL_DISTANCE_METERS = 20;
+export const MAX_PIN_REVEAL_DISTANCE_METERS = 1000;
 
 export interface Game {
   id: string;

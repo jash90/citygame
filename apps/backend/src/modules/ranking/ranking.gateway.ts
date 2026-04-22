@@ -67,6 +67,8 @@ export interface TeamUpdatePayload {
   cors: {
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       if (!origin) {
+        // Native clients (iOS/Android RN) may not send Origin; allow handshake
+        // and rely on JWT middleware to authenticate the socket.
         callback(null, true);
         return;
       }
