@@ -8,7 +8,7 @@ export interface AIVerificationResult {
 }
 
 export interface AIVerificationStatusProps {
-  status: 'idle' | 'uploading' | 'processing' | 'complete' | 'error';
+  status: 'idle' | 'uploading' | 'processing' | 'complete' | 'error' | 'queued';
   progress?: number;
   result?: AIVerificationResult;
   onRetry?: () => void;
@@ -208,6 +208,19 @@ export const AIVerificationStatus = ({
                 <Text className="text-white font-bold text-sm">Spróbuj ponownie</Text>
               </TouchableOpacity>
             ) : null}
+          </View>
+        );
+
+      case 'queued':
+        return (
+          <View className="rounded-2xl border border-blue-200 bg-blue-50 p-4 gap-3 items-center">
+            <Ionicons name="cloud-upload-outline" size={20} color="#2563EB" />
+            <Text className="text-sm font-semibold text-blue-700 text-center">
+              Zostanie zweryfikowane po połączeniu z internetem
+            </Text>
+            <Text className="text-xs text-blue-600 text-center">
+              Twoja odpowiedź jest bezpiecznie zapisana w pamięci telefonu.
+            </Text>
           </View>
         );
     }

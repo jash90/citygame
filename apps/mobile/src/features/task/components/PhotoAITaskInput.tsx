@@ -24,13 +24,25 @@ export const PhotoAITaskInput = ({
   const handleCapture = async (imageUri: string): Promise<void> => {
     setIsUploading(true);
     try {
-      const fileUrl = await uploadFileToR2(
+      const outcome = await uploadFileToR2(
         imageUri,
         'image/jpeg',
         `task-photo-${Date.now()}.jpg`,
         { aiStatus, uploadProgress, setAiStatus, setUploadProgress },
       );
-      await onSubmit({ imageUrl: fileUrl });
+
+      if (outcome.kind === 'queued') {
+        // Smuggle the media upload id through the submission so the queue
+        // can wire `dependsOn` and resolve the URL once R2 receives the file.
+        await onSubmit({
+          imageUrl: `offline-pending://${outcome.mediaClientId}`,
+          _dependsOn: outcome.mediaClientId,
+        } as never);
+        // aiStatus already 'queued' from uploadFileToR2 — leave it.
+        return;
+      }
+
+      await onSubmit({ imageUrl: outcome.fileUrl });
       setAiStatus('idle');
       setUploadProgress(0);
     } catch {
