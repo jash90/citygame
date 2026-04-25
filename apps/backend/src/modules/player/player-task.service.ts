@@ -109,7 +109,18 @@ export class PlayerTaskService {
     taskId: string,
     userId: string,
     submission: Record<string, unknown>,
+    clientSubmissionId?: string,
   ): Promise<TaskAttempt> {
+    // Idempotency: if the client retried with the same submission id,
+    // return the original attempt unchanged so offline → sync replays
+    // never create duplicates.
+    if (clientSubmissionId) {
+      const existing = await this.prisma.taskAttempt.findUnique({
+        where: { clientSubmissionId },
+      });
+      if (existing) return existing;
+    }
+
     const session = await this.requireActiveSession(gameId, userId);
 
     const task = await this.prisma.task.findFirst({
@@ -155,6 +166,7 @@ export class PlayerTaskService {
           submission: submission as Prisma.InputJsonValue,
           aiResult: result.aiResult != null ? (result.aiResult as Prisma.InputJsonValue) : Prisma.JsonNull,
           pointsAwarded,
+          clientSubmissionId: clientSubmissionId ?? null,
         },
       });
 

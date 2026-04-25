@@ -11,6 +11,7 @@ import { PlayerHintService } from './player-hint.service';
 import { PlayerQueryService } from './player-query.service';
 import { PlayerService } from './player.service';
 import { PlayerTaskService } from './player-task.service';
+import { SyncService } from './sync.service';
 
 @Module({
   imports: [ConfigModule, TaskModule, RankingModule, TeamModule],
@@ -22,6 +23,7 @@ import { PlayerTaskService } from './player-task.service';
     PlayerQueryService,
     PlayerDevService,
     ActivityBroadcastService,
+    SyncService,
   ],
   exports: [PlayerService, PlayerTaskService, PlayerQueryService],
 })

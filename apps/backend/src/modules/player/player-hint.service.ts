@@ -70,7 +70,19 @@ export class PlayerHintService {
     gameId: string,
     taskId: string,
     userId: string,
+    clientSubmissionId?: string,
   ): Promise<{ hint: { content: string; pointPenalty: number } }> {
+    // Idempotency: replay-safe lookup keyed on the client-generated id.
+    if (clientSubmissionId) {
+      const existing = await this.prisma.hintUsage.findUnique({
+        where: { clientSubmissionId },
+        include: { hint: { select: { content: true, pointPenalty: true } } },
+      });
+      if (existing) {
+        return { hint: existing.hint };
+      }
+    }
+
     const session = await this.requireActiveSession(gameId, userId);
 
     const task = await this.prisma.task.findFirst({
@@ -102,7 +114,12 @@ export class PlayerHintService {
     try {
       await withSerializableRetry(this.prisma, async (tx) => {
         await tx.hintUsage.create({
-          data: { hintId: unusedHint.id, userId, sessionId: session.id },
+          data: {
+            hintId: unusedHint.id,
+            userId,
+            sessionId: session.id,
+            clientSubmissionId: clientSubmissionId ?? null,
+          },
         });
 
         const updatedSession = await tx.gameSession.update({
