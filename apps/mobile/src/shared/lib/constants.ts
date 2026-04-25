@@ -18,6 +18,19 @@ export const SECURE_STORE_KEYS = {
 
 export const RANKING_WS_NAMESPACE = '/ranking';
 
+/**
+ * Vector tile style URL for MapLibre. Must point at a self-hosted style.json
+ * (a public OSM-derived basic style) whose tiles are reachable while online,
+ * and which the OfflineManager can pre-download for a city. Set this via the
+ * `EXPO_PUBLIC_MAP_STYLE_URL` env var per environment.
+ *
+ * In dev we fall back to the public MapLibre demo tiles, which are NOT
+ * cacheable for production offline packs.
+ */
+const DEV_MAP_STYLE_URL = 'https://demotiles.maplibre.org/style.json';
+export const MAP_STYLE_URL: string =
+  process.env.EXPO_PUBLIC_MAP_STYLE_URL || DEV_MAP_STYLE_URL;
+
 export const QUERY_KEYS = {
   GAMES: ['games'] as const,
   GAME: (id: string) => ['games', id] as const,
