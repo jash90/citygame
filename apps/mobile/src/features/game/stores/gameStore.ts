@@ -1,4 +1,10 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+  mmkvZustandStorage,
+  richReplacer,
+  richReviver,
+} from '@/shared/lib/storage/mmkv';
 import type { Game, GameSession, Task, GameProgress } from '@/shared/types/api.types';
 
 /** Extract completed task IDs from progress attempts. */
@@ -89,8 +95,10 @@ export const selectTaskHints =
   (state: GameState): RevealedHint[] =>
     state.revealedHints.get(taskId) ?? [];
 
-export const useGameStore = create<GameState>((set) => ({
-  ...initialState,
+export const useGameStore = create<GameState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
   setGame: (game) => set({ currentGame: game }),
 
@@ -175,4 +183,25 @@ export const useGameStore = create<GameState>((set) => ({
       collectedClues: [],
       revealedHints: new Map<string, RevealedHint[]>(),
     }),
-}));
+    }),
+    {
+      name: 'citygame.game-store',
+      version: 1,
+      storage: createJSONStorage(() => mmkvZustandStorage, {
+        replacer: richReplacer,
+        reviver: richReviver,
+      }),
+      // Only persist play-session state. `lastScannedQR` and `lastAiResult`
+      // are transient UI signals; `gameEnded` should re-derive from session.
+      partialize: (state) => ({
+        currentGame: state.currentGame,
+        currentSession: state.currentSession,
+        tasks: state.tasks,
+        progress: state.progress,
+        completedTaskIds: state.completedTaskIds,
+        collectedClues: state.collectedClues,
+        revealedHints: state.revealedHints,
+      }),
+    },
+  ),
+);

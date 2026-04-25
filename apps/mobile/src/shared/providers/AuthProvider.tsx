@@ -3,7 +3,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useRouter, useSegments, useRootNavigationState } from 'expo-router';
 import { useAuthStore } from '@/features/auth/stores/authStore';
 import { useGameStore } from '@/features/game/stores/gameStore';
-import { apiClient } from '@/shared/services/apiClient';
+import { apiClient, NetworkError } from '@/shared/services/apiClient';
 import { playerApi } from '@/features/game/services/player.api';
 import { gamesApi } from '@/features/game/services/games.api';
 import { colors } from '@/shared/lib/theme';
@@ -65,8 +65,13 @@ export const AuthProvider = ({ children }: AuthProviderProps): React.JSX.Element
           game.tasks ?? [],
           progress,
         );
-      } catch {
-        // Non-critical — user can manually rejoin from game list
+      } catch (err) {
+        // Network failures must not wipe persisted offline state. The
+        // gameStore's persisted slice (currentGame/session/tasks/progress)
+        // already drives the UI; we leave it untouched and let the sync
+        // layer reconcile when connectivity returns.
+        if (err instanceof NetworkError) return;
+        // Other errors: non-critical — user can manually rejoin from game list
       }
     };
 
