@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import { mmkvZustandStorage } from '@/shared/lib/storage/mmkv';
 import type { RankingEntry } from '@/shared/types/api.types';
 
 interface RankingState {
@@ -12,10 +14,12 @@ interface RankingState {
   reset: () => void;
 }
 
-export const useRankingStore = create<RankingState>((set) => ({
-  entries: [],
-  isLive: false,
-  lastUpdatedAt: null,
+export const useRankingStore = create<RankingState>()(
+  persist(
+    (set) => ({
+      entries: [],
+      isLive: false,
+      lastUpdatedAt: null,
 
   setRanking: (entries) =>
     set({ entries, lastUpdatedAt: new Date() }),
@@ -50,4 +54,21 @@ export const useRankingStore = create<RankingState>((set) => ({
   setLive: (live) => set({ isLive: live }),
 
   reset: () => set({ entries: [], isLive: false, lastUpdatedAt: null }),
-}));
+    }),
+    {
+      name: 'citygame.ranking-store',
+      version: 1,
+      storage: createJSONStorage(() => mmkvZustandStorage),
+      // `isLive` reflects current socket connectivity — never persist it.
+      partialize: (state) => ({
+        entries: state.entries,
+        lastUpdatedAt: state.lastUpdatedAt,
+      }),
+      onRehydrateStorage: () => (state) => {
+        if (state?.lastUpdatedAt && typeof state.lastUpdatedAt === 'string') {
+          state.lastUpdatedAt = new Date(state.lastUpdatedAt);
+        }
+      },
+    },
+  ),
+);

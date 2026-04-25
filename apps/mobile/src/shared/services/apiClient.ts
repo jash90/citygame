@@ -14,6 +14,18 @@ interface ApiError {
   statusCode: number;
 }
 
+/**
+ * Thrown when the request never reached the server (DNS failure, no
+ * connectivity, etc.). Callers can use `instanceof NetworkError` to skip
+ * "unauthorized" handling and instead enqueue the operation for retry.
+ */
+export class NetworkError extends Error {
+  constructor(message = 'Network request failed') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
 class ApiClient {
   private baseUrl: string;
   private onUnauthorized?: () => void;
@@ -95,11 +107,20 @@ class ApiClient {
       requestHeaders['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, {
+        method,
+        headers: requestHeaders,
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      });
+    } catch (err) {
+      // `fetch` only throws for network errors (DNS, connection refused,
+      // airplane mode). These must not trigger `onUnauthorized` — we want
+      // the user to remain logged in while offline.
+      const message = err instanceof Error ? err.message : 'Network request failed';
+      throw new NetworkError(message);
+    }
 
     if (response.status === 401 && !isRetry) {
       const refreshed = await this.tryRefreshToken();
