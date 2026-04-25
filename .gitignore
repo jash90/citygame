@@ -7,6 +7,10 @@ dist/
 *.tsbuildinfo
 bun.lock
 
+# macOS
+.DS_Store
+**/.DS_Store
+
 # Environment files (all directories)
 **/.env
 **/.env.local
