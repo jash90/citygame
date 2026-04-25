@@ -22,13 +22,22 @@ export const AudioAITaskInput = ({
 
   const handleRecordingComplete = async (audioUri: string): Promise<void> => {
     try {
-      const fileUrl = await uploadFileToR2(
+      const outcome = await uploadFileToR2(
         audioUri,
         'audio/m4a',
         `task-audio-${Date.now()}.m4a`,
         { aiStatus, uploadProgress, setAiStatus, setUploadProgress },
       );
-      await onSubmit({ transcription: fileUrl });
+
+      if (outcome.kind === 'queued') {
+        await onSubmit({
+          transcription: `offline-pending://${outcome.mediaClientId}`,
+          _dependsOn: outcome.mediaClientId,
+        } as never);
+        return;
+      }
+
+      await onSubmit({ transcription: outcome.fileUrl });
       setAiStatus('idle');
       setUploadProgress(0);
     } catch {
