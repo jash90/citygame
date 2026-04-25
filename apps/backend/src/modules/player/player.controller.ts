@@ -14,10 +14,12 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RankingService } from '../ranking/ranking.service';
 import { SubmitAnswerDto } from './dto/submit-answer.dto';
+import { SyncRequestDto } from './dto/sync-request.dto';
 import { UnlockTaskDto } from './dto/unlock-task.dto';
 import { PlayerQueryService } from './player-query.service';
 import { PlayerService } from './player.service';
 import { PlayerTaskService } from './player-task.service';
+import { SyncService } from './sync.service';
 
 @ApiTags('Player')
 @ApiBearerAuth('access-token')
@@ -29,6 +31,7 @@ export class PlayerController {
     private readonly playerTaskService: PlayerTaskService,
     private readonly playerQueryService: PlayerQueryService,
     private readonly rankingService: RankingService,
+    private readonly syncService: SyncService,
   ) {}
 
   @ApiOperation({ summary: 'Get active session for session restoration' })
@@ -116,7 +119,31 @@ export class PlayerController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() dto: SubmitAnswerDto,
   ) {
-    return this.playerTaskService.submitAnswer(gameId, taskId, user.id, dto.submission);
+    return this.playerTaskService.submitAnswer(
+      gameId,
+      taskId,
+      user.id,
+      dto.submission,
+      dto.clientSubmissionId,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Bulk-replay queued offline mutations',
+    description:
+      'Accepts a batch of submit/hint/unlock items captured while the client was offline. ' +
+      'Each item carries a `clientSubmissionId` for idempotent replay. Items are processed ' +
+      'sequentially; per-item failures do not abort the rest.',
+  })
+  @ApiParam({ name: 'gameId', description: 'Game UUID' })
+  @ApiResponse({ status: 200, description: 'Per-item sync results' })
+  @Post('api/games/:gameId/sync')
+  sync(
+    @Param('gameId') gameId: string,
+    @CurrentUser() user: CurrentUserPayload,
+    @Body() dto: SyncRequestDto,
+  ) {
+    return this.syncService.sync(gameId, user.id, dto);
   }
 
   @ApiOperation({ summary: 'Use a hint for a task' })

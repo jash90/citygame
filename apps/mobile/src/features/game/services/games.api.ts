@@ -26,8 +26,16 @@ export const gamesApi = {
     apiClient.get<GameProgress>(`/games/${gameId}/progress`),
   unlockTask: (gameId: string, taskId: string, data?: UnlockTaskPayload) =>
     apiClient.post<UnlockTaskResult>(`/games/${gameId}/tasks/${taskId}/unlock`, { unlockData: data ?? {} }),
-  submitTask: (gameId: string, taskId: string, submission: TaskSubmission) =>
-    apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/submit`, { submission }),
+  submitTask: (
+    gameId: string,
+    taskId: string,
+    submission: TaskSubmission,
+    clientSubmissionId?: string,
+  ) =>
+    apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/submit`, {
+      submission,
+      clientSubmissionId,
+    }),
   devComplete: (gameId: string, taskId: string) =>
     apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/dev-complete`),
   useHint: (gameId: string, taskId: string) =>

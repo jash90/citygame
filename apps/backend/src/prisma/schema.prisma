@@ -139,11 +139,13 @@ model Hint {
 }
 
 model HintUsage {
-  id        String      @id @default(uuid())
-  hintId    String
-  userId    String
-  sessionId String
-  usedAt    DateTime    @default(now())
+  id                  String      @id @default(uuid())
+  hintId              String
+  userId              String
+  sessionId           String
+  usedAt              DateTime    @default(now())
+  /// Client-generated UUID used to make `useHint` idempotent across offline → sync replays.
+  clientSubmissionId  String?     @unique
 
   hint    Hint        @relation(fields: [hintId], references: [id])
   user    User        @relation(fields: [userId], references: [id])
@@ -239,6 +241,8 @@ model TaskAttempt {
   pointsAwarded Int           @default(0)
   timeTakenSec  Int?
   createdAt     DateTime      @default(now())
+  /// Client-generated UUID used to make `submitAnswer` idempotent across offline → sync replays.
+  clientSubmissionId String? @unique
 
   session GameSession @relation(fields: [sessionId], references: [id])
   task    Task        @relation(fields: [taskId], references: [id])
