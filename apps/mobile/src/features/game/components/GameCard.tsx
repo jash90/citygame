@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { DownloadForOfflineButton } from '@/features/offline/components/DownloadForOfflineButton';
 import type { Game } from '@/shared/types/api.types';
 
 interface GameCardProps {
@@ -141,6 +142,11 @@ export const GameCard = ({
           </View>
           {renderActionButton()}
         </View>
+        {/* Offline download CTA — shown for any joinable/active game so the
+            player can prep before going into the field. */}
+        {!isExpired && (isRunning || hasActiveSession) ? (
+          <DownloadForOfflineButton gameId={game.id} compact />
+        ) : null}
       </View>
     </View>
   );

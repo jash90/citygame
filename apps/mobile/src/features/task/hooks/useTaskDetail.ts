@@ -138,12 +138,42 @@ export function useTaskDetail({
   const handleSubmit = async (submission: TaskSubmission): Promise<void> => {
     if (!task || !gameId) return;
     try {
-      const attempt = await submitMutation.mutateAsync({
+      const result = await submitMutation.mutateAsync({
         gameId,
         taskId: task.id,
         submission,
       });
 
+      // Offline path: when we have a local verdict (QR/GPS/TEXT/CIPHER) we
+      // can render a CORRECT/INCORRECT result identical to the online flow;
+      // for AI tasks we fall back to a "queued for verification" message.
+      if (result.queued) {
+        hasNavigatedRef.current = true;
+        const verdict = result.localVerdict;
+        const isLocalSuccess =
+          verdict?.status === 'CORRECT' || verdict?.status === 'PARTIAL';
+        if (isLocalSuccess && storyContext?.clueRevealed) {
+          addClue(storyContext.clueRevealed);
+        }
+        router.push({
+          pathname: '/(modals)/task-result' as never,
+          params: {
+            success: isLocalSuccess ? '1' : '0',
+            points: '0',
+            feedback:
+              verdict?.feedback ??
+              'Brak połączenia — odpowiedź została zapisana i zostanie zweryfikowana po wejściu online.',
+            clue:
+              isLocalSuccess && storyContext?.clueRevealed
+                ? storyContext.clueRevealed
+                : '',
+            queued: '1',
+          },
+        });
+        return;
+      }
+
+      const attempt = result.attempt;
       const isSuccess =
         attempt.status === 'CORRECT' || attempt.status === 'PARTIAL';
 
