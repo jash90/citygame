@@ -33,7 +33,7 @@ const EmptyState = (): React.JSX.Element => (
 );
 
 export default function RankingScreen(): React.JSX.Element {
-  const { entries, isLive, setRanking } = useRankingStore();
+  const { entries, isLive, lastUpdatedAt, setRanking } = useRankingStore();
   const { currentGame, currentSession } = useGameStore();
   const { user } = useAuthStore();
   const gameId = currentGame?.id ?? '';
@@ -78,7 +78,10 @@ export default function RankingScreen(): React.JSX.Element {
           <Text className="text-2xl font-extrabold text-secondary">
             Ranking
           </Text>
-          <LiveIndicator isLive={isLive && isConnected} />
+          <LiveIndicator
+            isLive={isLive && isConnected}
+            lastUpdatedAt={lastUpdatedAt}
+          />
         </View>
         {currentSession ? (
           <Text className="text-xs text-gray-500 mt-0.5">
