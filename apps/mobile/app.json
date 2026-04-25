@@ -55,6 +55,12 @@
       ],
       [
         "expo-secure-store"
+      ],
+      [
+        "@maplibre/maplibre-react-native",
+        {
+          "android": { "nativeVariant": "opengl" }
+        }
       ]
     ],
     "experiments": {

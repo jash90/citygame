@@ -1,6 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { Platform, View } from 'react-native';
-import { Marker } from 'react-native-maps';
+import { MarkerView } from '@maplibre/maplibre-react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Task } from '@/shared/types/api.types';
 
@@ -35,25 +35,17 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
   const pinColor = STATUS_COLORS[task.status];
   const icon = TASK_TYPE_ICONS[task.type] ?? 'location';
 
-  // On Android, custom marker views need at least one render pass with
-  // tracksViewChanges=true before they can be frozen. We flip the flag
-  // after the view has been laid out to avoid the "invisible pin" bug.
-  const [rendered, setRendered] = useState(Platform.OS !== 'android');
-  const handleLayout = useCallback(() => {
-    if (!rendered) setRendered(true);
-  }, [rendered]);
-
   return (
-    <Marker
-      coordinate={{
-        latitude: task.location.lat,
-        longitude: task.location.lng,
-      }}
-      onPress={() => onPress?.(task)}
-      tracksViewChanges={!rendered}
+    <MarkerView
+      id={`task-${task.id}`}
+      coordinate={[task.location.lng, task.location.lat]}
       anchor={{ x: 0.5, y: 1 }}
     >
-      <View style={{ alignItems: 'center' }} onLayout={handleLayout}>
+      {/* MarkerView passes touches through; wrap content in a Pressable-equivalent */}
+      <View
+        style={{ alignItems: 'center' }}
+        onTouchEnd={() => onPress?.(task)}
+      >
         <View
           style={{
             width: 40,
@@ -89,6 +81,6 @@ export const TaskPin = ({ task, onPress }: TaskPinProps): React.JSX.Element | nu
           }}
         />
       </View>
-    </Marker>
+    </MarkerView>
   );
 };

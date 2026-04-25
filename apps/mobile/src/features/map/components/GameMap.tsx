@@ -1,10 +1,30 @@
-import React, { useRef, useImperativeHandle, forwardRef, useEffect } from 'react';
+import React, { useImperativeHandle, useRef, forwardRef, useCallback, useEffect } from 'react';
 import { Platform, View, StyleSheet as RNStyleSheet } from 'react-native';
-import MapView, { Marker, Circle, type Region } from 'react-native-maps';
+import {
+  MapView,
+  Camera,
+  MarkerView,
+  type CameraRef,
+  type MapViewRef,
+} from '@maplibre/maplibre-react-native';
 import { useLocationStore } from '@/features/map/stores/locationStore';
+import { MAP_STYLE_URL } from '@/shared/lib/constants';
+
+/**
+ * Public API matches the previous react-native-maps GameMap:
+ *  - `initialRegion`-equivalent via `initialCenter`/`initialZoom`
+ *  - `centerOnUser` imperative ref method
+ *  - `onMapPress` callback
+ *  - User location dot rendered as a `Camera`-tracked overlay
+ *  - Auto-recenter when the player drifts off the visible bounds (throttled)
+ *
+ * Switching from Google/Apple to MapLibre is what unlocks offline play —
+ * see `mapPackManager.ts` for downloading tile packs for a city.
+ */
 
 interface GameMapProps {
-  initialRegion?: Region;
+  initialCenter?: [number, number]; // [lng, lat]
+  initialZoom?: number;
   children?: React.ReactNode;
   onMapPress?: (coordinate: { latitude: number; longitude: number }) => void;
 }
@@ -13,96 +33,50 @@ export interface GameMapHandle {
   centerOnUser: () => void;
 }
 
-const DEFAULT_REGION: Region = {
-  latitude: 49.8685,
-  longitude: 21.7877,
-  latitudeDelta: 0.02,
-  longitudeDelta: 0.02,
-};
-
-const MAP_STYLE = [
-  {
-    featureType: 'poi',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'transit',
-    elementType: 'labels',
-    stylers: [{ visibility: 'simplified' }],
-  },
-];
+const DEFAULT_CENTER: [number, number] = [21.7877, 49.8685]; // Strzyżów
+const DEFAULT_ZOOM = 14;
 
 export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
-  ({ initialRegion, children, onMapPress }, ref) => {
-    const mapRef = useRef<MapView>(null);
+  ({ initialCenter, initialZoom, children, onMapPress }, ref) => {
+    const mapRef = useRef<MapViewRef>(null);
+    const cameraRef = useRef<CameraRef>(null);
     const isMapReady = useRef(false);
-    const { location, accuracy } = useLocationStore();
+    const lastRecenterAtRef = useRef(0);
 
-    const mapRegion: Region = location
-      ? {
-          latitude: location.lat,
-          longitude: location.lng,
-          latitudeDelta: initialRegion?.latitudeDelta ?? 0.01,
-          longitudeDelta: initialRegion?.longitudeDelta ?? 0.01,
-        }
-      : (initialRegion ?? DEFAULT_REGION);
+    const { location } = useLocationStore();
+
+    const center = location ? [location.lng, location.lat] : (initialCenter ?? DEFAULT_CENTER);
 
     useImperativeHandle(ref, () => ({
       centerOnUser: () => {
         const loc = useLocationStore.getState().location;
-        if (!loc || !mapRef.current) return;
-        mapRef.current.animateToRegion(
-          {
-            latitude: loc.lat,
-            longitude: loc.lng,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          },
-          300,
-        );
+        if (!loc || !cameraRef.current) return;
+        cameraRef.current.flyTo([loc.lng, loc.lat], 300);
       },
     }));
 
-    // Keep the user dot on-screen. Two triggers:
-    //  1. Location change — re-center if the player has drifted off-screen.
-    //  2. Manual pan (onRegionChangeComplete) — if the user dragged the dot
-    //     out of view, snap back after a brief delay.
-    // getMapBoundaries() throws before the native AIRMap view is attached, so
-    // it's guarded by isMapReady + a swallowed catch.
-    const lastRecenterAtRef = useRef(0);
-
-    const ensureUserVisible = React.useCallback(async (): Promise<void> => {
+    const ensureUserVisible = useCallback(async (): Promise<void> => {
       const map = mapRef.current;
+      const camera = cameraRef.current;
       const loc = useLocationStore.getState().location;
-      if (!map || !loc || !isMapReady.current) return;
+      if (!map || !camera || !loc || !isMapReady.current) return;
 
-      let bounds: Awaited<ReturnType<typeof map.getMapBoundaries>>;
+      let bounds: Awaited<ReturnType<typeof map.getVisibleBounds>>;
       try {
-        bounds = await map.getMapBoundaries();
+        bounds = await map.getVisibleBounds();
       } catch {
         return;
       }
-      const { northEast, southWest } = bounds;
+      // bounds is [northEast, southWest] as [lng, lat]
+      const [ne, sw] = bounds;
       const outside =
-        loc.lat > northEast.latitude ||
-        loc.lat < southWest.latitude ||
-        loc.lng > northEast.longitude ||
-        loc.lng < southWest.longitude;
+        loc.lat > ne[1] || loc.lat < sw[1] || loc.lng > ne[0] || loc.lng < sw[0];
       if (!outside) return;
 
       const now = Date.now();
       if (now - lastRecenterAtRef.current < 500) return;
       lastRecenterAtRef.current = now;
-      map.animateToRegion(
-        {
-          latitude: loc.lat,
-          longitude: loc.lng,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        500,
-      );
+      camera.flyTo([loc.lng, loc.lat], 500);
     }, []);
 
     useEffect(() => {
@@ -114,60 +88,61 @@ export const GameMap = forwardRef<GameMapHandle, GameMapProps>(
         <MapView
           ref={mapRef}
           style={RNStyleSheet.absoluteFillObject}
-          initialRegion={mapRegion}
-          customMapStyle={MAP_STYLE}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          showsCompass={false}
-          onMapReady={() => {
+          mapStyle={MAP_STYLE_URL}
+          logoEnabled={false}
+          attributionEnabled
+          compassEnabled={false}
+          onDidFinishLoadingMap={() => {
             isMapReady.current = true;
           }}
-          onRegionChangeComplete={() => {
+          onRegionDidChange={() => {
             void ensureUserVisible();
           }}
-          onPress={(e) => onMapPress?.(e.nativeEvent.coordinate)}
+          onPress={(feature) => {
+            if (!onMapPress) return;
+            const coords = (feature.geometry as GeoJSON.Point).coordinates;
+            onMapPress({ latitude: coords[1], longitude: coords[0] });
+          }}
         >
+          <Camera
+            ref={cameraRef}
+            defaultSettings={{
+              centerCoordinate: center,
+              zoomLevel: initialZoom ?? DEFAULT_ZOOM,
+            }}
+            animationMode="flyTo"
+          />
           {location ? (
-            <>
-              <Marker
-                coordinate={{ latitude: location.lat, longitude: location.lng }}
-                anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={Platform.OS === 'android'}
-              >
-                <View
-                  style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 8,
-                    backgroundColor: '#FF6B35',
-                    borderWidth: 2,
-                    borderColor: '#FFFFFF',
-                    ...(Platform.OS === 'ios'
-                      ? {
-                          shadowColor: '#000',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.1,
-                          shadowRadius: 2,
-                        }
-                      : { elevation: 2 }),
-                  }}
-                />
-              </Marker>
-              {accuracy && accuracy > 0 ? (
-                <Circle
-                  center={{ latitude: location.lat, longitude: location.lng }}
-                  radius={accuracy}
-                  fillColor="rgba(255,107,53,0.1)"
-                  strokeColor="rgba(255,107,53,0.3)"
-                  strokeWidth={1}
-                />
-              ) : null}
-            </>
+            <MarkerView
+              id="player-position"
+              coordinate={[location.lng, location.lat]}
+              anchor={{ x: 0.5, y: 0.5 }}
+            >
+              <View
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: '#FF6B35',
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                  ...(Platform.OS === 'ios'
+                    ? {
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 2,
+                      }
+                    : { elevation: 2 }),
+                }}
+              />
+            </MarkerView>
           ) : null}
-
           {children}
         </MapView>
       </View>
     );
   },
 );
+
+GameMap.displayName = 'GameMap';
