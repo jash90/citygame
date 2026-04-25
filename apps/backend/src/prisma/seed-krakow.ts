@@ -1,5 +1,5 @@
 import { PrismaClient, GameStatus, TaskType, UnlockMethod } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { buildAnswerHashes } from '../common/utils/offline-hash';
 import { cleanGames } from './seed-utils';
 
 const sc = (ctx: Record<string, string>): string => JSON.stringify(ctx);
@@ -24,9 +24,9 @@ export async function seedKrakowGame(
 ) {
   await cleanGames(prisma, ['Śladami Historii Krakowa']);
 
-  const [zygmuntHash, zapiekankaHash] = await Promise.all([
-    bcrypt.hash('zygmunt', 10),
-    bcrypt.hash('zapiekanka', 10),
+  const [zygmuntHashes, zapiekankaHashes] = await Promise.all([
+    buildAnswerHashes('zygmunt'),
+    buildAnswerHashes('zapiekanka'),
   ]);
 
   const game = await prisma.game.create({
@@ -94,7 +94,7 @@ export async function seedKrakowGame(
             latitude: 50.0543,
             longitude: 19.9356,
             unlockConfig: { radiusMeters: 60, targetLat: 50.0543, targetLng: 19.9356 },
-            verifyConfig: { answerHash: zygmuntHash },
+            verifyConfig: { ...zygmuntHashes },
             maxPoints: 80,
             timeLimitSec: null,
             storyContext: sc({
@@ -227,7 +227,7 @@ export async function seedKrakowGame(
             latitude: 50.051,
             longitude: 19.9455,
             unlockConfig: { radiusMeters: 70, targetLat: 50.051, targetLng: 19.9455 },
-            verifyConfig: { answerHash: zapiekankaHash },
+            verifyConfig: { ...zapiekankaHashes },
             maxPoints: 70,
             timeLimitSec: null,
             storyContext: sc({

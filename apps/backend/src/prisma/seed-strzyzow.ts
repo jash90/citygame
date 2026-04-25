@@ -1,5 +1,5 @@
 import { PrismaClient, GameStatus, TaskType, UnlockMethod } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { buildAnswerHashes } from '../common/utils/offline-hash';
 import { cleanGames } from './seed-utils';
 
 /**
@@ -23,9 +23,9 @@ export async function seedStrzyzowGame(
 
   const sc = (ctx: Record<string, string>): string => JSON.stringify(ctx);
 
-  const [wislokHash, synagogaHash] = await Promise.all([
-    bcrypt.hash('wisłok', 10),
-    bcrypt.hash('synagoga', 10),
+  const [wislokHashes, synagogaHashes] = await Promise.all([
+    buildAnswerHashes('wisłok'),
+    buildAnswerHashes('synagoga'),
   ]);
 
   const strzyzowGame = await prisma.game.create({
@@ -196,7 +196,7 @@ export async function seedStrzyzowGame(
             latitude: 49.8672,
             longitude: 21.7926,
             unlockConfig: { radiusMeters: 70, targetLat: 49.8672, targetLng: 21.7926 },
-            verifyConfig: { answerHash: wislokHash },
+            verifyConfig: { ...wislokHashes },
             maxPoints: 70,
             timeLimitSec: null,
             storyContext: sc({
@@ -262,7 +262,7 @@ export async function seedStrzyzowGame(
             latitude: 49.8693,
             longitude: 21.7866,
             unlockConfig: { radiusMeters: 60, targetLat: 49.8693, targetLng: 21.7866 },
-            verifyConfig: { answerHash: synagogaHash },
+            verifyConfig: { ...synagogaHashes },
             maxPoints: 80,
             timeLimitSec: null,
             storyContext: sc({
