@@ -1,5 +1,5 @@
 import { PrismaClient, GameStatus, TaskType, UnlockMethod } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { buildAnswerHashes } from '../common/utils/offline-hash';
 import { cleanGames } from './seed-utils';
 
 const sc = (ctx: Record<string, string>): string => JSON.stringify(ctx);
@@ -21,8 +21,8 @@ const sc = (ctx: Record<string, string>): string => JSON.stringify(ctx);
 export async function seedNarrativeGame(prisma: PrismaClient, adminId: string) {
   await cleanGames(prisma, ['Zagubiony Rękopis Kronikarza']);
 
-  const [rekopisHash] = await Promise.all([
-    bcrypt.hash('wisłok', 10),
+  const [rekopisHashes] = await Promise.all([
+    buildAnswerHashes('wisłok'),
   ]);
 
   const narrativeGame = await prisma.game.create({
@@ -237,7 +237,7 @@ export async function seedNarrativeGame(prisma: PrismaClient, adminId: string) {
             longitude: 21.8005,
             unlockConfig: { radiusMeters: 100, targetLat: 49.8644, targetLng: 21.8005 },
             verifyConfig: {
-              answerHash: rekopisHash,
+              ...rekopisHashes,
               cipherHint: 'Przeczytaj pierwsze litery każdej z sześciu wskazówek kronikarza — w tej kolejności, w jakiej pojawiały się w grze.',
             },
             maxPoints: 150,

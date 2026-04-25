@@ -7,6 +7,7 @@ import { GameRunActivityService } from './game-run-activity.service';
 import { GameRunService } from './game-run.service';
 import { GameService } from './game.service';
 import { GameStatusService } from './game-status.service';
+import { OfflineBundleService } from './offline-bundle.service';
 import { PlayerGameController } from './player-game.controller';
 
 @Module({
@@ -19,6 +20,7 @@ import { PlayerGameController } from './player-game.controller';
     GameRunActivityService,
     GameAnalyticsService,
     GameExpiryService,
+    OfflineBundleService,
   ],
   exports: [GameService, GameRunService, GameAnalyticsService],
 })
