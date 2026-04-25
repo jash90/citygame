@@ -64,6 +64,13 @@ export const WebSocketProvider = ({
     socket.on('connect', () => {
       setIsConnected(true);
       setLive(true);
+      // Re-emit join-game on every (re)connect so post-disconnect ranking
+      // hydration always lands. The downstream `ranking:snapshot` handler
+      // refreshes the persisted last-known entries.
+      const reconnectGameId = useGameStore.getState().currentGame?.id ?? null;
+      if (reconnectGameId) {
+        socket.emit('join-game', { gameId: reconnectGameId });
+      }
     });
 
     socket.on('disconnect', () => {

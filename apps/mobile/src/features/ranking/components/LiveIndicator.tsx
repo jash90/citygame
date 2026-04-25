@@ -3,9 +3,18 @@ import { View, Text, Animated } from 'react-native';
 
 interface LiveIndicatorProps {
   isLive: boolean;
+  /** Wall-clock of the last successful ranking snapshot — shown as "od HH:MM" while disconnected. */
+  lastUpdatedAt?: Date | null;
 }
 
-export const LiveIndicator = ({ isLive }: LiveIndicatorProps): React.JSX.Element => {
+function formatHHMM(date: Date): string {
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+export const LiveIndicator = ({
+  isLive,
+  lastUpdatedAt,
+}: LiveIndicatorProps): React.JSX.Element => {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -33,6 +42,10 @@ export const LiveIndicator = ({ isLive }: LiveIndicatorProps): React.JSX.Element
     return () => animation.stop();
   }, [isLive, pulseAnim]);
 
+  const offlineLabel = lastUpdatedAt
+    ? `Ostatnio: ${formatHHMM(lastUpdatedAt)}`
+    : 'Rozłączono';
+
   return (
     <View className="flex-row items-center gap-1.5">
       <Animated.View
@@ -47,7 +60,7 @@ export const LiveIndicator = ({ isLive }: LiveIndicatorProps): React.JSX.Element
       <Text
         className={`text-xs font-semibold ${isLive ? 'text-green-700' : 'text-gray-400'}`}
       >
-        {isLive ? 'Na żywo' : 'Rozłączono'}
+        {isLive ? 'Na żywo' : offlineLabel}
       </Text>
     </View>
   );
