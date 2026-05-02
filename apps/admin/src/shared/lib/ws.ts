@@ -1,6 +1,15 @@
 import { io, type Socket } from 'socket.io-client';
 
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+// WebSocket connects directly to the backend host (NOT via Next.js rewrite),
+// because Vercel cannot proxy WS upgrades to an external host. Falls back to
+// NEXT_PUBLIC_API_URL, then relative URL (which works only when admin and
+// backend share an origin, e.g. local dev with the backend on a tunnel).
+const WS_URL =
+  process.env.NEXT_PUBLIC_WS_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '';
+
+// In dev, WS_URL stays relative so Next.js rewrites proxy /socket.io to the
+// local backend (rewrites work for WS upgrades in `next dev`, just not on
+// Vercel's serverless production runtime).
 
 let rankingSocket: Socket | null = null;
 let currentWsToken: string | null = null;
@@ -12,8 +21,10 @@ let currentWsToken: string | null = null;
  */
 async function fetchWsToken(): Promise<string | null> {
   try {
-    // Trigger a refresh if needed — the cookie is sent automatically
-    const res = await fetch(`${WS_URL}/api/auth/refresh`, {
+    // Refresh always goes through the admin proxy (relative URL) so the
+    // first-party httpOnly cookie is included, regardless of where the WS
+    // ultimately connects.
+    const res = await fetch(`/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

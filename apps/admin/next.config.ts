@@ -7,7 +7,9 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: '/api/:path*', destination: `${backendUrl}/api/:path*` },
-      { source: '/socket.io/:path*', destination: `${backendUrl}/socket.io/:path*` },
+      // NOTE: Socket.IO is NOT proxied here. Vercel's production rewrites can't
+      // forward WebSocket upgrade frames to an external host (they return 308).
+      // The browser connects to the WS host directly via NEXT_PUBLIC_WS_URL.
     ];
   },
 };
