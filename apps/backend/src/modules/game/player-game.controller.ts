@@ -57,4 +57,21 @@ export class PlayerGameController {
   getOfflineBundle(@Param('id', ParseUUIDPipe) id: string) {
     return this.offlineBundleService.buildBundle(id);
   }
+
+  @ApiOperation({
+    summary: 'Get only the bundleVersion for a published game',
+    description:
+      'Lightweight freshness check. Clients with a cached offline bundle compare ' +
+      'the returned `bundleVersion` against their stored copy and re-download only ' +
+      'when it has changed.',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiResponse({ status: 200, description: 'Current bundleVersion timestamp' })
+  @ApiResponse({ status: 404, description: 'Game not found or not published' })
+  @Get('api/games/:id/offline-bundle/version')
+  getOfflineBundleVersion(@Param('id', ParseUUIDPipe) id: string) {
+    return this.offlineBundleService.buildBundleVersion(id);
+  }
 }
