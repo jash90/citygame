@@ -4,7 +4,7 @@
     "slug": "citygame",
     "owner": "jash",
     "scheme": "citygame",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -41,6 +41,14 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Aplikacja wymaga dostępu do mikrofonu, aby nagrywać odpowiedzi audio do zadań."
+        }
+      ],
       [
         "expo-camera",
         {
