@@ -48,11 +48,18 @@ export function getAllowedOrigins(
  * Check whether a request origin matches the allowed origin patterns.
  * Supports exact string matches and *.domain.tld wildcard patterns
  * (restricted to subdomains starting with "citygame" for safety).
+ *
+ * In non-production, also allows private RFC 1918 LAN origins so admins can
+ * test the dev server from a phone on the same Wi-Fi network.
  */
 export function matchesOrigin(
   origin: string,
   getEnv: (key: string) => string | undefined,
 ): boolean {
+  if (getEnv('NODE_ENV') !== 'production' && isPrivateLanOrigin(origin)) {
+    return true;
+  }
+
   const allowedOrigins = getAllowedOrigins(getEnv);
   return allowedOrigins.some((pattern) => {
     if (pattern.startsWith('*.')) {
@@ -67,4 +74,23 @@ export function matchesOrigin(
     }
     return pattern === origin;
   });
+}
+
+const PRIVATE_172 = /^172\.(\d{1,3})\.\d{1,3}\.\d{1,3}$/;
+
+function isPrivateLanOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+    if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+    if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+    const match = hostname.match(PRIVATE_172);
+    if (match) {
+      const second = Number(match[1]);
+      if (second >= 16 && second <= 31) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
