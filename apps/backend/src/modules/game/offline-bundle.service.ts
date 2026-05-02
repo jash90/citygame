@@ -75,9 +75,31 @@ const AI_TYPES = new Set<TaskType>([
   TaskType.AUDIO_AI,
 ]);
 
+export interface OfflineBundleVersion {
+  bundleVersion: number;
+}
+
 @Injectable()
 export class OfflineBundleService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Lightweight freshness check — returns just the `bundleVersion` so a client
+   * with a cached bundle can decide whether to re-download without paying for
+   * the full task/hint/media payload.
+   */
+  async buildBundleVersion(gameId: string): Promise<OfflineBundleVersion> {
+    const game = await this.prisma.game.findFirst({
+      where: { id: gameId, status: GameStatus.PUBLISHED },
+      select: { updatedAt: true },
+    });
+
+    if (!game) {
+      throw new NotFoundException(`Game ${gameId} not found or not published`);
+    }
+
+    return { bundleVersion: game.updatedAt.getTime() };
+  }
 
   async buildBundle(gameId: string): Promise<OfflineBundle> {
     const game = await this.prisma.game.findFirst({
