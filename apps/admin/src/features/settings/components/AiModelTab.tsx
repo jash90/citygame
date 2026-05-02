@@ -102,8 +102,8 @@ export function AiModelTab() {
       </div>
 
       {/* Search & filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-3">
+        <div className="relative flex-1 min-w-[180px]">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
