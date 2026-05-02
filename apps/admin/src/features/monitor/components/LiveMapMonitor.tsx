@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Plus, Minus, Crosshair, X } from 'lucide-react';
+import { Plus, Minus, Crosshair, X, Maximize2 } from 'lucide-react';
 
 const taskIcon = new L.DivIcon({
   className: '',
@@ -57,7 +57,17 @@ interface LiveMapMonitorProps {
 
 const FOLLOW_ZOOM = 18;
 
-function FitBounds({
+function fitToPoints(map: L.Map, tasks: TaskLocation[], players: PlayerLocation[]): boolean {
+  const points: L.LatLngExpression[] = [
+    ...tasks.map((t) => [t.latitude, t.longitude] as L.LatLngTuple),
+    ...players.map((p) => [p.latitude, p.longitude] as L.LatLngTuple),
+  ];
+  if (points.length === 0) return false;
+  map.fitBounds(L.latLngBounds(points), { padding: [30, 30], maxZoom: 17 });
+  return true;
+}
+
+function InitialFitBounds({
   tasks,
   players,
   enabled,
@@ -67,16 +77,17 @@ function FitBounds({
   enabled: boolean;
 }) {
   const map = useMap();
+  const didFit = useRef(false);
 
   useEffect(() => {
-    if (!enabled) return;
-    const points: L.LatLngExpression[] = [
-      ...tasks.map((t) => [t.latitude, t.longitude] as L.LatLngTuple),
-      ...players.map((p) => [p.latitude, p.longitude] as L.LatLngTuple),
-    ];
-    if (points.length === 0) return;
-    const bounds = L.latLngBounds(points);
-    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
+    if (!enabled) {
+      didFit.current = false;
+      return;
+    }
+    if (didFit.current) return;
+    if (fitToPoints(map, tasks, players)) {
+      didFit.current = true;
+    }
   }, [tasks, players, map, enabled]);
 
   return null;
@@ -116,9 +127,13 @@ function FollowPlayer({ player }: { player: PlayerLocation | null }) {
 function ZoomControls({
   followingId,
   onClearFollow,
+  tasks,
+  players,
 }: {
   followingId: string | null;
   onClearFollow: () => void;
+  tasks: TaskLocation[];
+  players: PlayerLocation[];
 }) {
   const map = useMap();
 
@@ -139,6 +154,15 @@ function ZoomControls({
         className="w-9 h-9 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 text-gray-700"
       >
         <Minus size={16} />
+      </button>
+      <button
+        type="button"
+        aria-label="Pokaż wszystko"
+        title="Pokaż wszystkie punkty"
+        onClick={() => fitToPoints(map, tasks, players)}
+        className="w-9 h-9 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 text-gray-700"
+      >
+        <Maximize2 size={14} />
       </button>
       {followingId && (
         <button
@@ -212,11 +236,13 @@ export function LiveMapMonitor({ tasks, players }: LiveMapMonitorProps) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <FitBounds tasks={tasks} players={players} enabled={!followingId} />
+        <InitialFitBounds tasks={tasks} players={players} enabled={!followingId} />
         <FollowPlayer player={followedPlayer} />
         <ZoomControls
           followingId={followingId}
           onClearFollow={() => setFollowingId(null)}
+          tasks={tasks}
+          players={players}
         />
 
         {tasks.map((task) => (
