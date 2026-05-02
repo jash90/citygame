@@ -8,9 +8,14 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY tsconfig.base.json ./
 
-# Copy only the package.json files needed for install
+# Copy all workspace package.json files so bun.lock matches the workspace
+# topology. Missing siblings cause `bun install --frozen-lockfile` to
+# reject the (otherwise valid) lockfile.
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/admin/package.json ./apps/admin/
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/landing/package.json ./apps/landing/
+COPY apps/mobile/package.json ./apps/mobile/
 
 # Install all dependencies (dev included for build step). Bun runs lifecycle
 # scripts only for packages listed under `trustedDependencies` in package.json.
