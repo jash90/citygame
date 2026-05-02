@@ -41,6 +41,14 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+      "expo-asset",
+      "expo-font",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Aplikacja wymaga dostępu do mikrofonu, aby nagrywać odpowiedzi audio do zadań."
+        }
+      ],
       [
         "expo-camera",
         {
