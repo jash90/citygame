@@ -3,19 +3,31 @@ import { matchesOrigin, getAllowedOrigins } from './cors';
 const envFromRecord = (env: Record<string, string | undefined>) =>
   (key: string) => env[key];
 
+const LOOPBACK_DEV = [
+  'http://localhost:3000',
+  'http://localhost:3002',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3002',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://localhost:8081',
+  'http://127.0.0.1:8081',
+];
+
 describe('CORS utils', () => {
   describe('getAllowedOrigins', () => {
-    it('parses comma-separated origins', () => {
+    it('parses comma-separated origins and appends loopback dev defaults', () => {
       const getEnv = envFromRecord({ CORS_ORIGIN: 'http://a.com, http://b.com' });
-      expect(getAllowedOrigins(getEnv)).toEqual(['http://a.com', 'http://b.com']);
+      expect(getAllowedOrigins(getEnv)).toEqual([
+        'http://a.com',
+        'http://b.com',
+        ...LOOPBACK_DEV,
+      ]);
     });
 
-    it('returns defaults when env is unset', () => {
+    it('returns loopback dev defaults when env is unset', () => {
       const getEnv = envFromRecord({});
-      expect(getAllowedOrigins(getEnv)).toEqual([
-        'http://localhost:3000',
-        'http://localhost:3002',
-      ]);
+      expect(getAllowedOrigins(getEnv)).toEqual(LOOPBACK_DEV);
     });
 
     it('includes vercel wildcard in production', () => {

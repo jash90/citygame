@@ -19,14 +19,9 @@ function gameDirFor(gameId: string): string {
 
 /** Strip query strings + path so the local filename mirrors the remote basename. */
 function localNameFor(url: string): string {
-  try {
-    const u = new URL(url);
-    const last = u.pathname.split('/').pop();
-    if (last && last.length > 0) return last;
-  } catch {
-    // fall through to hash-based naming
-  }
-  // Fallback: stable name derived from the URL itself.
+  const withoutQuery = url.split('?')[0].split('#')[0];
+  const last = withoutQuery.split('/').pop();
+  if (last && last.length > 0) return last;
   return url.replace(/[^a-zA-Z0-9.-]+/g, '_').slice(-80);
 }
 
