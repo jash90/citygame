@@ -190,4 +190,28 @@ describe('OfflineBundleService', () => {
       status: 'ACTIVE',
     });
   });
+
+  it('exposes bundleVersion derived from game.updatedAt', async () => {
+    const version = await service.buildBundleVersion('game-1');
+    expect(version.bundleVersion).toBe(mockGame.updatedAt.getTime());
+  });
+
+  it('throws NotFoundException for an unknown or unpublished game', async () => {
+    const moduleRef: TestingModule = await Test.createTestingModule({
+      providers: [
+        OfflineBundleService,
+        {
+          provide: PrismaService,
+          useValue: {
+            game: { findFirst: jest.fn().mockResolvedValue(null) },
+          },
+        },
+      ],
+    }).compile();
+    const isolated = moduleRef.get(OfflineBundleService);
+
+    await expect(isolated.buildBundleVersion('missing')).rejects.toThrow(
+      'Game missing not found or not published',
+    );
+  });
 });

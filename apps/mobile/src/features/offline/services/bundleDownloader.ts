@@ -112,6 +112,36 @@ export async function downloadOfflineBundle(
   });
 }
 
+/**
+ * Compare the cached bundle's `bundleVersion` against the server. If the server
+ * has a newer version, transparently re-run `downloadOfflineBundle` so the
+ * client always plays against the latest task definitions and answer hashes.
+ *
+ * Returns `'fresh'` when nothing needed to change, `'refreshed'` when a
+ * re-download was kicked off and completed, `'skipped'` when there is no
+ * stored bundle to refresh, and `'error'` if the version probe failed (the
+ * cached bundle is left untouched in that case so play stays offline-capable).
+ */
+export async function checkBundleFreshness(
+  gameId: string,
+): Promise<'fresh' | 'refreshed' | 'skipped' | 'error'> {
+  const stored = useOfflineBundleStore.getState().bundles[gameId];
+  if (!stored || stored.status.kind !== 'ready') return 'skipped';
+
+  let serverVersion: number;
+  try {
+    const { bundleVersion } = await offlineApi.bundleVersion(gameId);
+    serverVersion = bundleVersion;
+  } catch {
+    return 'error';
+  }
+
+  if (serverVersion === stored.bundle.bundleVersion) return 'fresh';
+
+  await downloadOfflineBundle(gameId);
+  return 'refreshed';
+}
+
 /** Wipe the on-disk media + map pack for a downloaded bundle and clear the store entry. */
 export async function deleteOfflineBundle(gameId: string): Promise<void> {
   const dir = gameDirFor(gameId);
