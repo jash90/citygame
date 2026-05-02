@@ -128,16 +128,17 @@ export default function MonitorPage() {
     <div className="flex flex-col gap-4 h-full">
       {/* Top bar */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             href={`/games/${gameId}`}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+            className="flex items-center gap-1 sm:gap-2 text-sm text-gray-500 hover:text-gray-800 transition-colors shrink-0"
+            aria-label="Wróć do gry"
           >
             <ArrowLeft size={16} />
-            Wróć do gry
+            <span className="hidden sm:inline">Wróć do gry</span>
           </Link>
-          <span className="text-gray-300">/</span>
-          <h2 className="text-lg font-bold text-gray-900">Monitoring live</h2>
+          <span className="text-gray-300 hidden sm:inline">/</span>
+          <h2 className="text-base sm:text-lg font-bold text-gray-900 truncate">Monitoring live</h2>
         </div>
       </div>
 
@@ -150,10 +151,10 @@ export default function MonitorPage() {
         connectionStatus={connectionStatus}
       />
 
-      {/* Main content: 60/40 split */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      {/* Main content: 60/40 split (stacks on mobile) */}
+      <div className="flex flex-col md:flex-row gap-4 flex-1 min-h-0">
         {/* Left — Activity feed (60%) */}
-        <div className="flex-[3] bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden min-h-[500px]">
+        <div className="md:flex-[3] bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden min-h-[400px] md:min-h-[500px]">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
             <Activity size={15} className="text-[#FF6B35]" />
             <span className="text-sm font-semibold text-gray-700">Aktywność graczy</span>
@@ -167,7 +168,7 @@ export default function MonitorPage() {
         </div>
 
         {/* Right column (40%) — Task progress + AI errors */}
-        <div className="flex-[2] flex flex-col gap-4 min-w-0">
+        <div className="md:flex-[2] flex flex-col gap-4 min-w-0">
           {/* Task progress bars */}
           <div className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-shrink-0">
@@ -219,7 +220,7 @@ export default function MonitorPage() {
           </span>
         </button>
         {mapExpanded && (
-          <div style={{ height: '360px' }}>
+          <div className="h-64 md:h-[360px]">
             <LiveMapMonitor tasks={taskLocations} players={playerLocations} />
           </div>
         )}
