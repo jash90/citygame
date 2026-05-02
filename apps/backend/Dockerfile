@@ -1,22 +1,23 @@
 # ── Stage 1: Install dependencies ──────────────────────────
-FROM node:20-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+# Use the official bun image for install + build; switch to node-alpine for the
+# runtime image so we keep a small surface and run the compiled JS under node.
+FROM oven/bun:1.3.11-alpine AS deps
 WORKDIR /app
 
 # Copy workspace root config
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json bun.lock ./
 COPY tsconfig.base.json ./
 
 # Copy only the package.json files needed for install
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/backend/package.json ./apps/backend/
 
-# Install all dependencies (dev included for build step)
-RUN pnpm install --frozen-lockfile
+# Install all dependencies (dev included for build step). Bun runs lifecycle
+# scripts only for packages listed under `trustedDependencies` in package.json.
+RUN bun install --frozen-lockfile
 
 # ── Stage 2: Build ─────────────────────────────────────────
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+FROM oven/bun:1.3.11-alpine AS builder
 WORKDIR /app
 
 # Copy installed dependencies from deps stage (hoisted to root node_modules)
@@ -26,16 +27,16 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY tsconfig.base.json ./
 COPY packages/shared/ ./packages/shared/
 COPY apps/backend/ ./apps/backend/
-COPY pnpm-workspace.yaml package.json .npmrc ./
+COPY package.json ./
 
 # Build shared package first
-RUN cd packages/shared && pnpm run build
+RUN cd packages/shared && bun run build
 
 # Generate Prisma client
-RUN cd apps/backend && npx prisma generate
+RUN cd apps/backend && bunx prisma generate
 
 # Build backend
-RUN cd apps/backend && pnpm run build
+RUN cd apps/backend && bun run build
 
 # ── Stage 3: Production image ──────────────────────────────
 FROM node:20-alpine AS runner
@@ -43,8 +44,6 @@ WORKDIR /app
 
 # Copy workspace root for module resolution
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/.npmrc ./
 
 # Copy root node_modules (hoisted dependencies)
 COPY --from=builder /app/node_modules ./node_modules
