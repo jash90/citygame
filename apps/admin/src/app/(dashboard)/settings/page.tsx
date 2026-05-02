@@ -25,7 +25,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto overflow-y-hidden -mx-3 px-3 md:mx-0 md:px-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
