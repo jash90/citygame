@@ -16,9 +16,26 @@ platform :ios do
   desc "Build and upload to TestFlight"
   lane :beta do
     match(type: "appstore", readonly: is_ci)
-    sh("cd ../ios && pod install")
-    increment_version_number(bump_type: "patch", xcodeproj: "ios/CityGame.xcodeproj")
-    increment_build_number(xcodeproj: "ios/CityGame.xcodeproj")
+    sh("git stash push -m 'fastlane: pre-bump iOS stash' --include-untracked || true")
+    # Bump patch version in app.json
+    require "json"
+    app_json_path = File.expand_path("../app.json", __dir__)
+    app_json = JSON.parse(File.read(app_json_path))
+    root = app_json.key?("expo") ? app_json["expo"] : app_json
+    parts = root["version"].split(".")
+    parts[-1] = (parts[-1].to_i + 1).to_s
+    root["version"] = parts.join(".")
+    File.write(app_json_path, JSON.pretty_generate(app_json) + "\n")
+    UI.message("Version bumped to #{root['version']}")
+    sh("cd .. && npx expo prebuild --clean")
+    sh("git add -A")
+    git_commit(path: ".", message: "Bump iOS version", allow_nothing_to_commit: true)
+    begin
+      push_to_git_remote
+    rescue => e
+      UI.message("Push to remote skipped: #{e.message}")
+    end
+    sh("git stash list | grep 'fastlane: pre-bump iOS stash' | head -1 | cut -d: -f1 | xargs git stash pop || true")
     build_app(
       workspace: "ios/CityGame.xcworkspace",
       scheme: "CityGame",
@@ -35,9 +52,26 @@ platform :ios do
   desc "Build and release to App Store"
   lane :release do
     match(type: "appstore", readonly: is_ci)
-    sh("cd ../ios && pod install")
-    increment_version_number(bump_type: "patch", xcodeproj: "ios/CityGame.xcodeproj")
-    increment_build_number(xcodeproj: "ios/CityGame.xcodeproj")
+    sh("git stash push -m 'fastlane: pre-bump iOS stash' --include-untracked || true")
+    # Bump patch version in app.json
+    require "json"
+    app_json_path = File.expand_path("../app.json", __dir__)
+    app_json = JSON.parse(File.read(app_json_path))
+    root = app_json.key?("expo") ? app_json["expo"] : app_json
+    parts = root["version"].split(".")
+    parts[-1] = (parts[-1].to_i + 1).to_s
+    root["version"] = parts.join(".")
+    File.write(app_json_path, JSON.pretty_generate(app_json) + "\n")
+    UI.message("Version bumped to #{root['version']}")
+    sh("cd .. && npx expo prebuild --clean")
+    sh("git add -A")
+    git_commit(path: ".", message: "Bump iOS version", allow_nothing_to_commit: true)
+    begin
+      push_to_git_remote
+    rescue => e
+      UI.message("Push to remote skipped: #{e.message}")
+    end
+    sh("git stash list | grep 'fastlane: pre-bump iOS stash' | head -1 | cut -d: -f1 | xargs git stash pop || true")
     build_app(
       workspace: "ios/CityGame.xcworkspace",
       scheme: "CityGame",

@@ -5,52 +5,67 @@
     
     
       
-      <testcase classname="fastlane.lanes" name="0: app_store_connect_api_key" time="0.006294">
+      <testcase classname="fastlane.lanes" name="00: app_store_connect_api_key" time="0.003162">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="1: is_ci" time="0.000181">
+      <testcase classname="fastlane.lanes" name="01: is_ci" time="0.000119">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="2: match" time="4.593095">
+      <testcase classname="fastlane.lanes" name="02: match" time="4.510593">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="3: cd ../ios &amp;&amp; pod install" time="18.203303">
+      <testcase classname="fastlane.lanes" name="03: git stash push -m &apos;fastlane: pre-bump iOS stash&apos; --include-untracked || true" time="0.118401">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="4: increment_version_number" time="0.330996">
+      <testcase classname="fastlane.lanes" name="04: cd .. &amp;&amp; npx expo prebuild --clean" time="46.268086">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="5: increment_build_number" time="0.43061">
+      <testcase classname="fastlane.lanes" name="05: git add -A" time="0.020251">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="6: build_app" time="220.922708">
+      <testcase classname="fastlane.lanes" name="06: git_commit" time="0.052335">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="7: upload_to_testflight" time="89.785348">
+      <testcase classname="fastlane.lanes" name="07: push_to_git_remote" time="1.367969">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="8: clean_build_artifacts" time="0.009461">
+      <testcase classname="fastlane.lanes" name="08: git stash list | grep &apos;fastlane: pre-bump iOS stash&apos; | head -1 | cut -d: -f1 | xargs git stash pop || true" time="0.085954">
         
       </testcase>
     
       
-      <testcase classname="fastlane.lanes" name="9: rm -rf ../ios/build" time="0.037554">
+      <testcase classname="fastlane.lanes" name="09: build_app" time="256.727707">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="10: upload_to_testflight" time="74.409735">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="11: clean_build_artifacts" time="0.001921">
+        
+      </testcase>
+    
+      
+      <testcase classname="fastlane.lanes" name="12: rm -rf ../ios/build" time="0.016704">
         
       </testcase>
     
