@@ -59,33 +59,33 @@ export default function GameDetailPage() {
       </Link>
 
       {/* Title + actions */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <h2 className="text-2xl font-bold text-gray-900">{game.title}</h2>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 mb-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 break-words">{game.title}</h2>
             <GameStatusBadge status={game.status} />
           </div>
-          <p className="text-gray-500 text-sm">{game.description}</p>
+          {game.description && <p className="text-gray-500 text-sm">{game.description}</p>}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center gap-2 md:flex-shrink-0">
           <Link
             href={`/games/${game.id}/tasks`}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <Edit size={15} />
             Edytor zadań
           </Link>
           <Link
             href={`/games/${game.id}/analytics`}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <BarChart3 size={15} />
             Analityka
           </Link>
           <Link
             href={`/games/${game.id}/monitor`}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a26] transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 text-sm bg-[#FF6B35] text-white rounded-lg hover:bg-[#e55a26] transition-colors"
           >
             <Activity size={15} />
             Monitoring

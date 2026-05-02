@@ -36,14 +36,14 @@ export default function GamesPage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header row */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gry</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Gry</h2>
           <p className="text-gray-500 text-sm mt-1">Zarządzaj wszystkimi grami miejskimi</p>
         </div>
         <Link
           href="/games/new"
-          className="flex items-center gap-2 px-4 py-2 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] transition-colors shadow-sm"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] transition-colors shadow-sm self-start sm:self-auto"
         >
           <Plus size={16} />
           Nowa gra
@@ -66,59 +66,105 @@ export default function GamesPage() {
             <p className="text-sm">Brak gier. Utwórz pierwszą.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Nazwa</th>
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Miasto</th>
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Status</th>
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Zadania</th>
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Gracze</th>
-                  <th className="text-left py-3 px-5 font-medium text-gray-500">Akcje</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {games.map((game) => (
-                  <tr key={game.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="py-3.5 px-5 font-medium text-gray-900">{game.title}</td>
-                    <td className="py-3.5 px-5 text-gray-600">{game.city}</td>
-                    <td className="py-3.5 px-5">
-                      <div className="flex items-center gap-2">
-                        <GameStatusBadge status={game.status} />
-                        {game.activeRun && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            Aktywna
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-5 text-gray-600">{game.taskCount ?? 0}</td>
-                    <td className="py-3.5 px-5 text-gray-600">{game.playerCount ?? 0}</td>
-                    <td className="py-3.5 px-5">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/games/${game.id}`}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
-                        >
-                          <Eye size={13} />
-                          Szczegóły
-                        </Link>
-                        <Link
-                          href={`/games/${game.id}/tasks`}
-                          className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-[#FF6B35] bg-orange-50 hover:bg-orange-100 transition-colors"
-                        >
-                          <Edit size={13} />
-                          Zadania
-                        </Link>
-                      </div>
-                    </td>
+          <>
+            {/* Mobile: card list */}
+            <ul className="md:hidden divide-y divide-gray-100">
+              {games.map((game) => (
+                <li key={game.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="font-medium text-sm text-gray-900 break-words">{game.title}</span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <GameStatusBadge status={game.status} />
+                    </div>
+                  </div>
+                  {game.activeRun && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                      Aktywna
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                    <span>{game.city}</span>
+                    <span>·</span>
+                    <span>{game.taskCount ?? 0} zadań</span>
+                    <span>·</span>
+                    <span>{game.playerCount ?? 0} graczy</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/games/${game.id}`}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                    >
+                      <Eye size={13} />
+                      Szczegóły
+                    </Link>
+                    <Link
+                      href={`/games/${game.id}/tasks`}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-[#FF6B35] bg-orange-50 hover:bg-orange-100 transition-colors"
+                    >
+                      <Edit size={13} />
+                      Zadania
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Nazwa</th>
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Miasto</th>
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Status</th>
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Zadania</th>
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Gracze</th>
+                    <th className="text-left py-3 px-5 font-medium text-gray-500">Akcje</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {games.map((game) => (
+                    <tr key={game.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-3.5 px-5 font-medium text-gray-900">{game.title}</td>
+                      <td className="py-3.5 px-5 text-gray-600">{game.city}</td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-2">
+                          <GameStatusBadge status={game.status} />
+                          {game.activeRun && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                              Aktywna
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-5 text-gray-600">{game.taskCount ?? 0}</td>
+                      <td className="py-3.5 px-5 text-gray-600">{game.playerCount ?? 0}</td>
+                      <td className="py-3.5 px-5">
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/games/${game.id}`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                          >
+                            <Eye size={13} />
+                            Szczegóły
+                          </Link>
+                          <Link
+                            href={`/games/${game.id}/tasks`}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-[#FF6B35] bg-orange-50 hover:bg-orange-100 transition-colors"
+                          >
+                            <Edit size={13} />
+                            Zadania
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

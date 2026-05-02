@@ -20,17 +20,17 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Ustawienia</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Ustawienia</h2>
         <p className="text-gray-500 text-sm mt-1">Zarządzanie platformą</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
               activeTab === tab.id
                 ? 'border-[#FF6B35] text-[#FF6B35]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'

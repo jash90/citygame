@@ -191,7 +191,7 @@ export function TaskEditorForm({
       />
 
       {/* Points + time */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Maks. punkty" error={errors.maxPoints?.message}>
           <input {...register('maxPoints')} type="number" className={inputClass(errors.maxPoints?.message)} />
         </Field>

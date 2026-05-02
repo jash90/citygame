@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-// ── Marker icons ──────────────────────────────────────────────────────────────
+import { Plus, Minus, Crosshair, X } from 'lucide-react';
 
 const taskIcon = new L.DivIcon({
   className: '',
@@ -18,18 +17,21 @@ const taskIcon = new L.DivIcon({
   iconAnchor: [7, 7],
 });
 
-const playerIcon = new L.DivIcon({
-  className: '',
-  html: `<div style="
-    width:12px;height:12px;border-radius:50%;
-    background:#3b82f6;border:2px solid #fff;
-    box-shadow:0 1px 4px rgba(0,0,0,0.3);
-  "></div>`,
-  iconSize: [12, 12],
-  iconAnchor: [6, 6],
-});
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+function buildPlayerIcon(highlighted: boolean): L.DivIcon {
+  const size = highlighted ? 18 : 12;
+  const ring = highlighted
+    ? 'box-shadow:0 0 0 4px rgba(59,130,246,0.25),0 1px 4px rgba(0,0,0,0.3);'
+    : 'box-shadow:0 1px 4px rgba(0,0,0,0.3);';
+  return new L.DivIcon({
+    className: '',
+    html: `<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:#3b82f6;border:2px solid #fff;${ring}
+    "></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+}
 
 export interface TaskLocation {
   taskId: string;
@@ -53,99 +55,219 @@ interface LiveMapMonitorProps {
   players: PlayerLocation[];
 }
 
-// ── Auto-fit bounds ───────────────────────────────────────────────────────────
+const FOLLOW_ZOOM = 18;
 
 function FitBounds({
   tasks,
   players,
+  enabled,
 }: {
   tasks: TaskLocation[];
   players: PlayerLocation[];
+  enabled: boolean;
 }) {
   const map = useMap();
 
   useEffect(() => {
+    if (!enabled) return;
     const points: L.LatLngExpression[] = [
       ...tasks.map((t) => [t.latitude, t.longitude] as L.LatLngTuple),
       ...players.map((p) => [p.latitude, p.longitude] as L.LatLngTuple),
     ];
-
     if (points.length === 0) return;
-
     const bounds = L.latLngBounds(points);
     map.fitBounds(bounds, { padding: [30, 30], maxZoom: 17 });
-  }, [tasks, players, map]);
+  }, [tasks, players, map, enabled]);
 
   return null;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function FollowPlayer({ player }: { player: PlayerLocation | null }) {
+  const map = useMap();
+  const lastUserId = useRef<string | null>(null);
+  const lastPosKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!player) {
+      lastUserId.current = null;
+      lastPosKey.current = null;
+      return;
+    }
+    const posKey = `${player.latitude.toFixed(6)}:${player.longitude.toFixed(6)}`;
+    if (player.userId === lastUserId.current && posKey === lastPosKey.current) return;
+
+    const target: L.LatLngTuple = [player.latitude, player.longitude];
+    const isNewFollow = player.userId !== lastUserId.current;
+
+    if (isNewFollow) {
+      const targetZoom = Math.max(map.getZoom(), FOLLOW_ZOOM);
+      map.setView(target, targetZoom, { animate: true });
+    } else {
+      map.panTo(target, { animate: true });
+    }
+
+    lastUserId.current = player.userId;
+    lastPosKey.current = posKey;
+  }, [player, map]);
+
+  return null;
+}
+
+function ZoomControls({
+  followingId,
+  onClearFollow,
+}: {
+  followingId: string | null;
+  onClearFollow: () => void;
+}) {
+  const map = useMap();
+
+  return (
+    <div className="absolute right-3 top-3 z-[1000] flex flex-col gap-1">
+      <button
+        type="button"
+        aria-label="Przybliż"
+        onClick={() => map.zoomIn()}
+        className="w-9 h-9 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 text-gray-700"
+      >
+        <Plus size={16} />
+      </button>
+      <button
+        type="button"
+        aria-label="Oddal"
+        onClick={() => map.zoomOut()}
+        className="w-9 h-9 rounded-md bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 text-gray-700"
+      >
+        <Minus size={16} />
+      </button>
+      {followingId && (
+        <button
+          type="button"
+          aria-label="Przestań śledzić"
+          onClick={onClearFollow}
+          className="w-9 h-9 rounded-md bg-blue-500 border border-blue-600 shadow-sm flex items-center justify-center hover:bg-blue-600 text-white"
+          title="Przestań śledzić gracza"
+        >
+          <X size={16} />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function LiveMapMonitor({ tasks, players }: LiveMapMonitorProps) {
+  const [followingId, setFollowingId] = useState<string | null>(null);
+
   const center = useMemo<L.LatLngTuple>(() => {
     const allPoints = [
       ...tasks.map((t) => ({ lat: t.latitude, lng: t.longitude })),
       ...players.map((p) => ({ lat: p.latitude, lng: p.longitude })),
     ];
-
-    if (allPoints.length === 0) return [52.23, 21.01]; // Default: Warsaw
-
+    if (allPoints.length === 0) return [52.23, 21.01];
     const avgLat = allPoints.reduce((s, p) => s + p.lat, 0) / allPoints.length;
     const avgLng = allPoints.reduce((s, p) => s + p.lng, 0) / allPoints.length;
     return [avgLat, avgLng];
   }, [tasks, players]);
 
+  const followedPlayer = useMemo(
+    () => (followingId ? players.find((p) => p.userId === followingId) ?? null : null),
+    [followingId, players],
+  );
+
+  useEffect(() => {
+    if (followingId && !players.some((p) => p.userId === followingId)) {
+      setFollowingId(null);
+    }
+  }, [followingId, players]);
+
   return (
-    <MapContainer
-      center={center}
-      zoom={15}
-      scrollWheelZoom={true}
-      style={{ width: '100%', height: '100%', borderRadius: '0.75rem' }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+    <div className="relative w-full h-full">
+      {players.length > 0 && (
+        <div className="absolute left-3 top-3 z-[1000] flex items-center gap-2 max-w-[60%]">
+          <Crosshair size={14} className="text-gray-500 shrink-0" />
+          <select
+            value={followingId ?? ''}
+            onChange={(e) => setFollowingId(e.target.value || null)}
+            className="bg-white border border-gray-200 shadow-sm rounded-md text-xs px-2 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300 max-w-full truncate"
+          >
+            <option value="">Śledź gracza…</option>
+            {players.map((p) => (
+              <option key={p.userId} value={p.userId}>
+                {p.displayName}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-      <FitBounds tasks={tasks} players={players} />
+      <MapContainer
+        center={center}
+        zoom={15}
+        scrollWheelZoom={true}
+        zoomControl={false}
+        style={{ width: '100%', height: '100%', borderRadius: '0.75rem' }}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      {/* Task markers */}
-      {tasks.map((task) => (
-        <Marker
-          key={`task-${task.taskId}`}
-          position={[task.latitude, task.longitude]}
-          icon={taskIcon}
-        >
-          <Popup>
-            <div className="text-xs">
-              <strong>{task.title}</strong>
-              {task.activePlayerCount > 0 && (
-                <p className="mt-1 text-gray-500">
-                  {task.activePlayerCount} graczy w pobliżu
-                </p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+        <FitBounds tasks={tasks} players={players} enabled={!followingId} />
+        <FollowPlayer player={followedPlayer} />
+        <ZoomControls
+          followingId={followingId}
+          onClearFollow={() => setFollowingId(null)}
+        />
 
-      {/* Player markers */}
-      {players.map((player) => (
-        <Marker
-          key={`player-${player.userId}`}
-          position={[player.latitude, player.longitude]}
-          icon={playerIcon}
-        >
-          <Popup>
-            <div className="text-xs">
-              <strong>{player.displayName}</strong>
-              {player.accuracy != null && (
-                <p className="text-gray-400">±{Math.round(player.accuracy)}m</p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+        {tasks.map((task) => (
+          <Marker
+            key={`task-${task.taskId}`}
+            position={[task.latitude, task.longitude]}
+            icon={taskIcon}
+          >
+            <Popup>
+              <div className="text-xs">
+                <strong>{task.title}</strong>
+                {task.activePlayerCount > 0 && (
+                  <p className="mt-1 text-gray-500">
+                    {task.activePlayerCount} graczy w pobliżu
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+
+        {players.map((player) => {
+          const isFollowed = followingId === player.userId;
+          return (
+            <Marker
+              key={`player-${player.userId}`}
+              position={[player.latitude, player.longitude]}
+              icon={buildPlayerIcon(isFollowed)}
+              eventHandlers={{
+                click: () => setFollowingId(isFollowed ? null : player.userId),
+              }}
+            >
+              <Popup>
+                <div className="text-xs">
+                  <strong>{player.displayName}</strong>
+                  {player.accuracy != null && (
+                    <p className="text-gray-400">±{Math.round(player.accuracy)}m</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setFollowingId(isFollowed ? null : player.userId)}
+                    className="mt-1 text-blue-600 hover:underline"
+                  >
+                    {isFollowed ? 'Przestań śledzić' : 'Śledź gracza'}
+                  </button>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+    </div>
   );
 }

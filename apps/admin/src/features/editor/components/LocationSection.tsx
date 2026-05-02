@@ -15,7 +15,7 @@ export function LocationSection({ register, errors }: LocationSectionProps) {
         <MapPin size={14} className="text-[#FF6B35]" />
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Lokalizacja</p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field label="Szerokość (lat)" error={errors.latitude?.message} hint="np. 52.229676">
           <input {...register('latitude')} type="number" step="0.000001" placeholder="52.229676" className={inputClass(errors.latitude?.message)} />
         </Field>
