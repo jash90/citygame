@@ -67,8 +67,8 @@ export function UserManagementTab() {
   return (
     <div className="flex flex-col gap-4">
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
@@ -81,7 +81,7 @@ export function UserManagementTab() {
         <select
           value={roleFilter}
           onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35]"
+          className="px-3 py-2 text-sm border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] bg-white"
         >
           <option value="">Wszystkie role</option>
           <option value="ADMIN">Admin</option>
@@ -108,86 +108,158 @@ export function UserManagementTab() {
             Brak użytkowników
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Użytkownik</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Rola</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Rejestracja</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Akcje</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
+          <>
+            {/* Mobile: card list */}
+            <ul className="md:hidden divide-y divide-gray-100">
               {data.items.map((user) => {
                 const badge = roleBadge[user.role] ?? roleBadge.PLAYER;
                 const isConfirming = confirmingId === user.id;
                 const newRole = user.role === UserRole.ADMIN ? UserRole.PLAYER : UserRole.ADMIN;
+                const isMe = user.id === currentUser?.id;
+                const isPending = roleMutation.isPending && roleMutation.variables?.userId === user.id;
 
                 return (
-                  <tr key={user.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0 relative overflow-hidden">
-                          <UserIcon size={14} />
-                          {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) && (
-                            <img
-                              src={user.avatarUrl}
-                              alt=""
-                              className="absolute inset-0 w-8 h-8 rounded-full object-cover"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                            />
+                  <li key={user.id} className="px-4 py-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0 relative overflow-hidden">
+                        <UserIcon size={14} />
+                        {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) && (
+                          <img
+                            src={user.avatarUrl}
+                            alt=""
+                            className="absolute inset-0 w-9 h-9 rounded-full object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-gray-800 break-words">{user.displayName}</span>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
+                            {user.role === 'ADMIN' && <ShieldCheck size={11} />}
+                            {badge.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 break-all mt-0.5">{user.email}</p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Rejestracja: {new Date(user.createdAt).toLocaleDateString('pl-PL')}
+                        </p>
+                        <div className="mt-2">
+                          {isMe ? (
+                            <span className="text-xs text-gray-400 italic">To Ty</span>
+                          ) : (
+                            <button
+                              onClick={() => handleRoleToggle(user)}
+                              disabled={isPending}
+                              aria-label={`Zmień rolę użytkownika ${user.displayName} na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`}
+                              className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                                isConfirming
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+                              } disabled:opacity-50`}
+                            >
+                              {isPending ? (
+                                <Loader2 size={12} className="animate-spin inline" />
+                              ) : isConfirming ? (
+                                `Potwierdź → ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                              ) : (
+                                `Zmień na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                              )}
+                            </button>
                           )}
                         </div>
-                        <span className="font-medium text-gray-800">{user.displayName}</span>
                       </div>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{user.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
-                        {user.role === 'ADMIN' && <ShieldCheck size={11} />}
-                        {badge.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString('pl-PL')}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {user.id === currentUser?.id ? (
-                        <span className="text-xs text-gray-400 italic">Ty</span>
-                      ) : (
-                        <button
-                          onClick={() => handleRoleToggle(user)}
-                          disabled={roleMutation.isPending && roleMutation.variables?.userId === user.id}
-                          aria-label={`Zmień rolę użytkownika ${user.displayName} na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`}
-                          className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
-                            isConfirming
-                              ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                              : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
-                          } disabled:opacity-50`}
-                        >
-                          {roleMutation.isPending && roleMutation.variables?.userId === user.id ? (
-                            <Loader2 size={12} className="animate-spin inline" />
-                          ) : isConfirming ? (
-                            `Potwierdź → ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
-                          ) : (
-                            `Zmień na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
-                          )}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                    </div>
+                  </li>
                 );
               })}
-            </tbody>
-          </table>
+            </ul>
+
+            {/* Desktop: table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Użytkownik</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Rola</th>
+                    <th className="text-left px-4 py-3 font-medium text-gray-500">Rejestracja</th>
+                    <th className="text-right px-4 py-3 font-medium text-gray-500">Akcje</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {data.items.map((user) => {
+                    const badge = roleBadge[user.role] ?? roleBadge.PLAYER;
+                    const isConfirming = confirmingId === user.id;
+                    const newRole = user.role === UserRole.ADMIN ? UserRole.PLAYER : UserRole.ADMIN;
+
+                    return (
+                      <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 flex-shrink-0 relative overflow-hidden">
+                              <UserIcon size={14} />
+                              {user.avatarUrl && /^https?:\/\//.test(user.avatarUrl) && (
+                                <img
+                                  src={user.avatarUrl}
+                                  alt=""
+                                  className="absolute inset-0 w-8 h-8 rounded-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                                />
+                              )}
+                            </div>
+                            <span className="font-medium text-gray-800">{user.displayName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.cls}`}>
+                            {user.role === 'ADMIN' && <ShieldCheck size={11} />}
+                            {badge.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">
+                          {new Date(user.createdAt).toLocaleDateString('pl-PL')}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {user.id === currentUser?.id ? (
+                            <span className="text-xs text-gray-400 italic">Ty</span>
+                          ) : (
+                            <button
+                              onClick={() => handleRoleToggle(user)}
+                              disabled={roleMutation.isPending && roleMutation.variables?.userId === user.id}
+                              aria-label={`Zmień rolę użytkownika ${user.displayName} na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`}
+                              className={`text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                                isConfirming
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'border border-gray-300 text-gray-600 hover:bg-gray-100'
+                              } disabled:opacity-50`}
+                            >
+                              {roleMutation.isPending && roleMutation.variables?.userId === user.id ? (
+                                <Loader2 size={12} className="animate-spin inline" />
+                              ) : isConfirming ? (
+                                `Potwierdź → ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                              ) : (
+                                `Zmień na ${newRole === 'ADMIN' ? 'Admin' : 'Gracz'}`
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* Pagination */}
       {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm text-gray-500">
           <span>
             Strona {data.page} z {data.totalPages} ({data.total} użytkowników)
           </span>
@@ -195,14 +267,14 @@ export function UserManagementTab() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              className="flex-1 sm:flex-initial px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
             >
               Poprzednia
             </button>
             <button
               onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
               disabled={page >= data.totalPages}
-              className="px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              className="flex-1 sm:flex-initial px-3 py-1.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors"
             >
               Następna
             </button>
