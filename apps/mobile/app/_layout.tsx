@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryProvider } from '@/shared/providers/QueryProvider';
 import { AuthProvider } from '@/shared/providers/AuthProvider';
 import { WebSocketProvider } from '@/shared/providers/WebSocketProvider';
@@ -26,9 +26,6 @@ export default function RootLayout(): React.JSX.Element {
               <SyncOnConnect />
               <BundleFreshnessGuard />
               <View style={{ flex: 1 }}>
-                <SafeAreaView edges={['top']}>
-                  <OfflineBanner />
-                </SafeAreaView>
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
@@ -52,6 +49,9 @@ export default function RootLayout(): React.JSX.Element {
                   />
                   <Stack.Screen name="run-answers" />
                 </Stack>
+                {/* Renders absolutely-positioned, only when offline. Mounted
+                    AFTER Stack so RN paints it on top of all screens. */}
+                <OfflineBanner />
               </View>
               <StatusBar style="dark" />
             </AuthProvider>
