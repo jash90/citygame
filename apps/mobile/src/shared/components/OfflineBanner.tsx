@@ -19,16 +19,16 @@ const TAB_BAR_HEIGHT = 80;
  * to sync). Positioned absolutely so it overlays the screen content
  * without pushing it down. Mounted AFTER `<Stack>` in the root layout so
  * RN paints it on top of all screens (including the tab bar).
- *
- * NOTE: the `{true ? ... : ...}` is a debug toggle that forces the offline
- * branch to render even when actually online. Restore the
- * `if (isOnline && queueDepth === 0) return null;` early-return and use
- * `{!isOnline ? ... : ...}` once positioning is verified.
  */
 export const OfflineBanner = (): React.JSX.Element | null => {
   const isOnline = useIsOnline();
   const queueDepth = useMutationQueue(selectQueueDepth);
   const insets = useSafeAreaInsets();
+
+  // Online and nothing queued — render nothing at all. Avoids mounting an
+  // empty View on every screen during the normal happy path.
+  if (isOnline && queueDepth === 0) return null;
+
   const bottom = insets.bottom + TAB_BAR_HEIGHT - 35;
 
   return (
