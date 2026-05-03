@@ -15,6 +15,8 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import { profileApi } from '@/features/profile/services/profile.api';
 import { QUERY_KEYS } from '@/shared/lib/constants';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
+import { API_URL } from '@/shared/lib/constants';
+
 
 export default function ProfileScreen(): React.JSX.Element {
   const { user, profile: cachedProfile, setProfile } = useAuthStore();
@@ -103,6 +105,12 @@ export default function ProfileScreen(): React.JSX.Element {
                 onPress={handleLogout}
               />
             </View>
+
+            {API_URL.includes('localhost') || __DEV__ ? (
+              <Text className="text-xs text-center text-gray-400 mt-2">
+                {API_URL}
+              </Text>
+            ) : null}
 
             <Text className="text-xs text-center text-gray-400 mt-2">
               CityGame v1.0.0
