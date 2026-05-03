@@ -1,5 +1,5 @@
-const DEV_API_URL = 'http://127.0.0.1:3001/api';
-const DEV_WS_URL = 'http://127.0.0.1:3001';
+const DEV_API_URL = 'http://127.0.0.1:3003/api';
+const DEV_WS_URL = 'http://127.0.0.1:3003';
 
 export const API_URL: string = __DEV__
   ? DEV_API_URL
