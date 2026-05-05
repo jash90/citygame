@@ -243,6 +243,11 @@ model TaskAttempt {
   createdAt     DateTime      @default(now())
   /// Client-generated UUID used to make `submitAnswer` idempotent across offline → sync replays.
   clientSubmissionId String? @unique
+  /// Wall-clock on the player's device at the moment they completed the task.
+  /// Distinct from `createdAt` (server insert time) — for offline submissions
+  /// the two can differ by hours. Used as the leaderboard tie-breaker so
+  /// online players are not penalised by an offline player's late sync.
+  clientCapturedAt DateTime?
 
   session GameSession @relation(fields: [sessionId], references: [id])
   task    Task        @relation(fields: [taskId], references: [id])
@@ -250,4 +255,5 @@ model TaskAttempt {
 
   @@index([sessionId, taskId])
   @@index([taskId, status])
+  @@index([clientCapturedAt])
 }

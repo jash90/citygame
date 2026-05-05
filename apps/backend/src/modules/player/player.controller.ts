@@ -125,6 +125,7 @@ export class PlayerController {
       user.id,
       dto.submission,
       dto.clientSubmissionId,
+      dto.clientCapturedAt,
     );
   }
 

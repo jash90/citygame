@@ -61,6 +61,7 @@ export class SyncService {
             userId,
             (item.payload ?? {}) as Record<string, unknown>,
             item.clientSubmissionId,
+            item.capturedAt,
           );
           results.push({
             clientSubmissionId: item.clientSubmissionId,

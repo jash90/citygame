@@ -14,14 +14,29 @@ const STATUS_ICONS: Record<Task['status'], { name: IoniconsName; color: string }
   failed: { name: 'close-circle', color: '#EF4444' },
 };
 
+// Distinct icon + color for tasks completed locally but not yet synced to the
+// server. Same amber as the OfflineBanner so the two read as one signal.
+const PENDING_SYNC_ICON: { name: IoniconsName; color: string } = {
+  name: 'cloud-upload-outline',
+  color: '#D97706',
+};
+
 interface TaskCardProps {
   task: Task;
   onPress?: (task: Task) => void;
+  /**
+   * The player completed this task locally (it's in the gameStore's
+   * `completedTaskIds`) AND its `submit` mutation is still in the offline
+   * queue waiting to flush. Render with the amber sync style so the user can
+   * tell what's still owed to the server.
+   */
+  isPendingSync?: boolean;
 }
 
-export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Element => {
+export const TaskCard = memo(({ task, onPress, isPendingSync }: TaskCardProps): React.JSX.Element => {
   const isInteractive = task.status === 'available' || (__DEV__ && task.status !== 'completed');
-  const statusIcon = STATUS_ICONS[task.status];
+  const showAsPendingSync = isPendingSync && task.status === 'completed';
+  const statusIcon = showAsPendingSync ? PENDING_SYNC_ICON : STATUS_ICONS[task.status];
 
   return (
     <TouchableOpacity
@@ -30,7 +45,9 @@ export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Eleme
       className="mb-3"
       accessible
       accessibilityRole="button"
-      accessibilityLabel={task.title}
+      accessibilityLabel={
+        showAsPendingSync ? `${task.title} — czeka na synchronizację` : task.title
+      }
     >
       <Card elevated style={{ opacity: task.status === 'locked' ? 0.6 : 1 }}>
         <View className="flex-row items-center gap-3">
@@ -52,6 +69,11 @@ export const TaskCard = memo(({ task, onPress }: TaskCardProps): React.JSX.Eleme
                     {Math.floor(task.timeLimitSec / 60)} min
                   </Text>
                 </View>
+              ) : null}
+              {showAsPendingSync ? (
+                <Text className="text-xs font-semibold text-amber-700">
+                  • Czeka na sync
+                </Text>
               ) : null}
             </View>
           </View>

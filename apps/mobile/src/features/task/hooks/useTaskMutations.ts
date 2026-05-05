@@ -45,6 +45,11 @@ export const useSubmitTask = () => {
   >({
     mutationFn: async ({ gameId, taskId, submission }) => {
       const clientSubmissionId = randomUUID();
+      // Capture the wall-clock at the moment the player committed the answer.
+      // Sent to the server on both online submit and offline /sync replay so
+      // an offline player's actual play time wins ties against an online
+      // player who synced earlier.
+      const clientCapturedAt = new Date().toISOString();
       // Pull off the smuggled media-upload dependency before sending anything
       // to the wire — the server has no business seeing client-side ids.
       const { _dependsOn, ...wireSubmission } = submission as Record<string, unknown> & {
@@ -61,6 +66,7 @@ export const useSubmitTask = () => {
           taskId,
           payload: wireSubmission,
           clientSubmissionId,
+          capturedAt: clientCapturedAt,
           dependsOn: _dependsOn,
         });
         return { queued: true, clientSubmissionId };
@@ -72,6 +78,7 @@ export const useSubmitTask = () => {
           taskId,
           wireSubmission as TaskSubmission,
           clientSubmissionId,
+          clientCapturedAt,
         );
         return { queued: false, attempt };
       } catch (err) {
@@ -93,6 +100,7 @@ export const useSubmitTask = () => {
           taskId,
           payload: wireSubmission,
           clientSubmissionId,
+          capturedAt: clientCapturedAt,
         });
 
         // Optimistic completion: only mark CORRECT/PARTIAL locally. INCORRECT

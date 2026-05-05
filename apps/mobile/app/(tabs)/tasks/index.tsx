@@ -14,6 +14,7 @@ import { NetworkError } from '@/shared/components/NetworkError';
 import { useTasks, useProgress } from '@/features/game/hooks/useGameQueries';
 import { useGameStore } from '@/features/game/stores/gameStore';
 import { useGameTimer } from '@/features/game/hooks/useGameTimer';
+import { usePendingTaskIds } from '@/features/task/hooks/usePendingTaskIds';
 import type { Task } from '@/shared/types/api.types';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
 
@@ -36,6 +37,7 @@ export default function TasksScreen(): React.JSX.Element {
   useProgress(currentGame?.id ?? '');
   const router = useRouter();
   const timer = useGameTimer(currentGame?.endsAt);
+  const pendingTaskIds = usePendingTaskIds(currentGame?.id);
 
   // No active game session — show empty state
   if (!currentSession) {
@@ -101,7 +103,11 @@ export default function TasksScreen(): React.JSX.Element {
           data={tasks}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TaskCard task={item} onPress={handleTaskPress} />
+            <TaskCard
+              task={item}
+              onPress={handleTaskPress}
+              isPendingSync={pendingTaskIds.has(item.id)}
+            />
           )}
           contentContainerStyle={{ paddingTop: 12, paddingHorizontal: 16, paddingBottom: 24 }}
           ListEmptyComponent={<EmptyState />}

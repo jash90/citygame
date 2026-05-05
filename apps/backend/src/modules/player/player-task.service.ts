@@ -110,6 +110,7 @@ export class PlayerTaskService {
     userId: string,
     submission: Record<string, unknown>,
     clientSubmissionId?: string,
+    clientCapturedAt?: string,
   ): Promise<TaskAttempt> {
     // Idempotency: if the client retried with the same submission id,
     // return the original attempt unchanged so offline → sync replays
@@ -156,6 +157,15 @@ export class PlayerTaskService {
         where: { sessionId: session.id, taskId },
       });
 
+      // Trust the client timestamp for `clientCapturedAt` only if it parses
+      // as a valid Date — class-validator already enforces ISO-8601 in the
+      // DTO, but the sync service forwards arbitrary strings, so guard.
+      const parsedCapturedAt = clientCapturedAt ? new Date(clientCapturedAt) : null;
+      const validCapturedAt =
+        parsedCapturedAt && !Number.isNaN(parsedCapturedAt.getTime())
+          ? parsedCapturedAt
+          : null;
+
       const newAttempt = await tx.taskAttempt.create({
         data: {
           sessionId: session.id,
@@ -167,6 +177,7 @@ export class PlayerTaskService {
           aiResult: result.aiResult != null ? (result.aiResult as Prisma.InputJsonValue) : Prisma.JsonNull,
           pointsAwarded,
           clientSubmissionId: clientSubmissionId ?? null,
+          clientCapturedAt: validCapturedAt,
         },
       });
 

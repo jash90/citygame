@@ -31,10 +31,12 @@ export const gamesApi = {
     taskId: string,
     submission: TaskSubmission,
     clientSubmissionId?: string,
+    clientCapturedAt?: string,
   ) =>
     apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/submit`, {
       submission,
       clientSubmissionId,
+      clientCapturedAt,
     }),
   devComplete: (gameId: string, taskId: string) =>
     apiClient.post<TaskAttempt>(`/games/${gameId}/tasks/${taskId}/dev-complete`),
