@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,40 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRunAnswers } from '@/features/game/hooks/useGameQueries';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
 import type { RunAnswerEntry } from '@citygame/shared';
+
+/**
+ * Backend returns one row per `TaskAttempt`, so a player who answered the
+ * same task wrong twice and right once would show up as three list rows
+ * with the same title. Collapse to one row per `taskId`, keeping the
+ * highest-priority attempt: CORRECT > PARTIAL > PENDING > INCORRECT > ERROR.
+ * Among ties, the entry with `pointsAwarded` desc wins. The original
+ * `attempts` array is also already sorted by `createdAt` desc on the
+ * server, so the latest matching attempt naturally bubbles up too.
+ */
+const STATUS_PRIORITY: Record<string, number> = {
+  CORRECT: 5,
+  PARTIAL: 4,
+  PENDING: 3,
+  INCORRECT: 2,
+  ERROR: 1,
+};
+
+function dedupeAttempts(attempts: RunAnswerEntry[]): RunAnswerEntry[] {
+  const byTask = new Map<string, RunAnswerEntry>();
+  for (const a of attempts) {
+    const existing = byTask.get(a.taskId);
+    if (!existing) {
+      byTask.set(a.taskId, a);
+      continue;
+    }
+    const cur = STATUS_PRIORITY[a.status] ?? 0;
+    const prev = STATUS_PRIORITY[existing.status] ?? 0;
+    if (cur > prev || (cur === prev && a.pointsAwarded > existing.pointsAwarded)) {
+      byTask.set(a.taskId, a);
+    }
+  }
+  return Array.from(byTask.values());
+}
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -77,6 +111,10 @@ export default function RunAnswersScreen(): React.JSX.Element {
 
   const run = parseInt(runNumber ?? '0', 10);
   const { data, isLoading } = useRunAnswers(gameId ?? '', run);
+  const dedupedAttempts = useMemo(
+    () => dedupeAttempts(data?.attempts ?? []),
+    [data?.attempts],
+  );
 
   return (
     <StyledSafeAreaView className="flex-1 bg-gray-50" edges={['top']}>
@@ -116,8 +154,8 @@ export default function RunAnswersScreen(): React.JSX.Element {
         </View>
       ) : (
         <FlatList
-          data={data?.attempts ?? []}
-          keyExtractor={(item, index) => `${item.taskId}-${index}`}
+          data={dedupedAttempts}
+          keyExtractor={(item) => item.taskId}
           renderItem={({ item }) => <AnswerItem item={item} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
           ListEmptyComponent={
