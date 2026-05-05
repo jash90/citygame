@@ -10,12 +10,17 @@ import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/shared/components/ui/Card';
 import { Button } from '@/shared/components/ui/Button';
 import { NetworkError } from '@/shared/components/NetworkError';
+import Constants from 'expo-constants';
 import { useAuthStore } from '@/features/auth/stores/authStore';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { profileApi } from '@/features/profile/services/profile.api';
 import { QUERY_KEYS } from '@/shared/lib/constants';
 import { StyledSafeAreaView } from '@/shared/lib/styled';
 import { API_URL } from '@/shared/lib/constants';
+
+// Single source of truth for the user-visible app version: app.json's
+// `version` field, which fastlane bumps on every TestFlight release.
+const APP_VERSION = Constants.expoConfig?.version ?? '?.?.?';
 
 
 export default function ProfileScreen(): React.JSX.Element {
@@ -113,7 +118,7 @@ export default function ProfileScreen(): React.JSX.Element {
             ) : null}
 
             <Text className="text-xs text-center text-gray-400 mt-2">
-              CityGame v1.0.0
+              CityGame v{APP_VERSION}
             </Text>
           </>
         )}
