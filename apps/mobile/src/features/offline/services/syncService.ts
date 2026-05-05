@@ -7,6 +7,17 @@ import {
 import { syncApi, type SyncRequestItem, type SyncResult } from './sync.api';
 
 /**
+ * Summary of a flush. `affectedGameIds` lists the gameIds whose batch posted
+ * (with at least one successful item). Callers use this to invalidate the
+ * `progress` + `ranking` React Query caches so `gameStore.session.totalPoints`
+ * and the leaderboard reconcile to the server's view immediately rather than
+ * after the next 30s `refetchInterval`.
+ */
+export interface FlushSummary {
+  affectedGameIds: Set<string>;
+}
+
+/**
  * Drive the offline mutation queue. Called when the app foregrounds with a
  * connection, after a successful login, and after every individual mutation
  * that landed online. Idempotent — safe to call concurrently (the in_flight
@@ -15,20 +26,21 @@ import { syncApi, type SyncRequestItem, type SyncResult } from './sync.api';
 export class SyncRunner {
   private static running = false;
 
-  static async flush(): Promise<void> {
-    if (this.running) return;
+  static async flush(): Promise<FlushSummary> {
+    if (this.running) return { affectedGameIds: new Set() };
     this.running = true;
     try {
-      await this.flushInner();
+      return await this.flushInner();
     } finally {
       this.running = false;
     }
   }
 
-  private static async flushInner(): Promise<void> {
+  private static async flushInner(): Promise<FlushSummary> {
+    const affectedGameIds = new Set<string>();
     const queue = useMutationQueue.getState();
     const pending = selectPending(queue).filter((it) => it.status !== 'in_flight');
-    if (pending.length === 0) return;
+    if (pending.length === 0) return { affectedGameIds };
 
     // Phase 1: media uploads. Each upload, on success, propagates fileUrl to
     // any dependent submit item still in the queue.
@@ -71,7 +83,11 @@ export class SyncRunner {
 
       try {
         const { results } = await syncApi.flush(gameId, requestItems);
-        for (const result of results) reconcileResult(result);
+        let anySuccess = false;
+        for (const result of results) {
+          if (reconcileResult(result)) anySuccess = true;
+        }
+        if (anySuccess) affectedGameIds.add(gameId);
       } catch (err) {
         // Whole-batch failure (network, 500, etc.) — flag every item and let
         // the next flush retry. The DTO is already in the persisted queue.
@@ -84,6 +100,8 @@ export class SyncRunner {
 
     // Phase 3: trim completed items to keep the queue bounded.
     useMutationQueue.getState().removeDone();
+
+    return { affectedGameIds };
   }
 }
 
@@ -100,17 +118,19 @@ function toRequestItem(item: MutationItem): SyncRequestItem {
   };
 }
 
-function reconcileResult(result: SyncResult): void {
+/** Returns true when the result counts as a successful sync of the item. */
+function reconcileResult(result: SyncResult): boolean {
   if (result.ok) {
     useMutationQueue.getState().markDone(result.clientSubmissionId);
-    return;
+    return true;
   }
   // 409 typically means the task was already completed online — treat as success.
   if (result.statusCode === 409) {
     useMutationQueue.getState().markDone(result.clientSubmissionId);
-    return;
+    return true;
   }
   useMutationQueue.getState().markFailed(result.clientSubmissionId, result.error);
+  return false;
 }
 
 function isDependencyResolved(item: MutationItem): boolean {
