@@ -112,16 +112,28 @@ export async function downloadOfflineBundle(
  * has a newer version, transparently re-run `downloadOfflineBundle` so the
  * client always plays against the latest task definitions and answer hashes.
  *
- * Returns `'fresh'` when nothing needed to change, `'refreshed'` when a
- * re-download was kicked off and completed, `'skipped'` when there is no
- * stored bundle to refresh, and `'error'` if the version probe failed (the
- * cached bundle is left untouched in that case so play stays offline-capable).
+ * Returns `'fresh'` when nothing needed to change, `'refreshed'` when an
+ * existing bundle was rebuilt because the server moved on, `'downloaded'`
+ * when there was no cached bundle and we pulled a fresh one (the auto-prefetch
+ * path), and `'error'` if the version probe or download failed.
  */
 export async function checkBundleFreshness(
   gameId: string,
-): Promise<'fresh' | 'refreshed' | 'skipped' | 'error'> {
+): Promise<'fresh' | 'refreshed' | 'downloaded' | 'error'> {
   const stored = useOfflineBundleStore.getState().bundles[gameId];
-  if (!stored || stored.status.kind !== 'ready') return 'skipped';
+
+  // No bundle yet (or a previous attempt failed) — pull a full one so the
+  // player has hints, story context, verifyConfigs and pre-cached media
+  // ready by the time they go offline. Without this the guard would only
+  // refresh existing bundles, leaving fresh joiners with nothing offline.
+  if (!stored || stored.status.kind !== 'ready') {
+    try {
+      await downloadOfflineBundle(gameId);
+      return 'downloaded';
+    } catch {
+      return 'error';
+    }
+  }
 
   let serverVersion: number;
   try {

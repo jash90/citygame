@@ -11,6 +11,7 @@ import { WebSocketProvider } from '@/shared/providers/WebSocketProvider';
 import { NetworkProvider } from '@/shared/providers/NetworkProvider';
 import { SyncOnConnect } from '@/features/offline/components/SyncOnConnect';
 import { BundleFreshnessGuard } from '@/features/offline/components/BundleFreshnessGuard';
+import { BundlePrefetcher } from '@/features/offline/components/BundlePrefetcher';
 import { OfflineBanner } from '@/shared/components/OfflineBanner';
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary';
 
@@ -25,6 +26,7 @@ export default function RootLayout(): React.JSX.Element {
             <AuthProvider>
               <SyncOnConnect />
               <BundleFreshnessGuard />
+              <BundlePrefetcher />
               <View style={{ flex: 1 }}>
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="(auth)" />
