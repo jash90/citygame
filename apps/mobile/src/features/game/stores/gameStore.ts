@@ -70,6 +70,14 @@ interface GameState {
   clearLastAiResult: () => void;
   setGameEnded: (ended: boolean) => void;
   addRevealedHint: (taskId: string, hint: RevealedHint) => void;
+  /**
+   * Offline-only path: reveal a hint AND deduct its penalty from the local
+   * `currentSession.totalPoints` so the player sees the cost immediately.
+   * The online path uses `addRevealedHint` alone because the server has
+   * already decremented points and the next `/progress` fetch reconciles.
+   * Clamped at zero to mirror the server's bound.
+   */
+  applyOfflineHint: (taskId: string, hint: RevealedHint) => void;
   /** @deprecated Use `selectTaskHints(taskId)` selector instead. */
   getTaskHints: (taskId: string) => RevealedHint[];
   restoreSession: (game: Game, session: GameSession, tasks: Task[], progress?: GameProgress | null) => void;
@@ -156,6 +164,20 @@ export const useGameStore = create<GameState>()(
       const existing = hints.get(taskId) ?? [];
       hints.set(taskId, [...existing, hint]);
       return { revealedHints: hints };
+    }),
+
+  applyOfflineHint: (taskId, hint) =>
+    set((state) => {
+      const hints = new Map(state.revealedHints);
+      const existing = hints.get(taskId) ?? [];
+      hints.set(taskId, [...existing, hint]);
+      const session = state.currentSession
+        ? {
+            ...state.currentSession,
+            totalPoints: Math.max(0, state.currentSession.totalPoints - hint.pointPenalty),
+          }
+        : state.currentSession;
+      return { revealedHints: hints, currentSession: session };
     }),
 
   getTaskHints: (taskId: string): RevealedHint[] => {

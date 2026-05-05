@@ -2,10 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { randomUUID } from 'expo-crypto';
 import { gamesApi } from '@/features/game/services/games.api';
 import { useGameStore } from '@/features/game/stores/gameStore';
-import {
-  selectBundle,
-  useOfflineBundleStore,
-} from '@/features/offline/stores/offlineBundleStore';
+import { useOfflineBundleStore } from '@/features/offline/stores/offlineBundleStore';
 import {
   verifyOffline,
   type OfflineVerificationResult,
@@ -206,20 +203,41 @@ export const useHint = () => {
       taskId: string;
     }) => {
       try {
-        return await gamesApi.useHint(gameId, taskId);
+        const result = await gamesApi.useHint(gameId, taskId);
+        return { ...result, queued: false };
       } catch (err) {
         if (!(err instanceof NetworkError)) throw err;
 
-        // Reveal the next unused hint locally and queue the server-side
-        // record for sync (so points are deducted on reconnect).
+        // Pull the offline bundle's hint list and pick the NEXT one not yet
+        // revealed by this player on this device. Mirrors the server's
+        // `task.hints.find(h => !usedHintIds.includes(h.id))` (player-hint.service.ts:107),
+        // so once sync runs the server will pick the same hint —
+        // `clientSubmissionId` then dedupes the record.
         const stored = useOfflineBundleStore.getState().bundles[gameId];
         const task = stored?.bundle.tasks.find((t) => t.id === taskId);
         if (!task || task.hints.length === 0) {
           throw err;
         }
-        // We don't track hint usage locally yet; reveal hint[0] as a best
-        // effort. A future refinement could track usage in gameStore.
-        const hint = task.hints[0];
+
+        const sortedHints = [...task.hints].sort(
+          (a, b) => a.orderIndex - b.orderIndex,
+        );
+        const alreadyRevealed = useGameStore.getState().revealedHints.get(taskId)?.length ?? 0;
+        const hint = sortedHints[alreadyRevealed];
+        if (!hint) {
+          // All hints already used locally — let the server arbitrate by
+          // surfacing the original network error so the UI shows the right
+          // message.
+          throw err;
+        }
+
+        // Local optimistic apply: stash the revealed hint AND deduct the
+        // penalty from `session.totalPoints` so the player sees the cost
+        // before sync. Server will redo the same arithmetic on flush.
+        useGameStore.getState().applyOfflineHint(taskId, {
+          content: hint.content,
+          pointPenalty: hint.pointPenalty,
+        });
 
         useMutationQueue.getState().enqueue({
           kind: 'hint',
@@ -227,10 +245,12 @@ export const useHint = () => {
           taskId,
           payload: {},
           clientSubmissionId: randomUUID(),
+          capturedAt: new Date().toISOString(),
         });
 
         return {
           hint: { content: hint.content, pointPenalty: hint.pointPenalty },
+          queued: true,
         };
       }
     },

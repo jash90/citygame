@@ -44,6 +44,10 @@ export const HintsPanel = ({
               { gameId, taskId },
               {
                 onSuccess: (result) => {
+                  // Offline path already updated `revealedHints` and deducted
+                  // points via `applyOfflineHint`; calling `addRevealedHint`
+                  // again here would double-add the same hint to the list.
+                  if (result.queued) return;
                   addRevealedHint(taskId, {
                     content: result.hint.content,
                     pointPenalty: result.hint.pointPenalty,
