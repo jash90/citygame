@@ -1,4 +1,11 @@
-import type { TaskType as SharedTaskType } from '@citygame/shared';
+import type {
+  GameEnding,
+  GameFlowType,
+  RevealedItem,
+  TaskTransition,
+  TaskType as SharedTaskType,
+  UnlockedItems,
+} from '@citygame/shared';
 
 // ── Backend raw types (what the API returns) ─────────────────────────────────
 
@@ -16,6 +23,7 @@ export interface BackendGame {
   description: string;
   city: string;
   coverImageUrl?: string;
+  flowType?: GameFlowType;
   settings: {
     timeLimitMinutes?: number;
     pinRevealDistanceMeters?: number;
@@ -26,6 +34,8 @@ export interface BackendGame {
   taskCount: number;
   playerCount: number;
   tasks?: BackendTask[];
+  transitions?: TaskTransition[];
+  endings?: GameEnding[];
   [key: string]: unknown;
 }
 
@@ -42,6 +52,8 @@ export interface BackendTask {
   unlockConfig: Record<string, unknown>;
   timeLimitSec?: number | null;
   storyContext?: string | null;
+  revealsItem?: RevealedItem | null;
+  unlockRequirements?: { requiresItem: string } | null;
   _count?: { hints: number };
   [key: string]: unknown;
 }
@@ -87,6 +99,10 @@ export interface Task {
     lng: number;
     radiusMeters: number;
   };
+  /** Cipher chain — populated only after the player completes this task. */
+  revealsItem?: RevealedItem | null;
+  /** Cipher chain consumer — slug of the required item; locked until in inventory. */
+  unlockRequirements?: { requiresItem: string } | null;
 }
 
 export interface NarrativeSettings {
@@ -112,6 +128,9 @@ export interface Game {
   pinRevealDistanceMeters?: number;
   narrative?: NarrativeSettings;
   tasks?: Task[];
+  flowType?: GameFlowType;
+  transitions?: TaskTransition[];
+  endings?: GameEnding[];
 }
 
 export interface GameSession {
@@ -123,6 +142,8 @@ export interface GameSession {
   totalPoints: number;
   currentTaskId: string | null;
   startedAt?: string;
+  unlockedItems?: UnlockedItems;
+  endingId?: string | null;
 }
 
 export interface ProgressAttempt {

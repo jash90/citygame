@@ -41,6 +41,12 @@ export default function TaskDetailScreen(): React.JSX.Element {
 
   const [showHints, setShowHints] = useState(false);
   const currentSession = useGameStore((s) => s.currentSession);
+  const unlockedItems = useGameStore((s) => s.unlockedItems);
+  const missingItem = task?.unlockRequirements
+    ? unlockedItems[task.unlockRequirements.requiresItem]
+      ? null
+      : task.unlockRequirements.requiresItem
+    : null;
 
   if (!task) {
     const tasks = useGameStore((s) => s.tasks);
@@ -135,6 +141,23 @@ export default function TaskDetailScreen(): React.JSX.Element {
               ) : (
                 <Text className="text-white font-bold">Odblokuj zadanie</Text>
               )}
+            </TouchableOpacity>
+          </View>
+        ) : missingItem ? (
+          <View className="bg-amber-50 rounded-2xl p-4 border border-amber-200 items-center gap-3">
+            <Ionicons name="key-outline" size={28} color="#B45309" />
+            <Text className="text-sm font-semibold text-amber-900 text-center">
+              Potrzebujesz: {missingItem}
+            </Text>
+            <Text className="text-xs text-amber-800 text-center">
+              Wróć po przedmiot odkryty w innym zadaniu i spróbuj ponownie.
+            </Text>
+            <TouchableOpacity
+              onPress={goBack}
+              className="bg-amber-600 rounded-xl px-5 py-2"
+              activeOpacity={0.8}
+            >
+              <Text className="text-white font-bold">Wróć do mapy</Text>
             </TouchableOpacity>
           </View>
         ) : (

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -12,14 +13,21 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import {
+  blueprintInputSchema,
+  gameBlueprintSchema,
+  type GameBlueprint,
+} from '@citygame/shared';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateGameDto } from './dto/create-game.dto';
+import { CreateGameFromBlueprintDto } from './dto/create-from-blueprint.dto';
 import { ListGamesQueryDto } from './dto/list-games-query.dto';
 import { UpdateGameDto } from './dto/update-game.dto';
 import { GameAnalyticsService } from './game-analytics.service';
+import { GameBlueprintPersistenceService } from './game-blueprint-persistence.service';
 import { GameRunActivityService } from './game-run-activity.service';
 import { GameRunService } from './game-run.service';
 import { GameService } from './game.service';
@@ -37,7 +45,31 @@ export class AdminGameController {
     private readonly gameRunService: GameRunService,
     private readonly gameRunActivityService: GameRunActivityService,
     private readonly gameAnalyticsService: GameAnalyticsService,
+    private readonly blueprintPersistence: GameBlueprintPersistenceService,
   ) {}
+
+  @ApiOperation({ summary: 'Persist an AI-generated game blueprint as a DRAFT game' })
+  @ApiResponse({ status: 201, description: 'Game created from blueprint' })
+  @Post('api/admin/games/from-blueprint')
+  async createFromBlueprint(
+    @Body() dto: CreateGameFromBlueprintDto,
+    @CurrentUser() user: CurrentUserPayload,
+  ) {
+    const input = blueprintInputSchema.parse(dto.input);
+    const parsed = gameBlueprintSchema.safeParse(dto.blueprint);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: 'Provided blueprint is invalid',
+        details: parsed.error.flatten(),
+      });
+    }
+    const blueprint = parsed.data as GameBlueprint;
+    return this.blueprintPersistence.createGameFromBlueprint(
+      blueprint,
+      input,
+      user.id,
+    );
+  }
 
   @ApiOperation({ summary: 'Create a new game draft' })
   @ApiResponse({ status: 201, description: 'Game created' })

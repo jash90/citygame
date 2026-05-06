@@ -16,8 +16,13 @@ export default function GameSummaryScreen(): React.JSX.Element {
       rank: string;
     }>();
 
-  const { reset, currentGame, collectedClues } = useGameStore();
+  const { reset, currentGame, collectedClues, endingId, unlockedItems } =
+    useGameStore();
   const isNarrative = currentGame?.narrative?.isNarrative;
+  const reachedEnding = endingId
+    ? currentGame?.endings?.find((e) => e.id === endingId) ?? null
+    : null;
+  const inventoryItems = Object.values(unlockedItems ?? {});
 
   const scaleAnim = useRef(new Animated.Value(0.4)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -79,13 +84,55 @@ export default function GameSummaryScreen(): React.JSX.Element {
         <Animated.View style={[{ opacity: opacityAnim }]}>
           <View className="items-center gap-2">
             <Text className="text-3xl font-extrabold text-secondary text-center">
-              {isNarrative ? 'Rękopis odnaleziony!' : 'Gratulacje!'}
+              {reachedEnding?.title ?? (isNarrative ? 'Rękopis odnaleziony!' : 'Gratulacje!')}
             </Text>
             <Text className="text-base text-gray-500 text-center">
-              {isNarrative ? 'Rozwiązałeś zagadkę kronikarza' : 'Ukończyłeś grę miejską'}
+              {reachedEnding
+                ? 'Osiągnięte zakończenie'
+                : isNarrative
+                ? 'Rozwiązałeś zagadkę kronikarza'
+                : 'Ukończyłeś grę miejską'}
             </Text>
           </View>
         </Animated.View>
+
+        {/* Ending description */}
+        {reachedEnding ? (
+          <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>
+            <View className="w-full rounded-2xl p-5 bg-emerald-50 border border-emerald-200">
+              <View className="flex-row items-center gap-2 mb-2">
+                <Ionicons name="flag" size={14} color="#059669" />
+                <Text className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                  Zakończenie
+                </Text>
+              </View>
+              <Text className="text-sm leading-6 text-emerald-900">
+                {reachedEnding.description}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* Collected items */}
+        {inventoryItems.length > 0 ? (
+          <Animated.View style={[{ opacity: opacityAnim }, { width: '100%' }]}>
+            <View className="w-full bg-gray-50 rounded-2xl p-5">
+              <Text className="text-sm font-bold text-secondary mb-3">
+                Zebrane przedmioty
+              </Text>
+              {inventoryItems.map((item) => (
+                <View key={item.slug} className="flex-row gap-2 mb-2">
+                  <Text className="text-xs font-bold text-primary">
+                    {item.label}:
+                  </Text>
+                  <Text className="flex-1 text-xs font-mono text-gray-700">
+                    {item.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
 
         {/* Narrative epilogue */}
         {isNarrative && currentGame?.narrative?.epilogue ? (

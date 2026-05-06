@@ -15,6 +15,7 @@ import type { HintItem } from './HintEditor';
 import {
   taskEditorSchema,
   type TaskFormValues,
+  type MixedStepValues,
   inputClass,
   Field,
   buildVerifyConfig,
@@ -66,9 +67,11 @@ export function TaskEditorForm({
       timeLimitSec: task?.timeLimitSec,
       aiPrompt: verifyDefaults.aiPrompt,
       aiThreshold: verifyDefaults.aiThreshold,
-      answerHash: verifyDefaults.answerHash,
+      expectedAnswer: verifyDefaults.expectedAnswer,
+      qrAnswer: verifyDefaults.qrAnswer,
       qrHash: verifyDefaults.qrHash,
       gpsRadius: verifyDefaults.gpsRadius,
+      mixedSteps: verifyDefaults.mixedSteps,
       ...storyCtx,
     },
   });
@@ -215,8 +218,19 @@ export function TaskEditorForm({
         </p>
 
         {selectedType === TaskType.QR_SCAN && (
-          <Field label="Hash QR kodu" error={errors.qrHash?.message}>
-            <input {...register('qrHash')} placeholder="np. sha256:abc123..." className={inputClass(errors.qrHash?.message)} />
+          <Field
+            label="Treść kodu QR"
+            hint={
+              task
+                ? 'Pozostaw puste, aby zachować obecny kod. Wpisz nowy tekst, aby go zmienić.'
+                : 'Wpisz tekst zakodowany w QR (URL, hasło, etykieta). Backend zhashuje przed zapisem.'
+            }
+          >
+            <input
+              {...register('qrAnswer')}
+              placeholder={task ? '(bez zmian)' : 'np. https://city.game/poi-1'}
+              className={inputClass()}
+            />
           </Field>
         )}
 
@@ -238,15 +252,31 @@ export function TaskEditorForm({
         )}
 
         {(selectedType === TaskType.TEXT_EXACT || selectedType === TaskType.CIPHER) && (
-          <Field label="Hash poprawnej odpowiedzi" hint="SHA-256 hash oczekiwanej odpowiedzi">
-            <input {...register('answerHash')} type="text" placeholder="sha256 hasha odpowiedzi" className={inputClass()} />
+          <Field
+            label="Poprawna odpowiedź"
+            hint={
+              task
+                ? 'Pozostaw puste, aby zachować obecną odpowiedź. Wpisz nową, aby ją zmienić.'
+                : 'Wpisz oczekiwany tekst (porównanie ignoruje wielkość liter i białe znaki). Backend bcryptuje przed zapisem.'
+            }
+          >
+            <input
+              {...register('expectedAnswer')}
+              type="text"
+              placeholder={task ? '(bez zmian)' : 'np. AURUM'}
+              className={inputClass()}
+            />
           </Field>
         )}
 
         {selectedType === TaskType.MIXED && (
-          <p className="text-sm text-gray-500 italic">
-            Konfiguracja kroków dla typu MIXED jest dostępna po zapisaniu zadania.
-          </p>
+          <MixedStepsPicker
+            value={watch('mixedSteps') ?? []}
+            onChange={(next) =>
+              setValue('mixedSteps', next, { shouldValidate: true })
+            }
+            error={errors.mixedSteps?.message as string | undefined}
+          />
         )}
       </div>
 
@@ -277,4 +307,218 @@ export function TaskEditorForm({
       </div>
     </form>
   );
+}
+
+const MIXED_COMPONENT_OPTIONS: Array<{ type: TaskType; label: string; hint: string }> = [
+  { type: TaskType.QR_SCAN, label: 'Skan QR', hint: 'Zeskanuj kod QR' },
+  { type: TaskType.GPS_REACH, label: 'GPS', hint: 'Dotrzyj na miejsce' },
+  { type: TaskType.PHOTO_AI, label: 'Zdjęcie (AI)', hint: 'Sfotografuj obiekt' },
+  { type: TaskType.AUDIO_AI, label: 'Audio (AI)', hint: 'Nagranie głosowe' },
+  { type: TaskType.TEXT_EXACT, label: 'Odpowiedź dokładna', hint: 'Konkretne hasło' },
+  { type: TaskType.TEXT_AI, label: 'Tekst (AI)', hint: 'Otwarta wypowiedź' },
+  { type: TaskType.CIPHER, label: 'Szyfr', hint: 'Rozszyfruj kod' },
+];
+
+function MixedStepsPicker({
+  value,
+  onChange,
+  error,
+}: {
+  value: MixedStepValues[];
+  onChange: (next: MixedStepValues[]) => void;
+  error?: string;
+}) {
+  const stepIndexByType = (type: TaskType) =>
+    value.findIndex((s) => s.type === type);
+
+  const toggleType = (type: TaskType) => {
+    const idx = stepIndexByType(type);
+    if (idx === -1) onChange([...value, { type }]);
+    else onChange(value.filter((_, i) => i !== idx));
+  };
+
+  const updateStep = (type: TaskType, patch: Partial<MixedStepValues>) => {
+    onChange(
+      value.map((s) => (s.type === type ? { ...s, ...patch } : s)),
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div>
+        <p className="text-sm font-medium text-gray-700">Komponenty MIXED</p>
+        <p className="text-xs text-gray-400 mt-0.5">
+          Wybierz 2+ typy. Dla każdego kroku uzupełnij konfigurację weryfikacji.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        {MIXED_COMPONENT_OPTIONS.map((opt) => {
+          const idx = stepIndexByType(opt.type);
+          const checked = idx !== -1;
+          const step = checked ? value[idx] : undefined;
+          return (
+            <div
+              key={opt.type}
+              className={`rounded-lg border transition-colors ${
+                checked
+                  ? 'border-[#FF6B35] bg-orange-50/30'
+                  : 'border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <label className="flex items-start gap-2 p-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleType(opt.type)}
+                  className="accent-[#FF6B35] mt-0.5"
+                />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {opt.label}
+                  </span>
+                  <span className="text-xs text-gray-500">{opt.hint}</span>
+                </span>
+              </label>
+              {checked && step && (
+                <div className="border-t border-orange-200/60 px-3 py-3">
+                  <MixedStepConfig
+                    step={step}
+                    onChange={(patch) => updateStep(opt.type, patch)}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function MixedStepConfig({
+  step,
+  onChange,
+}: {
+  step: MixedStepValues;
+  onChange: (patch: Partial<MixedStepValues>) => void;
+}) {
+  const cls =
+    'w-full px-3 py-2 text-sm border rounded-lg outline-none transition-colors focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] border-gray-300';
+  const labelCls = 'flex flex-col gap-1';
+  const labelText = 'text-xs font-medium text-gray-600';
+  const hintText = 'text-[11px] text-gray-400';
+  switch (step.type) {
+    case TaskType.QR_SCAN:
+      return (
+        <label className={labelCls}>
+          <span className={labelText}>Treść kodu QR</span>
+          <input
+            type="text"
+            value={step.qrAnswer ?? ''}
+            onChange={(e) => onChange({ qrAnswer: e.target.value })}
+            placeholder="np. https://city.game/poi-1"
+            className={cls}
+          />
+          <span className={hintText}>
+            Wpisz tekst, który ma być zakodowany w QR. Backend zhashuje przed zapisem.
+          </span>
+        </label>
+      );
+    case TaskType.GPS_REACH:
+      return (
+        <label className={labelCls}>
+          <span className={labelText}>Promień akceptacji (m)</span>
+          <input
+            type="number"
+            min={10}
+            max={5000}
+            value={step.radiusMeters ?? 50}
+            onChange={(e) =>
+              onChange({ radiusMeters: Number(e.target.value) })
+            }
+            className={cls}
+          />
+          <span className={hintText}>
+            Lat/lon dziedziczone z głównej lokalizacji zadania.
+          </span>
+        </label>
+      );
+    case TaskType.PHOTO_AI:
+    case TaskType.TEXT_AI:
+    case TaskType.AUDIO_AI:
+      return (
+        <div className="flex flex-col gap-2">
+          <label className={labelCls}>
+            <span className={labelText}>Prompt weryfikacji AI</span>
+            <textarea
+              value={step.prompt ?? ''}
+              onChange={(e) => onChange({ prompt: e.target.value })}
+              rows={2}
+              placeholder="Co AI ma sprawdzić w odpowiedzi gracza?"
+              className={`${cls} resize-none`}
+            />
+          </label>
+          <label className={labelCls}>
+            <span className={labelText}>Próg (0 – 1)</span>
+            <input
+              type="number"
+              step="0.05"
+              min={0}
+              max={1}
+              value={step.threshold ?? 0.7}
+              onChange={(e) =>
+                onChange({ threshold: Number(e.target.value) })
+              }
+              className={cls}
+            />
+          </label>
+        </div>
+      );
+    case TaskType.TEXT_EXACT:
+      return (
+        <label className={labelCls}>
+          <span className={labelText}>Poprawna odpowiedź</span>
+          <input
+            type="text"
+            value={step.expectedAnswer ?? ''}
+            onChange={(e) => onChange({ expectedAnswer: e.target.value })}
+            placeholder="np. AURUM"
+            className={cls}
+          />
+          <span className={hintText}>
+            Backend bcryptuje przed zapisem; porównanie ignoruje wielkość liter.
+          </span>
+        </label>
+      );
+    case TaskType.CIPHER:
+      return (
+        <div className="flex flex-col gap-2">
+          <label className={labelCls}>
+            <span className={labelText}>Poprawna odpowiedź</span>
+            <input
+              type="text"
+              value={step.expectedAnswer ?? ''}
+              onChange={(e) => onChange({ expectedAnswer: e.target.value })}
+              placeholder="np. AURUM"
+              className={cls}
+            />
+            <span className={hintText}>
+              Backend bcryptuje przed zapisem.
+            </span>
+          </label>
+          <label className={labelCls}>
+            <span className={labelText}>Wskazówka szyfru (opc.)</span>
+            <input
+              type="text"
+              value={step.cipherHint ?? ''}
+              onChange={(e) => onChange({ cipherHint: e.target.value })}
+              className={cls}
+            />
+          </label>
+        </div>
+      );
+    default:
+      return null;
+  }
 }

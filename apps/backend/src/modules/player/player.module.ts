@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { GameModule } from '../game/game.module';
 import { RankingModule } from '../ranking/ranking.module';
 import { TaskModule } from '../task/task.module';
 import { TeamModule } from '../team/team.module';
@@ -14,7 +15,7 @@ import { PlayerTaskService } from './player-task.service';
 import { SyncService } from './sync.service';
 
 @Module({
-  imports: [ConfigModule, TaskModule, RankingModule, TeamModule],
+  imports: [ConfigModule, TaskModule, RankingModule, TeamModule, GameModule],
   controllers: [PlayerController, DevPlayerController],
   providers: [
     PlayerService,

@@ -25,11 +25,35 @@ export interface ModelsResponse {
   activeModel: string;
 }
 
+export const AI_PURPOSES = [
+  'blueprint',
+  'photoAi',
+  'textAi',
+  'audioAi',
+  'editorHelpers',
+] as const;
+export type AiPurpose = (typeof AI_PURPOSES)[number];
+
+export interface AiConfigResponse {
+  activeModel: string;
+  apiKeyConfigured: boolean;
+  apiKeyMasked: string | null;
+  useWebSearch: boolean;
+  modelsByPurpose: Partial<Record<AiPurpose, string>>;
+}
+
 export function useAiModels() {
   return useQuery<ModelsResponse>({
     queryKey: ['ai-models'],
     queryFn: () => api.get('/api/admin/ai/models'),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAiConfig() {
+  return useQuery<AiConfigResponse>({
+    queryKey: ['ai-config'],
+    queryFn: () => api.get('/api/admin/ai/config'),
   });
 }
 
@@ -39,6 +63,66 @@ export function useSetAiModel() {
     mutationFn: (model: string) =>
       api.patch('/api/admin/ai/config', { model }),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+    },
+  });
+}
+
+export function useSetAiUseWebSearch() {
+  const queryClient = useQueryClient();
+  return useMutation<{ useWebSearch: boolean }, Error, boolean>({
+    mutationFn: (useWebSearch: boolean) =>
+      api.patch('/api/admin/ai/config', { useWebSearch }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+    },
+  });
+}
+
+export function useSetAiModelByPurpose() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { modelsByPurpose: Partial<Record<AiPurpose, string>> },
+    Error,
+    { purpose: AiPurpose; model: string }
+  >({
+    mutationFn: ({ purpose, model }) =>
+      api.patch('/api/admin/ai/config', {
+        modelsByPurpose: { [purpose]: model },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+    },
+  });
+}
+
+export function useSetAiApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { apiKeyConfigured: boolean; apiKeyMasked: string | null },
+    Error,
+    string
+  >({
+    mutationFn: (apiKey: string) =>
+      api.patch('/api/admin/ai/credentials', { apiKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+    },
+  });
+}
+
+export function useClearAiApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { apiKeyConfigured: boolean; apiKeyMasked: string | null },
+    Error,
+    void
+  >({
+    mutationFn: () => api.delete('/api/admin/ai/credentials'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
       queryClient.invalidateQueries({ queryKey: ['ai-models'] });
     },
   });

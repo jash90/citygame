@@ -133,6 +133,11 @@ export default function MapScreen(): React.JSX.Element {
     playerLocation,
     completedTaskIds,
     revealDistanceMeters: currentGame.pinRevealDistanceMeters,
+    flowType: currentGame.flowType,
+    transitions: currentGame.transitions?.map((tr) => ({
+      fromTaskId: tr.fromTaskId,
+      toTaskId: tr.toTaskId,
+    })),
   });
 
   return (

@@ -49,6 +49,8 @@ export function useTaskDetail({
     lastAiResult,
     clearLastAiResult,
     addClue,
+    addUnlockedItem,
+    setEndingId,
   } = useGameStore();
   const submitMutation = useSubmitTask();
   const unlockMutation = useUnlockTask();
@@ -182,6 +184,22 @@ export function useTaskDetail({
         addClue(storyContext.clueRevealed);
       }
 
+      // Cipher chain: when this task reveals an item, persist it locally so the
+      // backpack on the run screen and the consumer task can read it. The
+      // server has already merged it into `GameSession.unlockedItems`.
+      if (isSuccess && task.revealsItem) {
+        addUnlockedItem(task.revealsItem);
+      }
+
+      // If the server returned an endingId on this attempt, lock it in the
+      // store so the summary screen can display the matching ending.
+      const attemptWithEnding = attempt as typeof attempt & {
+        endingId?: string | null;
+      };
+      if (attemptWithEnding.endingId) {
+        setEndingId(attemptWithEnding.endingId);
+      }
+
       // Check if all tasks are now completed
       const { completedTaskIds: currentCompleted, tasks: allTasks } =
         useGameStore.getState();
@@ -223,6 +241,10 @@ export function useTaskDetail({
             isSuccess && storyContext?.clueRevealed
               ? storyContext.clueRevealed
               : '',
+          revealedItemLabel:
+            isSuccess && task.revealsItem ? task.revealsItem.label : '',
+          revealedItemValue:
+            isSuccess && task.revealsItem ? task.revealsItem.value : '',
         },
       });
     } catch {

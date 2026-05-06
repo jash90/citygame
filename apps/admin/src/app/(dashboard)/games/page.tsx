@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Plus, Eye, Edit, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { Plus, Eye, Edit, Loader2, Sparkles, Trash2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/shared/lib/api';
 import { pluralizePl } from '@/shared/lib/pluralize';
 import type { Game } from '@citygame/shared';
@@ -19,6 +19,7 @@ interface GamesResponse {
 
 export default function GamesPage() {
   const [page, setPage] = useState(1);
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery<GamesResponse>({
     queryKey: ['games', page],
@@ -26,6 +27,26 @@ export default function GamesPage() {
   });
 
   const games = data?.items ?? [];
+
+  const deleteGame = useMutation<void, Error, Game>({
+    mutationFn: (game) => api.delete(`/api/admin/games/${game.id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['games'] });
+    },
+    onError: (err, game) => {
+      window.alert(
+        `Nie udało się usunąć gry „${game.title}": ${err.message}`,
+      );
+    },
+  });
+
+  const requestDelete = (game: Game) => {
+    if (deleteGame.isPending) return;
+    const confirmed = window.confirm(
+      `Usunąć grę „${game.title}"? Operacji nie można cofnąć. Gry z istniejącymi sesjami trzeba zarchiwizować zamiast usuwać.`,
+    );
+    if (confirmed) deleteGame.mutate(game);
+  };
 
   useEffect(() => {
     if (data && data.items.length === 0 && page > 1) {
@@ -41,13 +62,22 @@ export default function GamesPage() {
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Gry</h2>
           <p className="text-gray-500 text-sm mt-1">Zarządzaj wszystkimi grami miejskimi</p>
         </div>
-        <Link
-          href="/games/new"
-          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] transition-colors shadow-sm self-start sm:self-auto"
-        >
-          <Plus size={16} />
-          Nowa gra
-        </Link>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/games/new/ai"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border border-[#FF6B35] text-[#FF6B35] text-sm font-semibold rounded-lg hover:bg-orange-50 transition-colors"
+          >
+            <Sparkles size={16} />
+            Nowa gra (AI)
+          </Link>
+          <Link
+            href="/games/new"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] transition-colors shadow-sm"
+          >
+            <Plus size={16} />
+            Nowa gra
+          </Link>
+        </div>
       </div>
 
       {/* Table card */}
@@ -105,6 +135,15 @@ export default function GamesPage() {
                       <Edit size={13} />
                       Zadania
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => requestDelete(game)}
+                      disabled={deleteGame.isPending}
+                      className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 size={13} />
+                      Usuń
+                    </button>
                   </div>
                 </li>
               ))}
@@ -157,6 +196,15 @@ export default function GamesPage() {
                             <Edit size={13} />
                             Zadania
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => requestDelete(game)}
+                            disabled={deleteGame.isPending}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                          >
+                            <Trash2 size={13} />
+                            Usuń
+                          </button>
                         </div>
                       </td>
                     </tr>

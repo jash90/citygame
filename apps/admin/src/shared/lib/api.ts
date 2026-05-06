@@ -58,6 +58,11 @@ export interface RequestOptions {
    * "invalid credentials", not "expired session".
    */
   skipAuthRedirect?: boolean;
+  /**
+   * Override the default 30s request timeout. Use for slow endpoints like
+   * AI blueprint generation that legitimately take 1–3 minutes.
+   */
+  timeoutMs?: number;
 }
 
 /**
@@ -76,7 +81,8 @@ async function request<T>(
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const timeoutMs = requestOptions?.timeoutMs ?? 30_000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   const response = await fetch(`${BASE_URL}${path}`, {
     ...options,

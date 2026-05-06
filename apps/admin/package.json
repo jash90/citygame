@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@citygame/shared": "workspace:*",
+    "@dagrejs/dagre": "^3.0.0",
     "@hookform/resolvers": "^3.9.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@tanstack/react-query": "^5.62.0",
     "@types/leaflet": "^1.9.21",
+    "@xyflow/react": "^12.10.2",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.469.0",
     "next": "^15.0.0",

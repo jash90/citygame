@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import {
+  GameFlowType,
   GameStatus,
   RunStatus,
   TaskType,
   UnlockMethod,
 } from '@prisma/client';
+import type { GameEnding, TaskTransition } from '@citygame/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 
 /**
@@ -39,6 +41,10 @@ export interface OfflineBundleTask {
   timeLimitSec: number | null;
   storyContext: string | null;
   hints: OfflineBundleHint[];
+  /** Cipher chain source — plaintext payload the player reads at this stop. */
+  revealsItem: { slug: string; kind: string; label: string; value: string } | null;
+  /** Cipher chain consumer — only the slug needed; the answer hash stays server-side. */
+  unlockRequirements: { requiresItem: string } | null;
   /** True if this task type cannot be verified offline (AI-driven). */
   requiresOnlineVerification: boolean;
   /** True if a non-AI task is missing the offlineHash backfill and cannot be played offline. */
@@ -54,6 +60,7 @@ export interface OfflineBundle {
     description: string;
     city: string;
     coverImageUrl: string | null;
+    flowType: GameFlowType;
     settings: unknown;
     taskCount: number;
   };
@@ -65,6 +72,8 @@ export interface OfflineBundle {
     endsAt: string | null;
   } | null;
   tasks: OfflineBundleTask[];
+  transitions: TaskTransition[];
+  endings: GameEnding[];
   /** URLs the client should pre-download to FileSystem for offline rendering. */
   mediaManifest: string[];
 }
@@ -110,6 +119,8 @@ export class OfflineBundleService {
           include: { hints: { orderBy: { orderIndex: 'asc' } } },
         },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
+        transitions: { orderBy: { orderIndex: 'asc' } },
+        endings: { orderBy: { orderIndex: 'asc' } },
       },
     });
 
@@ -122,6 +133,8 @@ export class OfflineBundleService {
       const unlockConfig = sanitizeUnlockConfig(t.unlockMethod, t.unlockConfig);
       const requiresOnlineVerification = AI_TYPES.has(t.type);
       const unsupportedOffline = !requiresOnlineVerification && needsOfflineHash(t.type) && !verifyConfig.offlineHash;
+      const revealsItem = parseRevealedItemPayload(t.revealsItem);
+      const unlockRequirements = parseRequirementSlugOnly(t.unlockRequirements);
 
       return {
         id: t.id,
@@ -144,6 +157,8 @@ export class OfflineBundleService {
           content: h.content,
           pointPenalty: h.pointPenalty,
         })),
+        revealsItem,
+        unlockRequirements,
         requiresOnlineVerification,
         unsupportedOffline,
       };
@@ -162,6 +177,7 @@ export class OfflineBundleService {
         description: game.description,
         city: game.city,
         coverImageUrl: game.coverImageUrl,
+        flowType: game.flowType,
         settings: game.settings,
         taskCount: game.tasks.length,
       },
@@ -175,9 +191,51 @@ export class OfflineBundleService {
           }
         : null,
       tasks,
+      transitions: (game.transitions ?? []).map((t) => ({
+        id: t.id,
+        gameId: t.gameId,
+        fromTaskId: t.fromTaskId,
+        toTaskId: t.toTaskId,
+        label: t.label,
+        condition: (t.condition as Record<string, unknown> | null) ?? null,
+        orderIndex: t.orderIndex,
+      })),
+      endings: (game.endings ?? []).map((e) => ({
+        id: e.id,
+        gameId: e.gameId,
+        slug: e.slug,
+        title: e.title,
+        description: e.description,
+        condition: e.condition as unknown as GameEnding['condition'],
+        isDefault: e.isDefault,
+        orderIndex: e.orderIndex,
+      })),
       mediaManifest,
     };
   }
+}
+
+function parseRevealedItemPayload(
+  raw: unknown,
+): { slug: string; kind: string; label: string; value: string } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    typeof r.slug !== 'string' ||
+    typeof r.kind !== 'string' ||
+    typeof r.label !== 'string' ||
+    typeof r.value !== 'string'
+  ) {
+    return null;
+  }
+  return { slug: r.slug, kind: r.kind, label: r.label, value: r.value };
+}
+
+function parseRequirementSlugOnly(raw: unknown): { requiresItem: string } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.requiresItem !== 'string') return null;
+  return { requiresItem: r.requiresItem };
 }
 
 /**

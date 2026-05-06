@@ -6,14 +6,24 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Edit, Activity, BarChart3, Loader2, Calendar, MapPin, Users, ListChecks } from 'lucide-react';
 import { api } from '@/shared/lib/api';
 import { adminApi } from '@/shared/lib/admin-api';
-import type { Game } from '@citygame/shared';
+import type { Game, GameEnding, TaskTransition } from '@citygame/shared';
 import { GameStatusBadge } from '@/features/dashboard/components/GameStatusBadge';
 import { GameSettingsEditor } from '@/features/game/components/GameSettingsEditor';
 import { GameRunControl } from '@/features/game/components/GameRunControl';
 import { GameRunHistory } from '@/features/game/components/GameRunHistory';
+import { GameFlowDiagram } from '@/features/ai-game/components/GameFlowDiagram';
+
+interface GameDetailTask {
+  id: string;
+  title: string;
+  type: string;
+  orderIndex: number;
+}
 
 interface GameDetailResponse extends Game {
-  tasks?: unknown[];
+  tasks?: GameDetailTask[];
+  transitions?: TaskTransition[];
+  endings?: GameEnding[];
 }
 
 export default function GameDetailPage() {
@@ -123,6 +133,41 @@ export default function GameDetailPage() {
 
       {/* Run History */}
       {runs && runs.length > 0 && <GameRunHistory runs={runs} />}
+
+      {/* Flow diagram */}
+      {game.tasks && game.tasks.length > 0 && (
+        <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <header className="flex items-baseline justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">
+              Diagram przepływu
+            </h3>
+            <span className="text-xs text-gray-500">
+              {game.flowType ?? 'LINEAR'}
+            </span>
+          </header>
+          <GameFlowDiagram
+            tasks={(game.tasks ?? []).map((t) => ({
+              id: t.id,
+              label: t.title,
+              index: t.orderIndex + 1,
+              type: t.type,
+            }))}
+            transitions={(game.transitions ?? []).map((tr) => ({
+              fromTaskId: tr.fromTaskId,
+              toTaskId: tr.toTaskId,
+              label: tr.label,
+            }))}
+            endings={(game.endings ?? []).map((e) => ({
+              id: e.id,
+              slug: e.slug,
+              title: e.title,
+              isDefault: e.isDefault,
+              condition: e.condition,
+            }))}
+            height={420}
+          />
+        </section>
+      )}
 
       {/* Settings */}
       <GameSettingsEditor gameId={game.id} settings={game.settings ?? {}} />

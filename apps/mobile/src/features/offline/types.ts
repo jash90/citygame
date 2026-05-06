@@ -1,4 +1,10 @@
-import type { TaskType, UnlockMethod } from '@citygame/shared';
+import type {
+  GameEnding,
+  GameFlowType,
+  TaskTransition,
+  TaskType,
+  UnlockMethod,
+} from '@citygame/shared';
 
 /**
  * Mirrors `OfflineBundle` from the backend `offline-bundle.service.ts`.
@@ -10,6 +16,13 @@ export interface OfflineBundleHint {
   orderIndex: number;
   content: string;
   pointPenalty: number;
+}
+
+export interface OfflineBundleRevealedItem {
+  slug: string;
+  kind: string;
+  label: string;
+  value: string;
 }
 
 export interface OfflineBundleTask {
@@ -28,6 +41,10 @@ export interface OfflineBundleTask {
   timeLimitSec: number | null;
   storyContext: string | null;
   hints: OfflineBundleHint[];
+  /** Cipher chain source — plaintext payload the player reads at this stop. */
+  revealsItem: OfflineBundleRevealedItem | null;
+  /** Cipher chain consumer — only the slug is exposed; answer hash stays server-side. */
+  unlockRequirements: { requiresItem: string } | null;
   requiresOnlineVerification: boolean;
   unsupportedOffline: boolean;
 }
@@ -49,11 +66,14 @@ export interface OfflineBundle {
     description: string;
     city: string;
     coverImageUrl: string | null;
+    flowType: GameFlowType;
     settings: unknown;
     taskCount: number;
   };
   activeRun: OfflineBundleActiveRun | null;
   tasks: OfflineBundleTask[];
+  transitions: TaskTransition[];
+  endings: GameEnding[];
   mediaManifest: string[];
 }
 

@@ -1,5 +1,8 @@
 import { filterVisibleTasks, type PinCandidate } from './pinVisibility';
-import { DEFAULT_PIN_REVEAL_DISTANCE_METERS } from '../types/game';
+import {
+  DEFAULT_PIN_REVEAL_DISTANCE_METERS,
+  GameFlowType,
+} from '../types/game';
 
 const TASK_A = { id: 'a', order: 0, location: { lat: 50.0617, lng: 19.9373 } };
 // ~200 m east of A
@@ -120,5 +123,98 @@ describe('filterVisibleTasks', () => {
         completedTaskIds: new Set<string>(),
       }),
     ).toEqual([]);
+  });
+
+  describe('OPEN_WORLD flow', () => {
+    it('reveals every task pin from the start regardless of player location', () => {
+      const visible = filterVisibleTasks({
+        tasks: [TASK_A, TASK_B, TASK_C],
+        playerLocation: null,
+        completedTaskIds: new Set<string>(),
+        flowType: GameFlowType.OPEN_WORLD,
+      });
+      expect(ids(visible)).toEqual(['a', 'b', 'c']);
+    });
+  });
+
+  describe('BRANCHING flow', () => {
+    it('reveals a branch task once any source transition is satisfied', () => {
+      const transitions = [
+        { fromTaskId: null, toTaskId: 'a' },
+        { fromTaskId: 'a', toTaskId: 'b' },
+        { fromTaskId: 'a', toTaskId: 'c' },
+      ];
+      const visible = filterVisibleTasks({
+        tasks: [TASK_A, TASK_B, TASK_C],
+        playerLocation: { lat: TASK_B.location.lat, lng: TASK_B.location.lng },
+        completedTaskIds: new Set(['a']),
+        revealDistanceMeters: 100,
+        flowType: GameFlowType.BRANCHING,
+        transitions,
+      });
+      // A is completed; B's predecessor A is done and player is on B → visible.
+      // C's predecessor is also A (branch) and player is far → C hidden.
+      expect(ids(visible)).toEqual(['a', 'b']);
+    });
+
+    it('hides downstream tasks until their predecessor is completed', () => {
+      const transitions = [
+        { fromTaskId: null, toTaskId: 'a' },
+        { fromTaskId: 'a', toTaskId: 'b' },
+        { fromTaskId: 'b', toTaskId: 'c' },
+      ];
+      const visible = filterVisibleTasks({
+        tasks: [TASK_A, TASK_B, TASK_C],
+        playerLocation: { lat: TASK_C.location.lat, lng: TASK_C.location.lng },
+        completedTaskIds: new Set(['a']),
+        revealDistanceMeters: 100,
+        flowType: GameFlowType.BRANCHING,
+        transitions,
+      });
+      expect(ids(visible)).toEqual(['a']);
+    });
+  });
+
+  describe('MIXED flow (hub-and-spoke)', () => {
+    it('locks spokes until the hub is completed', () => {
+      // Treat A as hub, B and C as spokes whose only incoming edge is A.
+      const transitions = [
+        { fromTaskId: null, toTaskId: 'a' },
+        { fromTaskId: 'a', toTaskId: 'b' },
+        { fromTaskId: 'a', toTaskId: 'c' },
+      ];
+      const visible = filterVisibleTasks({
+        tasks: [TASK_A, TASK_B, TASK_C],
+        playerLocation: { lat: TASK_B.location.lat, lng: TASK_B.location.lng },
+        completedTaskIds: new Set<string>(),
+        revealDistanceMeters: 100,
+        flowType: GameFlowType.MIXED,
+        transitions,
+      });
+      // A has a start transition → visible (player far is fine: location-less starts always show).
+      // Wait — in MIXED with transitions, A's incoming is fromTaskId=null, so reachable=true,
+      // but the player must be within range. Here player is on B, far from A.
+      // The first-task fallback only fires when no transition data exists.
+      expect(ids(visible)).toEqual([]);
+    });
+
+    it('reveals spokes after the hub completion (with player nearby)', () => {
+      const transitions = [
+        { fromTaskId: null, toTaskId: 'a' },
+        { fromTaskId: 'a', toTaskId: 'b' },
+        { fromTaskId: 'a', toTaskId: 'c' },
+      ];
+      const visible = filterVisibleTasks({
+        tasks: [TASK_A, TASK_B, TASK_C],
+        playerLocation: { lat: TASK_B.location.lat, lng: TASK_B.location.lng },
+        completedTaskIds: new Set(['a']),
+        revealDistanceMeters: 100,
+        flowType: GameFlowType.MIXED,
+        transitions,
+      });
+      // A completed → visible. B reachable (A done) and player on B → visible.
+      // C reachable (A done) but player far → hidden.
+      expect(ids(visible)).toEqual(['a', 'b']);
+    });
   });
 });

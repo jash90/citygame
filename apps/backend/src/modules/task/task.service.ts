@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { ReorderTasksDto } from './dto/reorder-tasks.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { transformVerifyConfig } from './task-verify-config.transformer';
 
 @Injectable()
 export class TaskService {
@@ -66,6 +67,10 @@ export class TaskService {
       throw new ForbiddenException('You do not own this game');
     }
 
+    const verifyConfig = await transformVerifyConfig(
+      dto.verifyConfig as Record<string, unknown>,
+    );
+
     return this.prisma.task.create({
       data: {
         gameId,
@@ -77,7 +82,7 @@ export class TaskService {
         latitude: dto.latitude,
         longitude: dto.longitude,
         unlockConfig: dto.unlockConfig as Prisma.InputJsonValue,
-        verifyConfig: dto.verifyConfig as Prisma.InputJsonValue,
+        verifyConfig: verifyConfig as Prisma.InputJsonValue,
         maxPoints: dto.maxPoints,
         timeLimitSec: dto.timeLimitSec,
         storyContext: dto.storyContext,
@@ -114,7 +119,13 @@ export class TaskService {
     if (dto.latitude !== undefined) data.latitude = dto.latitude;
     if (dto.longitude !== undefined) data.longitude = dto.longitude;
     if (dto.unlockConfig !== undefined) data.unlockConfig = dto.unlockConfig as Prisma.InputJsonValue;
-    if (dto.verifyConfig !== undefined) data.verifyConfig = dto.verifyConfig as Prisma.InputJsonValue;
+    if (dto.verifyConfig !== undefined) {
+      const transformed = await transformVerifyConfig(
+        dto.verifyConfig as Record<string, unknown>,
+        task.verifyConfig as Record<string, unknown> | undefined,
+      );
+      data.verifyConfig = transformed as Prisma.InputJsonValue;
+    }
     if (dto.maxPoints !== undefined) data.maxPoints = dto.maxPoints;
     if (dto.timeLimitSec !== undefined) data.timeLimitSec = dto.timeLimitSec;
     if (dto.storyContext !== undefined) data.storyContext = dto.storyContext;

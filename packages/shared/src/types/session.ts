@@ -1,3 +1,5 @@
+import type { RevealedItem } from './task';
+
 export enum SessionStatus {
   ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
@@ -13,6 +15,14 @@ export enum AttemptStatus {
   ERROR = 'ERROR',
 }
 
+/**
+ * Per-session inventory. Keys are item slugs (`RevealedItem.slug`).
+ * Mobile reads it to decide whether a task with `unlockRequirements` is
+ * playable. Server merges new entries when a task with `revealsItem` is
+ * completed.
+ */
+export type UnlockedItems = Record<string, RevealedItem>;
+
 export interface GameSession {
   id: string;
   gameId: string;
@@ -23,6 +33,8 @@ export interface GameSession {
   startedAt: string;
   completedAt?: string;
   currentTaskId?: string;
+  unlockedItems?: UnlockedItems;
+  endingId?: string | null;
 }
 
 export interface TaskAttempt {

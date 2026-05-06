@@ -3,6 +3,9 @@
 import { useState, useMemo } from 'react';
 import { Bot, Search, Loader2, Sparkles, Eye } from 'lucide-react';
 import { useAiModels, useSetAiModel } from '@/features/settings/hooks/useAdminSettings';
+import { AiApiKeyCard } from './AiApiKeyCard';
+import { AiPurposeModelsCard } from './AiPurposeModelsCard';
+import { AiWebSearchCard } from './AiWebSearchCard';
 import { ModelCard, getProvider } from './ModelCard';
 
 type SortKey = 'name' | 'context' | 'price';
@@ -66,23 +69,38 @@ export function AiModelTab() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-gray-500">
-        <Loader2 size={20} className="animate-spin mr-2" />
-        Ładowanie modeli AI...
+      <div className="flex flex-col gap-5">
+        <AiApiKeyCard />
+        <AiWebSearchCard />
+        <AiPurposeModelsCard />
+        <div className="flex items-center justify-center py-16 text-gray-500">
+          <Loader2 size={20} className="animate-spin mr-2" />
+          Ładowanie modeli AI...
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="py-12 text-center text-sm text-red-600">
-        Nie udało się pobrać listy modeli.
+      <div className="flex flex-col gap-5">
+        <AiApiKeyCard />
+        <AiWebSearchCard />
+        <AiPurposeModelsCard />
+        <div className="py-12 text-center text-sm text-red-600">
+          Nie udało się pobrać listy modeli — sprawdź czy klucz API jest
+          prawidłowy.
+        </div>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-5">
+      <AiApiKeyCard />
+      <AiWebSearchCard />
+      <AiPurposeModelsCard />
+
       {/* Active model banner */}
       <div className="bg-gradient-to-r from-[#FF6B35]/10 to-orange-50 rounded-xl border border-[#FF6B35]/20 p-5">
         <div className="flex items-center gap-3">

@@ -19,6 +19,7 @@ import { VerificationService } from '../task/verification/verification.service';
 import { RankingGateway } from '../ranking/ranking.gateway';
 import { TeamService } from '../team/team.service';
 import { ActivityBroadcastService } from './activity-broadcast.service';
+import { GameEndingEvaluatorService } from '../game/game-ending-evaluator.service';
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 
@@ -70,11 +71,14 @@ const mockPrisma: Record<string, any> = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
   task: { findFirst: jest.fn(), count: jest.fn() },
   taskAttempt: { count: jest.fn(), create: jest.fn(), findFirst: jest.fn().mockResolvedValue(null) },
+  taskTransition: { findMany: jest.fn().mockResolvedValue([]) },
   hintUsage: { findMany: jest.fn(), create: jest.fn() },
   user: { findUnique: jest.fn() },
+  game: { findUnique: jest.fn().mockResolvedValue({ flowType: 'LINEAR' }) },
   $transaction: jest.fn((fn: any) => fn(mockPrisma)),
 };
 
@@ -115,6 +119,15 @@ describe('PlayerTaskService', () => {
         { provide: RankingGateway, useValue: mockGateway },
         { provide: TeamService, useValue: mockTeamService },
         { provide: ActivityBroadcastService, useValue: mockActivityBroadcast },
+        {
+          provide: GameEndingEvaluatorService,
+          useValue: {
+            mergeRevealedItem: jest.fn().mockResolvedValue({}),
+            evaluateAndApply: jest
+              .fn()
+              .mockResolvedValue({ ending: null, unlockedItems: {} }),
+          },
+        },
       ],
     }).compile();
 

@@ -1,11 +1,10 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
+import { AiCredentialsService, type AiPurpose } from './ai-credentials.service';
 import { extractText, parseResponse } from './ai-evaluation.utils';
 import type { AiEvaluationResult } from './ai-evaluation.utils';
-
-export const OPENAI_CLIENT = 'OPENAI_CLIENT';
 
 export interface OpenRouterModel {
   id: string;
@@ -24,7 +23,6 @@ export interface OpenRouterModel {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private model: string;
   private readonly baseUrl: string;
 
   private modelsCache: OpenRouterModel[] | null = null;
@@ -33,25 +31,25 @@ export class AiService {
 
   constructor(
     private readonly configService: ConfigService,
-    @Inject(OPENAI_CLIENT) private readonly client: OpenAI,
+    private readonly credentials: AiCredentialsService,
   ) {
     this.baseUrl = this.configService.get<string>(
       'OPENROUTER_BASE_URL',
       'https://openrouter.ai/api/v1',
     );
-    this.model = this.configService.get<string>(
-      'OPENROUTER_MODEL',
-      'anthropic/claude-sonnet-4-5',
-    );
   }
 
   getActiveModel(): string {
-    return this.model;
+    return this.credentials.getModel();
   }
 
-  setActiveModel(modelId: string): void {
-    this.model = modelId;
+  async setActiveModel(modelId: string): Promise<void> {
+    await this.credentials.setModel(modelId);
     this.logger.log(`AI model changed to: ${modelId}`);
+  }
+
+  isConfigured(): boolean {
+    return this.credentials.isConfigured();
   }
 
   async listModels(): Promise<OpenRouterModel[]> {
@@ -101,7 +99,7 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
           ],
         },
       ];
-      const response = await this.createChatCompletion(messages, 512);
+      const response = await this.createChatCompletion(messages, 512, 'photoAi');
       return parseResponse(response, this.logger);
     } catch (error) {
       this.logger.error('Photo evaluation failed', error);
@@ -117,6 +115,7 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
     answer: string,
     prompt: string,
     _threshold: number,
+    purpose: AiPurpose = 'textAi',
   ): Promise<AiEvaluationResult> {
     try {
       const messages: ChatCompletionMessageParam[] = [
@@ -131,7 +130,7 @@ Respond ONLY with a JSON object (no markdown) in the form:
           content: `Task requirement: ${prompt}\n\nPlayer's answer: ${answer}`,
         },
       ];
-      const response = await this.createChatCompletion(messages, 512);
+      const response = await this.createChatCompletion(messages, 512, purpose);
       return parseResponse(response, this.logger);
     } catch (error) {
       this.logger.error('Text evaluation failed', error);
@@ -152,6 +151,7 @@ Respond ONLY with a JSON object (no markdown) in the form:
       `[Audio transcription] ${transcription}`,
       prompt,
       threshold,
+      'audioAi',
     );
   }
 
@@ -172,7 +172,7 @@ City: ${city}
 Write 2–3 sentences that describe what the player needs to do. Be specific, immersive, and historically accurate where relevant. Respond with only the description text, no extra formatting.`,
         },
       ];
-      const response = await this.createChatCompletion(messages, 512);
+      const response = await this.createChatCompletion(messages, 512, 'editorHelpers');
       return extractText(response);
     } catch (error) {
       this.logger.error('generateTaskDescription failed', error);
@@ -191,7 +191,7 @@ Task description: "${taskDescription}"
 Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. No markdown or extra text.`,
         },
       ];
-      const response = await this.createChatCompletion(messages, 512);
+      const response = await this.createChatCompletion(messages, 512, 'editorHelpers');
       const text = extractText(response);
       const parsed = JSON.parse(text) as unknown;
       if (Array.isArray(parsed)) {
@@ -219,7 +219,7 @@ Task description: "${taskDescription}"
 Respond with only the verification prompt text. It should describe what a correct submission looks like and what the AI should look for. No extra formatting.`,
         },
       ];
-      const response = await this.createChatCompletion(messages, 256);
+      const response = await this.createChatCompletion(messages, 256, 'editorHelpers');
       return extractText(response);
     } catch (error) {
       this.logger.error('generateAIPrompt failed', error);
@@ -267,9 +267,10 @@ Respond with only the verification prompt text. It should describe what a correc
   private async createChatCompletion(
     messages: ChatCompletionMessageParam[],
     maxTokens: number,
+    purpose: AiPurpose = 'editorHelpers',
   ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-    return this.client.chat.completions.create({
-      model: this.model,
+    return this.credentials.getClient().chat.completions.create({
+      model: this.credentials.getModelFor(purpose),
       messages,
       max_tokens: maxTokens,
       temperature: 0.3,

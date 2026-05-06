@@ -93,6 +93,8 @@ export class GameService {
           include: { hints: { orderBy: { orderIndex: 'asc' } } },
         },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
+        transitions: { orderBy: { orderIndex: 'asc' } },
+        endings: { orderBy: { orderIndex: 'asc' } },
         _count: { select: { tasks: true, sessions: true } },
       },
     });
@@ -126,10 +128,14 @@ export class GameService {
             maxPoints: true,
             timeLimitSec: true,
             storyContext: true,
+            revealsItem: true,
+            unlockRequirements: true,
             _count: { select: { hints: true } },
           },
         },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
+        transitions: { orderBy: { orderIndex: 'asc' } },
+        endings: { orderBy: { orderIndex: 'asc' } },
         _count: { select: { tasks: true, sessions: true } },
       },
     });
@@ -139,8 +145,17 @@ export class GameService {
     }
 
     const { _count, runs, ...rest } = game;
+    // Sanitize unlockRequirements: never expose answerSha256 to players.
+    const tasks = rest.tasks.map((t) => {
+      const ur = t.unlockRequirements as
+        | { requiresItem?: string; answerSha256?: string }
+        | null;
+      const sanitized = ur ? { requiresItem: ur.requiresItem } : null;
+      return { ...t, unlockRequirements: sanitized };
+    });
     return {
       ...rest,
+      tasks,
       activeRun: runs[0] ?? null,
       taskCount: _count.tasks,
       playerCount: _count.sessions,
@@ -160,6 +175,7 @@ export class GameService {
         settings: dto.settings as Prisma.InputJsonValue,
         creatorId,
         status: GameStatus.DRAFT,
+        flowType: (dto as { flowType?: 'LINEAR' | 'BRANCHING' | 'OPEN_WORLD' | 'MIXED' }).flowType ?? 'LINEAR',
       },
     });
   }

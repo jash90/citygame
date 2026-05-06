@@ -100,6 +100,28 @@ export interface TaskStoryContext {
   characterName?: string;
 }
 
+/**
+ * An item that the cipher chain mechanic surfaces to the player when this
+ * task is completed. Stored plaintext on the source task — the player must
+ * read & copy `value` and submit it at the consumer task.
+ */
+export interface RevealedItem {
+  slug: string;
+  kind: 'CODE' | 'WORD' | 'SYMBOL' | 'NUMBER';
+  label: string;
+  value: string;
+}
+
+/**
+ * Inventory requirement on the consumer task. `requiresItem` references the
+ * source's `RevealedItem.slug`. `answerSha256` is the hashed expected
+ * submission (plaintext is never persisted on the consumer side).
+ */
+export interface UnlockRequirement {
+  requiresItem: string;
+  answerSha256: string;
+}
+
 export interface Task {
   id: string;
   gameId: string;
@@ -115,6 +137,8 @@ export interface Task {
   maxPoints: number;
   timeLimitSec?: number;
   storyContext?: string;
+  revealsItem?: RevealedItem | null;
+  unlockRequirements?: UnlockRequirement | null;
   hints?: Hint[];
 }
 
@@ -139,6 +163,8 @@ export interface CreateTaskDto {
   maxPoints: number;
   timeLimitSec?: number;
   storyContext?: string;
+  revealsItem?: RevealedItem | null;
+  unlockRequirements?: UnlockRequirement | null;
 }
 
 export interface UpdateTaskDto extends Partial<CreateTaskDto> {}

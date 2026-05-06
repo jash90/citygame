@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { AiService, OPENAI_CLIENT } from './ai.service';
+import { AiService } from './ai.service';
+import { AiCredentialsService } from './ai-credentials.service';
 
 // ── Mock OpenAI SDK (OpenRouter uses OpenAI-compatible API) ──────────────────
 
@@ -47,7 +48,18 @@ describe('AiService', () => {
       providers: [
         AiService,
         { provide: ConfigService, useValue: mockConfig },
-        { provide: OPENAI_CLIENT, useValue: mockOpenAIClient },
+        {
+          provide: AiCredentialsService,
+          useValue: {
+            getClient: () => mockOpenAIClient,
+            getModel: () => 'anthropic/claude-sonnet-4-5',
+            isConfigured: () => true,
+            getMaskedApiKey: () => 'sk-or-…test',
+            setModel: jest.fn(),
+            setApiKey: jest.fn(),
+            clearApiKey: jest.fn(),
+          },
+        },
       ],
     }).compile();
 

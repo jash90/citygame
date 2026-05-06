@@ -5,6 +5,10 @@ import {
   richReplacer,
   richReviver,
 } from '@/shared/lib/storage/mmkv';
+import type {
+  RevealedItem,
+  UnlockedItems,
+} from '@citygame/shared';
 import type { Game, GameSession, Task, GameProgress } from '@/shared/types/api.types';
 
 /** Extract completed task IDs from progress attempts. */
@@ -54,6 +58,10 @@ interface GameState {
   completedTaskIds: Set<string>;
   collectedClues: string[];
   revealedHints: Map<string, RevealedHint[]>;
+  /** Per-session inventory mirroring `GameSession.unlockedItems` on the server. */
+  unlockedItems: UnlockedItems;
+  /** Ending the player reached, if any. Mirrors `GameSession.endingId`. */
+  endingId: string | null;
   lastScannedQR: string | null;
   lastAiResult: AiResult | null;
   gameEnded: boolean;
@@ -65,6 +73,8 @@ interface GameState {
   updateProgress: (progress: GameProgress) => void;
   markTaskCompleted: (taskId: string) => void;
   addClue: (clue: string) => void;
+  addUnlockedItem: (item: RevealedItem) => void;
+  setEndingId: (endingId: string | null) => void;
   setLastScannedQR: (code: string | null) => void;
   setLastAiResult: (result: AiResult) => void;
   clearLastAiResult: () => void;
@@ -92,6 +102,8 @@ const initialState = {
   completedTaskIds: new Set<string>(),
   collectedClues: [],
   revealedHints: new Map<string, RevealedHint[]>(),
+  unlockedItems: {} as UnlockedItems,
+  endingId: null as string | null,
   lastScannedQR: null,
   lastAiResult: null,
   gameEnded: false,
@@ -150,6 +162,13 @@ export const useGameStore = create<GameState>()(
   addClue: (clue) =>
     set((state) => ({ collectedClues: [...state.collectedClues, clue] })),
 
+  addUnlockedItem: (item) =>
+    set((state) => ({
+      unlockedItems: { ...state.unlockedItems, [item.slug]: item },
+    })),
+
+  setEndingId: (endingId) => set({ endingId }),
+
   setLastScannedQR: (code) => set({ lastScannedQR: code }),
 
   setLastAiResult: (result) => set({ lastAiResult: result }),
@@ -195,6 +214,8 @@ export const useGameStore = create<GameState>()(
       completedTaskIds: completedIds,
       revealedHints: extractRevealedHints(progress ?? null),
       collectedClues: [],
+      unlockedItems: session.unlockedItems ?? {},
+      endingId: session.endingId ?? null,
     });
   },
 
@@ -204,6 +225,8 @@ export const useGameStore = create<GameState>()(
       completedTaskIds: new Set<string>(),
       collectedClues: [],
       revealedHints: new Map<string, RevealedHint[]>(),
+      unlockedItems: {},
+      endingId: null,
     }),
     }),
     {
@@ -223,6 +246,8 @@ export const useGameStore = create<GameState>()(
         completedTaskIds: state.completedTaskIds,
         collectedClues: state.collectedClues,
         revealedHints: state.revealedHints,
+        unlockedItems: state.unlockedItems,
+        endingId: state.endingId,
       }),
     },
   ),

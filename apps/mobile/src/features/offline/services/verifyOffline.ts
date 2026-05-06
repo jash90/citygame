@@ -193,6 +193,8 @@ async function verifyMixed(
       timeLimitSec: null,
       storyContext: null,
       hints: [],
+      revealsItem: null,
+      unlockRequirements: null,
       requiresOnlineVerification: false,
       unsupportedOffline: false,
     };

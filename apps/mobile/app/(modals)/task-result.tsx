@@ -7,13 +7,24 @@ import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function TaskResultModal(): React.JSX.Element {
   const router = useRouter();
-  const { success, points, feedback, aiScore, isAiTask, clue } = useLocalSearchParams<{
+  const {
+    success,
+    points,
+    feedback,
+    aiScore,
+    isAiTask,
+    clue,
+    revealedItemLabel,
+    revealedItemValue,
+  } = useLocalSearchParams<{
     success: string;
     points: string;
     feedback: string;
     aiScore?: string;
     isAiTask?: string;
     clue?: string;
+    revealedItemLabel?: string;
+    revealedItemValue?: string;
   }>();
 
   const isSuccess = success === '1';
@@ -118,6 +129,24 @@ export default function TaskResultModal(): React.JSX.Element {
                   </View>
                   <Text className="text-sm italic leading-6" style={{ color: '#E8D5B7' }}>
                     „{clue}"
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Revealed cipher item — player needs the value at a later task */}
+              {revealedItemValue ? (
+                <View className="w-full rounded-2xl p-4 mt-4 bg-emerald-50 border border-emerald-200">
+                  <View className="flex-row items-center gap-2 mb-2">
+                    <Ionicons name="lock-open-outline" size={14} color="#059669" />
+                    <Text className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+                      Odkryłeś: {revealedItemLabel ?? 'Kod'}
+                    </Text>
+                  </View>
+                  <Text className="text-2xl font-bold tracking-widest text-emerald-900 text-center my-1">
+                    {revealedItemValue}
+                  </Text>
+                  <Text className="text-xs text-emerald-700 text-center mt-1">
+                    Zapisz to — przyda się w innym zadaniu.
                   </Text>
                 </View>
               ) : null}

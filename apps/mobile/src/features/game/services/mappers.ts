@@ -16,6 +16,9 @@ export function mapGame(bg: BackendGame): Game {
     pinRevealDistanceMeters: bg.settings?.pinRevealDistanceMeters,
     narrative: bg.settings?.narrative as Game['narrative'],
     tasks: bg.tasks?.map(mapTask),
+    flowType: bg.flowType,
+    transitions: bg.transitions,
+    endings: bg.endings,
   };
 }
 
@@ -38,5 +41,7 @@ export function mapTask(bt: BackendTask): Task {
       lng: bt.longitude,
       radiusMeters: (bt.unlockConfig?.radiusMeters as number) ?? 50,
     },
+    revealsItem: bt.revealsItem ?? null,
+    unlockRequirements: bt.unlockRequirements ?? null,
   };
 }

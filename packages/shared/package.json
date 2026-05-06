@@ -37,7 +37,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build",
     "test": "jest",
     "typecheck": "tsc --noEmit"
   },
