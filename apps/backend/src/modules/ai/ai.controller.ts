@@ -254,9 +254,21 @@ export class AiController {
           flavour: e.description.slice(0, 240),
         })),
       };
-      const tasks = await this.blueprintService.generateTasks(input, outline);
+      // Tasks regeneration needs the bible for narrative consistency.
+      // Legacy blueprints without one synthesize a fresh bible just-in-time;
+      // it's persisted onto the merged result so downstream regens stay
+      // consistent with the same cast and motifs.
+      const bible =
+        blueprint.storyBible ??
+        (await this.blueprintService.generateStoryBible(input));
+      const tasks = await this.blueprintService.generateTasks(
+        input,
+        outline,
+        bible,
+      );
       const merged = gameBlueprintSchema.parse({
         ...blueprint,
+        storyBible: bible,
         tasks: tasks.tasks,
         transitions: tasks.transitions,
       });

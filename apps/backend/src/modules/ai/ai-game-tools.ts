@@ -3,6 +3,8 @@ import {
   blueprintEndingSchema,
   blueprintTaskSchema,
   blueprintTransitionSchema,
+  narrativeBeatSchema,
+  storyBibleSchema,
 } from '@citygame/shared';
 import type { TaskType } from '@citygame/shared';
 import { z } from 'zod';
@@ -228,6 +230,14 @@ const outlineSchema = z.object({
           'FINAL',
         ]),
         summary: z.string(),
+        // Story-bible-driven enrichment (added in v2). The model assigns each
+        // POI a narrative beat + a list of recurring-character ids that appear
+        // there + concrete clue strings to plant in the task body. Per-POI
+        // task generation reads these and folds them into its prompt so the
+        // parallel calls converge on a coherent narrative.
+        narrativeBeat: narrativeBeatSchema.optional(),
+        recurringCharacterIds: z.array(z.string()).optional(),
+        plantedClues: z.array(z.string()).optional(),
       }),
     )
     .min(3)
@@ -266,6 +276,10 @@ export const transitionsFormat = toStructuredFormat(
   'gameTransitions',
 );
 export const endingsFormat = toStructuredFormat(endingsSchema, 'gameEndings');
+export const storyBibleFormat = toStructuredFormat(
+  storyBibleSchema,
+  'storyBible',
+);
 
 /**
  * Returns a `singleTaskFormat` whose `task.type` enum is narrowed to
@@ -310,11 +324,13 @@ export type TasksToolPayload = z.infer<typeof tasksSchema>;
 export type SingleTaskPayload = z.infer<typeof singleTaskSchema>;
 export type TransitionsPayload = z.infer<typeof transitionsSchema>;
 export type EndingsToolPayload = z.infer<typeof endingsSchema>;
+export type StoryBibleToolPayload = z.infer<typeof storyBibleSchema>;
 
 export {
   endingsSchema,
   outlineSchema,
   singleTaskSchema,
+  storyBibleSchema,
   tasksSchema,
   transitionsSchema,
 };

@@ -309,6 +309,77 @@ export const blueprintEndingSchema = z.object({
   isDefault: z.boolean(),
 });
 
+/**
+ * Where in the dramatic arc a single POI sits. Set on each outline POI and
+ * fed into per-task prompts so parallel calls write voice/intensity that
+ * matches the position in the arc.
+ */
+export const narrativeBeatSchema = z.enum([
+  'hook',
+  'rising',
+  'midpoint',
+  'complication',
+  'climax',
+  'resolution',
+]);
+
+/**
+ * Narrative skeleton produced FIRST and propagated as authoritative context
+ * to every later stage (outline → tasks → endings). Anchors recurring cast,
+ * tone, motifs, and pre-defines the endings skeleton so endings just FILL
+ * the slots instead of inventing themselves from scratch.
+ */
+export const storyBibleSchema = z.object({
+  protagonistRole: z.string().min(3).max(120),
+  questGiver: z.object({
+    name: z.string().min(2).max(80),
+    role: z.string().min(2).max(120),
+    motivation: z.string().min(5).max(400),
+    voiceTrait: z.string().min(3).max(200),
+  }),
+  antagonist: z
+    .object({
+      name: z.string().min(2).max(80),
+      motivation: z.string().min(5).max(400),
+      revealMode: z.enum(['known_from_start', 'midpoint', 'climax_twist']),
+    })
+    .nullable(),
+  macguffin: z
+    .object({
+      name: z.string().min(2).max(80),
+      significance: z.string().min(5).max(400),
+    })
+    .nullable(),
+  centralMystery: z.string().min(10).max(600),
+  toneAnchors: z.array(z.string().min(2).max(40)).min(3).max(5),
+  thematicMotifs: z.array(z.string().min(2).max(40)).min(2).max(5),
+  recurringCharacters: z
+    .array(
+      z.object({
+        id: z.string().regex(/^[a-z0-9_]+$/, 'must be lowercase a-z, 0-9, _'),
+        name: z.string().min(2).max(80),
+        role: z.string().min(2).max(120),
+        voiceTrait: z.string().min(3).max(200),
+        appearsAtPoiHints: z.array(z.string().min(2).max(200)),
+      }),
+    )
+    .max(5),
+  endingsSkeleton: z
+    .array(
+      z.object({
+        label: z
+          .string()
+          .min(2)
+          .max(64)
+          .regex(/^[a-z0-9_-]+$/, 'must be lowercase a-z, 0-9, _, -'),
+        summary: z.string().min(10).max(400),
+        requiredCluesPlanted: z.array(z.string().min(2).max(200)),
+      }),
+    )
+    .min(1)
+    .max(6),
+});
+
 export const gameBlueprintSchema = z
   .object({
     title: z.string().min(3).max(120),
@@ -318,6 +389,7 @@ export const gameBlueprintSchema = z
     language: z.string().min(2).max(8),
     theme: z.string().min(3).max(280),
     prologue: z.string().max(2000).optional(),
+    storyBible: storyBibleSchema.optional(),
     tasks: z.array(blueprintTaskSchema).min(3).max(20),
     transitions: z.array(blueprintTransitionSchema).min(1),
     endings: z.array(blueprintEndingSchema).min(1).max(6),
@@ -443,6 +515,21 @@ export const gameBlueprintSchema = z
         });
       }
     }
+
+    if (bp.storyBible) {
+      // The bible's endings skeleton is generated to match `effectiveEndingCount`
+      // so once endings are filled, both arrays must agree. Mismatch means the
+      // pipeline drifted between stages and the blueprint is unsafe to ship.
+      if (bp.storyBible.endingsSkeleton.length !== bp.endings.length) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `storyBible.endingsSkeleton has ${bp.storyBible.endingsSkeleton.length} entries but blueprint has ${bp.endings.length} endings — they must match`,
+          path: ['storyBible', 'endingsSkeleton'],
+        });
+      }
+    }
   });
 
 export type GameBlueprintParsed = z.infer<typeof gameBlueprintSchema>;
+export type StoryBible = z.infer<typeof storyBibleSchema>;
+export type NarrativeBeat = z.infer<typeof narrativeBeatSchema>;

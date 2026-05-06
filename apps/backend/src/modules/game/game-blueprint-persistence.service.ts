@@ -346,6 +346,11 @@ export class GameBlueprintPersistenceService {
         isNarrative: true,
         theme: blueprint.theme,
         prologue: blueprint.prologue ?? null,
+        // Story Bible (post v2 generations) — preserved alongside other narrative
+        // metadata so the admin can later regenerate single tasks / endings with
+        // the same cast and motifs. Older blueprints save `null` here.
+        storyBible: (blueprint.storyBible ??
+          null) as unknown as Prisma.InputJsonValue,
       },
     };
   }

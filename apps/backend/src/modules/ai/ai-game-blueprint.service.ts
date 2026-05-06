@@ -7,6 +7,7 @@ import {
   type BlueprintInput,
   type BlueprintOutline,
   type GameBlueprint,
+  type StoryBible,
 } from '@citygame/shared';
 import { AiCredentialsService } from './ai-credentials.service';
 import {
@@ -14,6 +15,7 @@ import {
   buildEndingsPrompt,
   buildOutlinePrompt,
   buildSingleTaskPrompt,
+  buildStoryBiblePrompt,
   buildTaskForPoiPrompt,
   buildTransitionsPrompt,
   type CipherAssignment,
@@ -25,12 +27,15 @@ import {
   outlineFormat,
   outlineSchema,
   singleTaskSchema,
+  storyBibleFormat,
+  storyBibleSchema,
   stripArtificialNulls,
   transitionsFormat,
   transitionsSchema,
   type EndingsToolPayload,
   type OutlineToolPayload,
   type SingleTaskPayload,
+  type StoryBibleToolPayload,
   type StructuredFormat,
   type TasksToolPayload,
   type TransitionsPayload,
@@ -69,7 +74,28 @@ export class AiGameBlueprintService {
     return this.credentials.getUseWebSearch() ? `${base}:online` : base;
   }
 
-  async generateOutline(input: BlueprintInput): Promise<BlueprintOutline> {
+  /**
+   * Stage 1 of the new (post-Story-Bible) pipeline. Produces the narrative
+   * skeleton (protagonist, quest giver, antagonist, macguffin, tone anchors,
+   * thematic motifs, recurring cast, endings skeleton) before any other
+   * stage runs. Every later stage receives this bible as authoritative
+   * context so parallel per-POI calls converge on a coherent narrative.
+   */
+  async generateStoryBible(input: BlueprintInput): Promise<StoryBible> {
+    const safeInput = blueprintInputSchema.parse(input);
+    const payload = await this.callStructured<StoryBibleToolPayload>(
+      'storyBible',
+      buildStoryBiblePrompt(safeInput),
+      storyBibleFormat,
+      (raw) => storyBibleSchema.parse(raw),
+    );
+    return payload as StoryBible;
+  }
+
+  async generateOutline(
+    input: BlueprintInput,
+    bible: StoryBible,
+  ): Promise<BlueprintOutline> {
     const safeInput = blueprintInputSchema.parse(input);
     // Anchor the outline to verified real-world coordinates so the model can't
     // hallucinate a city centre that's hundreds of km off, or cluster every
@@ -77,7 +103,7 @@ export class AiGameBlueprintService {
     const geo = await this.geocodeCity(safeInput.city);
     const payload = await this.callStructured<OutlineToolPayload>(
       'outline',
-      buildOutlinePrompt(safeInput, geo ?? undefined),
+      buildOutlinePrompt(safeInput, geo ?? undefined, bible),
       outlineFormat,
       (raw) => outlineSchema.parse(raw),
     );
@@ -163,6 +189,7 @@ export class AiGameBlueprintService {
   async generateTasks(
     input: BlueprintInput,
     outline: BlueprintOutline,
+    bible: StoryBible,
   ): Promise<TasksToolPayload> {
     const safeInput = blueprintInputSchema.parse(input);
     const outlineJson = JSON.stringify(outline, null, 2);
@@ -175,7 +202,10 @@ export class AiGameBlueprintService {
     // one mega call that asks the model for the entire task array. This keeps
     // every response well under any token cap and lets a single bad response
     // be retried in isolation. Cipher source/lock pairs are pre-assigned
-    // matching slugs+values here so parallel calls stay consistent.
+    // matching slugs+values here so parallel calls stay consistent. The bible
+    // and the matching outline POI (with its narrativeBeat /
+    // recurringCharacterIds / plantedClues) are folded into each per-POI
+    // prompt so parallel calls converge on the same cast and motifs.
     const taskResults = await Promise.all(
       outline.pois.map((poi) =>
         this.callStructured<SingleTaskPayload>(
@@ -185,10 +215,12 @@ export class AiGameBlueprintService {
             outlineJson,
             poi.index,
             cipherByPoiIndex.get(poi.index),
+            bible,
+            poi,
           ),
           taskFormat,
           (raw) => singleTaskSchema.parse(raw),
-    
+
         ),
       ),
     );
@@ -217,6 +249,7 @@ export class AiGameBlueprintService {
     input: BlueprintInput,
     outline: BlueprintOutline,
     tasks: TasksToolPayload,
+    bible: StoryBible,
   ): Promise<EndingsToolPayload> {
     const safeInput = blueprintInputSchema.parse(input);
     return this.callStructured<EndingsToolPayload>(
@@ -225,6 +258,7 @@ export class AiGameBlueprintService {
         safeInput,
         JSON.stringify(outline, null, 2),
         JSON.stringify(tasks, null, 2),
+        bible,
       ),
       endingsFormat,
       (raw) => endingsSchema.parse(raw),
@@ -233,9 +267,13 @@ export class AiGameBlueprintService {
   }
 
   async generateGameBlueprint(input: BlueprintInput): Promise<GameBlueprint> {
-    const outline = await this.generateOutline(input);
-    const tasks = await this.generateTasks(input, outline);
-    const endings = await this.generateEndings(input, outline, tasks);
+    // Story Bible runs FIRST so every later stage reads a single coherent
+    // narrative skeleton (cast, motifs, tone, endings skeleton) instead of
+    // each call re-inventing one.
+    const bible = await this.generateStoryBible(input);
+    const outline = await this.generateOutline(input, bible);
+    const tasks = await this.generateTasks(input, outline, bible);
+    const endings = await this.generateEndings(input, outline, tasks, bible);
 
     const blueprint: GameBlueprint = {
       title: outline.title,
@@ -245,6 +283,7 @@ export class AiGameBlueprintService {
       language: input.language,
       theme: outline.theme,
       prologue: outline.prologue,
+      storyBible: bible,
       tasks: tasks.tasks,
       transitions: tasks.transitions,
       endings: this.ensureSingleDefaultEnding(endings.endings),
@@ -271,12 +310,16 @@ export class AiGameBlueprintService {
   ): Promise<GameBlueprint> {
     const safeInput = blueprintInputSchema.parse(input);
     const taskFormat = buildSingleTaskFormat(safeInput.allowedTaskTypes);
+    // Pass through the bible if the blueprint already carries one (post v2
+    // generations); legacy blueprints without a bible regenerate without the
+    // extra context — the prompt builder makes that block optional.
     const payload = await this.callStructured<SingleTaskPayload>(
       `regenerate-task#${taskIndex}`,
       buildSingleTaskPrompt(
         safeInput,
         JSON.stringify(blueprint, null, 2),
         taskIndex,
+        blueprint.storyBible as StoryBible | undefined,
       ),
       taskFormat,
       (raw) => singleTaskSchema.parse(raw),
@@ -314,8 +357,19 @@ export class AiGameBlueprintService {
       tasks: blueprint.tasks,
       transitions: blueprint.transitions,
     };
-    const endings = await this.generateEndings(input, outline, tasks);
-    const next: GameBlueprint = { ...blueprint, endings: endings.endings };
+    // Endings are now generated against the bible's `endingsSkeleton`. Legacy
+    // blueprints that pre-date v2 don't carry a bible — synthesize one
+    // just-in-time so the prompt has a skeleton to fill, and persist it back
+    // on the result so subsequent regenerations stay consistent.
+    const bible: StoryBible =
+      (blueprint.storyBible as StoryBible | undefined) ??
+      (await this.generateStoryBible(input));
+    const endings = await this.generateEndings(input, outline, tasks, bible);
+    const next: GameBlueprint = {
+      ...blueprint,
+      storyBible: bible,
+      endings: endings.endings,
+    };
     const result = gameBlueprintSchema.safeParse(next);
     if (!result.success) {
       throw new BlueprintGenerationError(

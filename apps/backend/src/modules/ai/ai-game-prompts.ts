@@ -1,5 +1,9 @@
 import { TaskType } from '@citygame/shared';
-import type { GameFlowType } from '@citygame/shared';
+import type {
+  BlueprintOutline,
+  GameFlowType,
+  StoryBible,
+} from '@citygame/shared';
 
 export interface BlueprintPromptInput {
   city: string;
@@ -22,12 +26,28 @@ export interface BlueprintPromptInput {
  * regardless of input; non-LINEAR honours the admin override (2–6) and
  * falls back to a sensible default per flow type.
  */
-function effectiveEndingCount(input: BlueprintPromptInput): number {
+export function effectiveEndingCount(input: BlueprintPromptInput): number {
   if (input.flowType === 'LINEAR') return 1;
   if (typeof input.endingCount === 'number') {
     return Math.min(6, Math.max(2, Math.round(input.endingCount)));
   }
   return input.flowType === 'BRANCHING' ? 3 : 3;
+}
+
+/**
+ * Maps recurring-character ids picked on a POI back to their full bible
+ * entries, dropping unknown ids. Used inside `buildTaskForPoiPrompt` so the
+ * model sees `name + role + voiceTrait` rather than the bare id.
+ */
+function resolveRecurringCharacters(
+  ids: ReadonlyArray<string> | undefined,
+  bible: StoryBible,
+): StoryBible['recurringCharacters'] {
+  if (!ids || ids.length === 0) return [];
+  const byId = new Map(bible.recurringCharacters.map((c) => [c.id, c]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((c): c is StoryBible['recurringCharacters'][number] => c != null);
 }
 
 /**
@@ -101,9 +121,76 @@ export interface CityGeocodeAnchor {
   bbox: { south: number; north: number; west: number; east: number };
 }
 
+/**
+ * Stage 1 of the pipeline. Produces the narrative skeleton — protagonist,
+ * quest giver, antagonist, macguffin, tone anchors, thematic motifs, the
+ * recurring cast, and the endings skeleton — that every later stage reads as
+ * authoritative context. Generation is cheap (~600 output tokens) and the
+ * downstream cost reduction (fewer task/ending retries because the model
+ * isn't reinventing characters and clues call-by-call) more than pays for it.
+ */
+export function buildStoryBiblePrompt(input: BlueprintPromptInput): string {
+  const flowDesc = FLOW_DESCRIPTIONS[input.flowType];
+  const audience = input.audience
+    ? `Target audience: ${input.audience}.`
+    : 'Target audience: general adult players.';
+  const tone = input.tone
+    ? `Tone: ${input.tone}.`
+    : 'Tone: engaging, immersive.';
+  const notes = input.notes ? `Additional notes: ${input.notes}` : '';
+  const endingCount = effectiveEndingCount(input);
+
+  const branchingNote =
+    input.flowType === 'BRANCHING'
+      ? `\nBRANCHING flow: produce ${endingCount} endingsSkeleton entries — exactly one of them is the DEFAULT/timeout fallback (its label SHOULD include "default" or "timeout"); the other ${endingCount - 1} entries are branch leaves the player can reach by choice.`
+      : input.flowType === 'LINEAR'
+        ? '\nLINEAR flow: emit exactly 1 endingsSkeleton entry — it IS the default ending.'
+        : `\nOPEN_WORLD/MIXED flow: produce ${endingCount} endingsSkeleton entries (e.g. one good, one bad/timeout, optionally one secret). Exactly one will become the DEFAULT fallback in the final endings.`;
+
+  return `You are a city-game designer crafting the NARRATIVE SKELETON for an urban exploration game in ${input.city}. This skeleton is the single source of truth — every later stage (outline → tasks → endings) will reference it and MUST NOT contradict it.
+
+City: ${input.city}
+Theme: ${input.theme}
+Flow type: ${input.flowType} — ${flowDesc}
+Number of tasks: ${input.taskCount}
+Endings to plan: ${endingCount}
+Difficulty: ${input.difficulty}
+Language for player-facing text: ${input.language}
+${audience}
+${tone}
+${notes}${branchingNote}
+
+Use the 'submitStoryBible' tool. Produce:
+- protagonistRole: a clear, evocative one-phrase role (e.g. "young apprentice scribe", "skeptical city detective"). NOT a name.
+- questGiver: the in-fiction character who hires/sends the player on the journey. Provide name (locale-appropriate for ${input.language}), role, motivation (1 sentence), voiceTrait (1 sentence describing how they speak — vocabulary, rhythm, mannerism — e.g. "uses old proverbs and speaks in fragments").
+- antagonist: only when the theme implies conflict or for non-OPEN_WORLD games. Provide name, motivation, revealMode = "known_from_start" | "midpoint" | "climax_twist". Set null when no clear antagonist fits.
+- macguffin: optional but recommended for non-LINEAR. The thing the player chases (a lost diary, a hidden key, a banished name). Set null only if the theme is structured around a journey rather than an object.
+- centralMystery: 1-2 sentences. The driving question of the game.
+- toneAnchors: 3-5 single-word adjectives that describe the voice ALL prose must respect. Concrete and specific (e.g. "melancholic", "wry", "hushed"). Avoid generic words like "exciting".
+- thematicMotifs: 2-5 concrete nouns or short phrases that recur (e.g. "broken clocks", "silver thread", "the river's voice"). These will appear in multiple tasks.
+- recurringCharacters: 0-5 characters (in addition to questGiver) who reappear at multiple POIs. Each gets:
+    - id: lowercase a-z, 0-9, _ only (e.g. "stary_kronikarz")
+    - name (locale-appropriate)
+    - role
+    - voiceTrait
+    - appearsAtPoiHints: natural-language hints describing where they appear (e.g. ["in a quiet courtyard near the cathedral", "around the halfway point", "the final POI"]).
+  Recurring cast is OPTIONAL — leave the array empty for short or solo-protagonist games.
+- endingsSkeleton: EXACTLY ${endingCount} entries. Each with:
+    - label: lowercase slug (e.g. "good_ending", "betrayed_ending", "default_timeout")
+    - summary: 1-2 sentence outcome description
+    - requiredCluesPlanted: 1-4 concrete clue strings that must appear in earlier tasks for this ending to make sense (e.g. "the seal of the lost guild is recognised", "the protagonist learns the questGiver's hidden name").
+
+Hard constraints:
+- toneAnchors MUST be 3-5 entries, thematicMotifs MUST be 2-5, recurringCharacters MUST be at most 5, endingsSkeleton.length MUST equal ${endingCount}.
+- The questGiver SHOULD naturally appear at the START POI (mentioned in their appearsAtPoiHints isn't required since they aren't in recurringCharacters, but think about where the prologue places them).
+- Recurring characters work best when they reappear at 2+ spread-out POIs across the arc.
+- requiredCluesPlanted strings must be specific enough that a later stage can plant them in concrete task body / storyContext.`;
+}
+
 export function buildOutlinePrompt(
   input: BlueprintPromptInput,
-  geo?: CityGeocodeAnchor,
+  geo: CityGeocodeAnchor | undefined,
+  bible: StoryBible,
 ): string {
   const flowDesc = FLOW_DESCRIPTIONS[input.flowType];
   const audience = input.audience
@@ -125,7 +212,16 @@ RULES:
 - Anchor each POI to a real, named place (church, market square, monument, park, bridge, museum) that actually exists in the city. If unsure, use plausible coordinates inside the bbox rather than inventing a location outside it.`
     : '';
 
+  const recurringIds = bible.recurringCharacters.map((c) => c.id);
+  const recurringIdsLine =
+    recurringIds.length > 0
+      ? `Available recurring-character ids (use these EXACT ids in 'recurringCharacterIds'): ${recurringIds.join(', ')}.`
+      : 'No recurring cast — leave every POI\'s recurringCharacterIds empty.';
+
   return `You are a city-game designer. Sketch the OUTLINE of a new game.
+
+STORY BIBLE (authoritative — every later stage will read it; do NOT contradict any of these decisions):
+${JSON.stringify(bible, null, 2)}
 
 City: ${input.city}
 Theme: ${input.theme}
@@ -141,7 +237,12 @@ ${geoBlock}
 
 ${URBAN_DESIGN_PRINCIPLES}${allowedTaskTypesClause(input)}${mixedComponentsClause(input)}
 
-Use the 'submitGameOutline' tool. Each POI carries 1-based 'index' that matches the future task list order. Use roles START, HUB, PUZZLE, CIPHER_SOURCE, CIPHER_LOCK, FINAL to mark special positions. Provide EXACTLY ${effectiveEndingCount(input)} entries in 'endingHints' (one short flavour per planned ending).${
+Use the 'submitGameOutline' tool. Each POI carries 1-based 'index' that matches the future task list order. Use roles START, HUB, PUZZLE, CIPHER_SOURCE, CIPHER_LOCK, FINAL to mark special positions. Provide EXACTLY ${effectiveEndingCount(input)} entries in 'endingHints' (one short flavour per planned ending).
+
+STORY-BIBLE-DRIVEN POI ENRICHMENT — apply to EVERY POI:
+- narrativeBeat: assign one of "hook" | "rising" | "midpoint" | "complication" | "climax" | "resolution" so the per-POI task generator knows the dramatic position. Curve: hook at task 1, rising for the next 30-40%, midpoint near the middle, complication after, climax around 75-90%, resolution at the leaf POI(s).
+- recurringCharacterIds: array of ids from the bible's recurringCharacters that appear at THIS POI. ${recurringIdsLine} Pick ids that match each character's appearsAtPoiHints. Spread cameos so a recurring character shows up at 2+ POIs across the arc.
+- plantedClues: list 1-3 concrete clue strings this POI's task MUST surface. Draw from the bible's endingsSkeleton[].requiredCluesPlanted — every required clue listed in the skeleton must be planted at SOME POI on the path that reaches that ending. Phrase each clue concretely so the per-task generator can fold it into the narrative or puzzle (e.g. "the seal of the lost guild is shown on a tomb engraving here").${
     input.flowType === 'BRANCHING'
       ? (() => {
           const branches = Math.max(1, effectiveEndingCount(input) - 1);
@@ -162,7 +263,8 @@ BRANCHING-specific outline guidance:
 - Group POIs into contiguous blocks, one per branch. Use each POI's 'summary' to state which branch it belongs to (e.g. "Branch 1", "Branch 2", … "Branch ${branches}") or that it is the trunk.
 - Branches MUST NOT share any POI and MUST NOT reconverge — each ends on its own FINAL POI that triggers a distinct ending.
 - If you include cipher chains, BOTH the CIPHER_SOURCE and CIPHER_LOCK MUST be on the same branch (or both on the trunk). A source/lock pair across branches would be unreachable.
-- Provide ${effectiveEndingCount(input)} entries in 'endingHints': one per branch leaf + one DEFAULT/timeout fallback.`;
+- Provide ${effectiveEndingCount(input)} entries in 'endingHints': one per branch leaf + one DEFAULT/timeout fallback.
+- Plant each non-DEFAULT ending's requiredCluesPlanted on POIs that lie on THAT ending's branch (or trunk). The DEFAULT ending plants no clues.`;
         })()
       : ''
   }`;
@@ -197,11 +299,22 @@ export interface CipherAssignment {
   role: 'CIPHER_SOURCE' | 'CIPHER_LOCK';
 }
 
+const NARRATIVE_BEAT_GLOSS: Record<string, string> = {
+  hook: 'opening — establish protagonist + place; warmest possible welcome; minimal mechanical difficulty.',
+  rising: 'tension building — introduce a complication or curiosity; mid-light difficulty; pace picks up.',
+  midpoint: 'turn — the story shifts gears (revelation, ally or rival appears, hidden cost surfaces); medium difficulty.',
+  complication: 'pressure — stakes rise; cipher locks or commitments lock in; sharper difficulty.',
+  climax: 'crescendo — the hardest task; everything in the bible should converge here; the protagonist confronts the central mystery directly.',
+  resolution: 'cool-down at the leaf POI — wrap up the chosen branch; light mechanical difficulty so the ending lands cleanly.',
+};
+
 export function buildTaskForPoiPrompt(
   input: BlueprintPromptInput,
   outlineJson: string,
   poiIndex: number,
-  cipher?: CipherAssignment,
+  cipher: CipherAssignment | undefined,
+  bible: StoryBible,
+  poi: BlueprintOutline['pois'][number],
 ): string {
   // The cipher source/lock pair must use a type that produces an
   // `expectedAnswer` (CIPHER or TEXT_EXACT). Pick one that's also in the
@@ -244,7 +357,40 @@ The player will only solve this if they previously obtained the item slug "${cip
 - Cipher chains are handled by dedicated CIPHER_SOURCE / CIPHER_LOCK POIs elsewhere in this game; this POI is NOT one of them.`;
   }
 
+  const presentCharacters = resolveRecurringCharacters(
+    poi.recurringCharacterIds,
+    bible,
+  );
+  const charactersBlock =
+    presentCharacters.length > 0
+      ? `\nRECURRING CHARACTERS PRESENT AT THIS POI (each MUST be referenced by name in storyContext.characterName or taskNarrative; respect their voiceTrait):\n${presentCharacters
+          .map(
+            (c) =>
+              `- ${c.name} (${c.role}) — voice: ${c.voiceTrait} — id: ${c.id}`,
+          )
+          .join('\n')}`
+      : '\nRECURRING CHARACTERS PRESENT AT THIS POI: none — invent a one-off NPC for storyContext.characterName if useful, but do NOT promote them into the recurring cast.';
+
+  const plantedClues = poi.plantedClues ?? [];
+  const cluesBlock =
+    plantedClues.length > 0
+      ? `\nCLUES TO PLANT IN THIS TASK (the endings rely on these — surface each one in storyContext.clueRevealed or weave it into the puzzle / hints):\n${plantedClues
+          .map((c) => `- ${c}`)
+          .join('\n')}`
+      : '\nCLUES TO PLANT IN THIS TASK: none — focus on the local POI fact and the narrativeBeat.';
+
+  const beatLine = poi.narrativeBeat
+    ? `\nTHIS POI'S NARRATIVE BEAT: "${poi.narrativeBeat}" — ${NARRATIVE_BEAT_GLOSS[poi.narrativeBeat] ?? 'unspecified beat — match the dramatic position of this POI in the arc.'}`
+    : '';
+
   return `You are a city-game designer. Hydrate ONE POI from the outline into a complete task.
+
+STORY BIBLE (authoritative — every word you write must respect these decisions):
+${JSON.stringify(bible, null, 2)}
+
+TONE ANCHORS (every adjective/verb you write must respect these): ${bible.toneAnchors.join(', ')}.
+THEMATIC MOTIFS (use at least one in the task body if it fits naturally): ${bible.thematicMotifs.join(', ')}.
+${beatLine}${charactersBlock}${cluesBlock}
 
 Input:
 ${JSON.stringify(input, null, 2)}
@@ -302,8 +448,17 @@ export function buildEndingsPrompt(
   input: BlueprintPromptInput,
   outlineJson: string,
   tasksJson: string,
+  bible: StoryBible,
 ): string {
-  return `You are a city-game designer. Define the endings.
+  const skeletonJson = JSON.stringify(bible.endingsSkeleton, null, 2);
+  const skeletonCount = bible.endingsSkeleton.length;
+  return `You are a city-game designer. FILL the endings skeleton from the story bible — do NOT invent fresh endings; complete the slots.
+
+STORY BIBLE (authoritative):
+${JSON.stringify(bible, null, 2)}
+
+ENDINGS SKELETON TO FILL (one final ending per entry; emit them in this order):
+${skeletonJson}
 
 Input:
 ${JSON.stringify(input, null, 2)}
@@ -311,15 +466,23 @@ ${JSON.stringify(input, null, 2)}
 Outline:
 ${outlineJson}
 
-Tasks:
+Tasks (already finalized — read storyContext.clueRevealed to confirm which clues are planted where):
 ${tasksJson}
 
 ${URBAN_DESIGN_PRINCIPLES}
 
-Use the 'submitEndings' tool.
-- LINEAR: emit exactly one ending with isDefault=true, condition { type: "DEFAULT" }.
-- BRANCHING: read the transitions in 'Tasks' above to identify each fork's two branches (a fork is any task whose toTaskIndex appears in two transitions sharing the same fromTaskIndex). Emit ONE ending per branch leaf — its condition.taskIndices must contain ONLY the indices of tasks on that branch (optionally plus the trunk tasks that precede the fork). Never list a task that belongs to a different branch. Add exactly one DEFAULT ending (isDefault=true) at the highest orderIndex as the timeout/abandon fallback. TARGET COUNT: produce EXACTLY ${effectiveEndingCount(input)} endings total (one of which is the DEFAULT fallback).
-- OPEN_WORLD / MIXED: emit EXACTLY ${effectiveEndingCount(input)} endings; exactly one isDefault=true. Reference task indices in ALL_OF / ANY_OF conditions. Use SCORE_GTE for "good" if appropriate, ITEM_COLLECTED for "secret" using the cipher item slug, TIMEOUT for "bad".
+Use the 'submitEndings' tool. Emit EXACTLY ${skeletonCount} endings, one per skeleton entry, in skeleton order:
+- ending.slug = the skeleton entry's 'label' (verbatim).
+- ending.title = a short evocative phrase consistent with the skeleton 'summary' and the bible's toneAnchors.
+- ending.description = 2-4 sentences expanding the skeleton 'summary' in language matching the bible's toneAnchors. Reference the questGiver / antagonist / macguffin where they fit naturally.
+- ending.condition: per-flow rules below.
+- ending.isDefault: exactly ONE entry across the array should be true (preferably the skeleton entry whose label includes "default" or "timeout"; otherwise the last entry).
+- For each non-default ending, ensure that EVERY string in skeleton.requiredCluesPlanted has actually been planted in at least one of the tasks listed in this ending's condition.taskIndices (look it up in the tasks JSON above). If a required clue is missing, choose an alternate task that DOES carry it, or surface the gap by making this ending the DEFAULT and using condition { type: "DEFAULT" }.
+
+Per-flow condition rules:
+- LINEAR: the single skeleton entry has isDefault=true with condition { type: "DEFAULT" }.
+- BRANCHING: for each non-default skeleton entry, condition = { type: "ALL_OF", taskIndices: [<indices on that branch + trunk indices that precede the fork>] }; never list tasks from a sibling branch. The default entry uses condition { type: "DEFAULT" } at the highest orderIndex.
+- OPEN_WORLD / MIXED: condition is one of ALL_OF / ANY_OF / SCORE_GTE / ITEM_COLLECTED / TIMEOUT for non-default entries; exactly one is { type: "DEFAULT" }.
 - 'orderIndex' is evaluated low-to-high; place the DEFAULT ending last (highest orderIndex) so it acts as the fallback.`;
 }
 
@@ -327,8 +490,12 @@ export function buildSingleTaskPrompt(
   input: BlueprintPromptInput,
   blueprintJson: string,
   taskIndex: number,
+  bible?: StoryBible,
 ): string {
-  return `You are a city-game designer. Regenerate a single task within an existing blueprint.
+  const bibleBlock = bible
+    ? `\n\nSTORY BIBLE (authoritative — keep the regenerated task consistent with the established cast, motifs, and tone):\n${JSON.stringify(bible, null, 2)}\n\nTONE ANCHORS: ${bible.toneAnchors.join(', ')}.\nTHEMATIC MOTIFS: ${bible.thematicMotifs.join(', ')}.`
+    : '';
+  return `You are a city-game designer. Regenerate a single task within an existing blueprint.${bibleBlock}
 
 Input:
 ${JSON.stringify(input, null, 2)}

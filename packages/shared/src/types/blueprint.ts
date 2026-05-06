@@ -147,6 +147,46 @@ export interface BlueprintEnding {
   isDefault: boolean;
 }
 
+/**
+ * Narrative skeleton produced FIRST in the AI pipeline and propagated as
+ * authoritative context to outline → tasks → endings. See `storyBibleSchema`
+ * in `packages/shared/src/validation` for the full Zod definition; that
+ * schema is the source of truth and is exported as `StoryBible` from
+ * `@citygame/shared`. Re-declared here as a structural alias so this types
+ * file can describe the blueprint without pulling in the full validation
+ * module's transitive imports.
+ */
+export interface BlueprintStoryBible {
+  protagonistRole: string;
+  questGiver: {
+    name: string;
+    role: string;
+    motivation: string;
+    voiceTrait: string;
+  };
+  antagonist: {
+    name: string;
+    motivation: string;
+    revealMode: 'known_from_start' | 'midpoint' | 'climax_twist';
+  } | null;
+  macguffin: { name: string; significance: string } | null;
+  centralMystery: string;
+  toneAnchors: string[];
+  thematicMotifs: string[];
+  recurringCharacters: Array<{
+    id: string;
+    name: string;
+    role: string;
+    voiceTrait: string;
+    appearsAtPoiHints: string[];
+  }>;
+  endingsSkeleton: Array<{
+    label: string;
+    summary: string;
+    requiredCluesPlanted: string[];
+  }>;
+}
+
 export interface GameBlueprint {
   title: string;
   description: string;
@@ -155,10 +195,19 @@ export interface GameBlueprint {
   language: string;
   theme: string;
   prologue?: string;
+  storyBible?: BlueprintStoryBible;
   tasks: BlueprintTask[];
   transitions: BlueprintTransition[];
   endings: BlueprintEnding[];
 }
+
+export type BlueprintNarrativeBeat =
+  | 'hook'
+  | 'rising'
+  | 'midpoint'
+  | 'complication'
+  | 'climax'
+  | 'resolution';
 
 /** Stage-by-stage outline produced before the full blueprint hydration. */
 export interface BlueprintOutline {
@@ -175,6 +224,12 @@ export interface BlueprintOutline {
     longitude: number;
     role: 'START' | 'HUB' | 'PUZZLE' | 'CIPHER_SOURCE' | 'CIPHER_LOCK' | 'FINAL';
     summary: string;
+    /** Position in the dramatic arc — drives voice/intensity in the per-task prompt. */
+    narrativeBeat?: BlueprintNarrativeBeat;
+    /** Recurring-character IDs from the story bible that appear at this POI. */
+    recurringCharacterIds?: string[];
+    /** Concrete clues this task must surface so endings have material to reference. */
+    plantedClues?: string[];
   }>;
   endingHints: Array<{
     slug: string;
