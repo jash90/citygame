@@ -85,13 +85,16 @@ export class AiController {
       await this.credentials.setUseWebSearch(dto.useWebSearch);
     }
     if (dto.modelsByPurpose) {
-      // Empty string for any field clears the override and falls back to the
-      // global model. Iterate every supplied key to keep the persisted map
-      // tight (no `""` values stored).
+      // class-transformer instantiates the DTO with every declared field
+      // present, so `Object.entries` includes all 5 purposes even when the
+      // client sent only one. Skip undefined entries so a PATCH for one
+      // purpose doesn't accidentally clear the other four. Empty string still
+      // means "clear this override" — only `undefined` means "leave alone".
       for (const [purpose, value] of Object.entries(dto.modelsByPurpose)) {
+        if (value === undefined) continue;
         await this.credentials.setModelFor(
           purpose as Parameters<typeof this.credentials.setModelFor>[0],
-          value ?? null,
+          value,
         );
       }
     }

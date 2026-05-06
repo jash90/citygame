@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Layers, Loader2 } from 'lucide-react';
+import { ChevronRight, Layers, Loader2, X } from 'lucide-react';
 import {
   AI_PURPOSES,
   useAiConfig,
-  useAiModels,
   useSetAiModelByPurpose,
   type AiPurpose,
 } from '@/features/settings/hooks/useAdminSettings';
+import { OpenRouterModelPickerModal } from './OpenRouterModelPickerModal';
 
 const PURPOSE_LABELS: Record<AiPurpose, { label: string; hint: string }> = {
   blueprint: {
@@ -40,11 +40,10 @@ const PURPOSE_LABELS: Record<AiPurpose, { label: string; hint: string }> = {
 
 export function AiPurposeModelsCard() {
   const { data: config, isLoading: configLoading } = useAiConfig();
-  const { data: modelsData, isLoading: modelsLoading } = useAiModels();
   const setModel = useSetAiModelByPurpose();
   const [pending, setPending] = useState<AiPurpose | null>(null);
+  const [pickerFor, setPickerFor] = useState<AiPurpose | null>(null);
 
-  const models = modelsData?.models ?? [];
   const fallbackModel = config?.activeModel ?? '';
   const overrides = config?.modelsByPurpose ?? {};
 
@@ -56,7 +55,7 @@ export function AiPurposeModelsCard() {
     );
   };
 
-  const loading = configLoading || modelsLoading;
+  const loading = configLoading;
 
   return (
     <section className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col gap-4">
@@ -79,7 +78,7 @@ export function AiPurposeModelsCard() {
       {loading ? (
         <div className="flex items-center justify-center py-8 text-sm text-gray-500">
           <Loader2 size={16} className="animate-spin mr-2" />
-          Ładowanie modeli…
+          Ładowanie konfiguracji…
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -87,6 +86,7 @@ export function AiPurposeModelsCard() {
             const meta = PURPOSE_LABELS[purpose];
             const current = overrides[purpose] ?? '';
             const isPending = pending === purpose;
+            const usingDefault = !current;
             return (
               <div
                 key={purpose}
@@ -98,22 +98,37 @@ export function AiPurposeModelsCard() {
                   </span>
                   <span className="text-xs text-gray-500">{meta.hint}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={current}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setPickerFor(purpose)}
                     disabled={isPending}
-                    onChange={(e) => handleChange(purpose, e.target.value)}
-                    className="px-2 py-1.5 text-sm bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#FF6B35]/30 focus:border-[#FF6B35] min-w-[260px] disabled:opacity-60"
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-sm bg-white border border-gray-300 rounded-lg hover:border-[#FF6B35] hover:text-[#FF6B35] transition-colors min-w-[260px] disabled:opacity-60 text-left"
                   >
-                    <option value="">
-                      Domyślny ({fallbackModel || '—'})
-                    </option>
-                    {models.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.id}
-                      </option>
-                    ))}
-                  </select>
+                    <span className="flex-1 min-w-0">
+                      {usingDefault ? (
+                        <span className="text-gray-500 italic truncate">
+                          Domyślny ({fallbackModel || '—'})
+                        </span>
+                      ) : (
+                        <span className="font-mono text-xs text-gray-900 truncate">
+                          {current}
+                        </span>
+                      )}
+                    </span>
+                    <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />
+                  </button>
+                  {!usingDefault && (
+                    <button
+                      type="button"
+                      onClick={() => handleChange(purpose, '')}
+                      disabled={isPending}
+                      title="Wyczyść — wróć do modelu domyślnego"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
                   {isPending && (
                     <Loader2 size={14} className="animate-spin text-gray-400" />
                   )}
@@ -129,6 +144,23 @@ export function AiPurposeModelsCard() {
           {setModel.error?.message ?? 'Nie udało się zapisać zmiany.'}
         </p>
       )}
+
+      <OpenRouterModelPickerModal
+        open={pickerFor !== null}
+        onClose={() => setPickerFor(null)}
+        onSelect={(model) => {
+          if (pickerFor) handleChange(pickerFor, model);
+        }}
+        currentValue={pickerFor ? overrides[pickerFor] ?? null : null}
+        allowDefault
+        title={
+          pickerFor
+            ? `Model dla: ${PURPOSE_LABELS[pickerFor].label}`
+            : 'Wybierz model'
+        }
+        description={pickerFor ? PURPOSE_LABELS[pickerFor].hint : undefined}
+        fallbackHint={fallbackModel}
+      />
     </section>
   );
 }
