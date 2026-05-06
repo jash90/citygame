@@ -66,7 +66,8 @@ export function TaskEditorForm({
       timeLimitSec: task?.timeLimitSec,
       aiPrompt: verifyDefaults.aiPrompt,
       aiThreshold: verifyDefaults.aiThreshold,
-      answerHash: verifyDefaults.answerHash,
+      expectedAnswer: verifyDefaults.expectedAnswer,
+      qrAnswer: verifyDefaults.qrAnswer,
       qrHash: verifyDefaults.qrHash,
       gpsRadius: verifyDefaults.gpsRadius,
       ...storyCtx,
@@ -215,8 +216,19 @@ export function TaskEditorForm({
         </p>
 
         {selectedType === TaskType.QR_SCAN && (
-          <Field label="Hash QR kodu" error={errors.qrHash?.message}>
-            <input {...register('qrHash')} placeholder="np. sha256:abc123..." className={inputClass(errors.qrHash?.message)} />
+          <Field
+            label="Treść kodu QR"
+            hint={
+              task
+                ? 'Pozostaw puste, aby zachować obecny kod. Wpisz nowy tekst, aby go zmienić.'
+                : 'Wpisz tekst zakodowany w QR (URL, hasło, etykieta). Backend zhashuje przed zapisem.'
+            }
+          >
+            <input
+              {...register('qrAnswer')}
+              placeholder={task ? '(bez zmian)' : 'np. https://city.game/poi-1'}
+              className={inputClass()}
+            />
           </Field>
         )}
 
@@ -238,8 +250,20 @@ export function TaskEditorForm({
         )}
 
         {(selectedType === TaskType.TEXT_EXACT || selectedType === TaskType.CIPHER) && (
-          <Field label="Hash poprawnej odpowiedzi" hint="SHA-256 hash oczekiwanej odpowiedzi">
-            <input {...register('answerHash')} type="text" placeholder="sha256 hasha odpowiedzi" className={inputClass()} />
+          <Field
+            label="Poprawna odpowiedź"
+            hint={
+              task
+                ? 'Pozostaw puste, aby zachować obecną odpowiedź. Wpisz nową, aby ją zmienić.'
+                : 'Wpisz oczekiwany tekst (porównanie ignoruje wielkość liter i białe znaki). Backend bcryptuje przed zapisem.'
+            }
+          >
+            <input
+              {...register('expectedAnswer')}
+              type="text"
+              placeholder={task ? '(bez zmian)' : 'np. AURUM'}
+              className={inputClass()}
+            />
           </Field>
         )}
 

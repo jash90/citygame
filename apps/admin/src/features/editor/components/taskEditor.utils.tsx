@@ -13,7 +13,11 @@ export const taskEditorSchema = z.object({
   timeLimitSec: z.coerce.number().optional(),
   aiPrompt: z.string().optional(),
   aiThreshold: z.coerce.number().min(0).max(1).optional(),
-  answerHash: z.string().optional(),
+  /** Plaintext expected answer for TEXT_EXACT / CIPHER (top-level types). */
+  expectedAnswer: z.string().optional(),
+  /** Plaintext QR code content for QR_SCAN as the verify type. */
+  qrAnswer: z.string().optional(),
+  /** Hash for unlock-method QR (still hash; admin pastes/exports it). */
   qrHash: z.string().optional(),
   gpsRadius: z.coerce.number().optional(),
   characterName: z.string().optional(),
@@ -54,7 +58,7 @@ export function buildVerifyConfig(
   const T = TaskTypeEnum;
   switch (data.type) {
     case T.QR_SCAN:
-      return { type: 'QR_SCAN', expectedHash: data.qrHash ?? '' };
+      return { type: 'QR_SCAN', expectedAnswer: data.qrAnswer ?? '' };
     case T.GPS_REACH:
       return { type: 'GPS_REACH', latitude: data.latitude, longitude: data.longitude, radiusMeters: data.gpsRadius ?? 50 };
     case T.PHOTO_AI:
@@ -64,9 +68,9 @@ export function buildVerifyConfig(
     case T.AUDIO_AI:
       return { type: 'AUDIO_AI', prompt: data.aiPrompt ?? '', threshold: data.aiThreshold ?? 0.7 };
     case T.TEXT_EXACT:
-      return { type: 'TEXT_EXACT', answerHash: data.answerHash ?? '' };
+      return { type: 'TEXT_EXACT', expectedAnswer: data.expectedAnswer ?? '' };
     case T.CIPHER:
-      return { type: 'CIPHER', answerHash: data.answerHash ?? '' };
+      return { type: 'CIPHER', expectedAnswer: data.expectedAnswer ?? '' };
     default:
       return { type: 'MIXED', steps: [] };
   }
@@ -96,16 +100,26 @@ export function parseStoryContext(task: { storyContext?: string | null } | undef
   taskNarrative: string;
   clueRevealed: string;
 } {
+  const empty = {
+    characterName: '',
+    locationIntro: '',
+    taskNarrative: '',
+    clueRevealed: '',
+  };
+  if (!task?.storyContext) return empty;
   try {
-    const ctx = task?.storyContext ? JSON.parse(task.storyContext) : {};
-    return {
-      characterName: ctx.characterName ?? '',
-      locationIntro: ctx.locationIntro ?? '',
-      taskNarrative: ctx.taskNarrative ?? '',
-      clueRevealed: ctx.clueRevealed ?? '',
-    };
+    const parsed = JSON.parse(task.storyContext);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return {
+        characterName: typeof parsed.characterName === 'string' ? parsed.characterName : '',
+        locationIntro: typeof parsed.locationIntro === 'string' ? parsed.locationIntro : '',
+        taskNarrative: typeof parsed.taskNarrative === 'string' ? parsed.taskNarrative : '',
+        clueRevealed: typeof parsed.clueRevealed === 'string' ? parsed.clueRevealed : '',
+      };
+    }
+    return { ...empty, taskNarrative: String(parsed) };
   } catch {
-    return { characterName: '', locationIntro: '', taskNarrative: '', clueRevealed: '' };
+    return { ...empty, taskNarrative: task.storyContext };
   }
 }
 
@@ -115,12 +129,16 @@ export function parseVerifyDefaults(task: { verifyConfig?: unknown; unlockConfig
   return {
     aiPrompt: vc && 'prompt' in vc ? (vc.prompt as string) : '',
     aiThreshold: vc && 'threshold' in vc ? (vc.threshold as number) : 0.7,
-    answerHash: vc && 'answerHash' in vc ? (vc.answerHash as string) : '',
-    qrHash: vc?.type === 'QR_SCAN'
-      ? (vc.expectedHash as string)
-      : uc?.method === 'QR'
-        ? (uc.expectedHash as string)
+    expectedAnswer:
+      (vc?.type === 'TEXT_EXACT' || vc?.type === 'CIPHER') &&
+      typeof vc.expectedAnswer === 'string'
+        ? vc.expectedAnswer
         : '',
+    qrAnswer:
+      vc?.type === 'QR_SCAN' && typeof vc.expectedAnswer === 'string'
+        ? vc.expectedAnswer
+        : '',
+    qrHash: uc?.method === 'QR' ? ((uc.expectedHash as string) ?? '') : '',
     gpsRadius: vc?.type === 'GPS_REACH' ? (vc.radiusMeters as number) : 50,
   };
 }
