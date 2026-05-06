@@ -49,18 +49,6 @@ export const OfflineBanner = (): React.JSX.Element | null => {
       style={{ bottom: bottom }}
       pointerEvents="box-none"
     >
-      {!isOnline ? (
-        <View
-          className="bg-amber-500 px-4 py-2 flex-row items-center gap-2"
-          pointerEvents="auto"
-        >
-          <Ionicons name="cloud-offline-outline" size={16} color="#FFFFFF" />
-          <Text className="text-white text-xs font-semibold flex-1">
-            Tryb offline
-            {queueDepth > 0 ? ` — ${queueDepth} w kolejce` : ''}
-          </Text>
-        </View>
-      ) : null}
       {queueDepth > 0 ? (
         <View
           className="bg-blue-500 px-4 py-2 flex-row items-center gap-2"
@@ -71,7 +59,18 @@ export const OfflineBanner = (): React.JSX.Element | null => {
             Synchronizacja: {queueDepth} {queueDepth === 1 ? 'element' : 'elementów'}
           </Text>
         </View>
-      ) : null}
+      ) :  (
+        <View
+          className="bg-amber-500 px-4 py-2 flex-row items-center gap-2"
+          pointerEvents="auto"
+        >
+          <Ionicons name="cloud-offline-outline" size={16} color="#FFFFFF" />
+          <Text className="text-white text-xs font-semibold flex-1">
+            Tryb offline
+            {queueDepth > 0 ? ` — ${queueDepth} w kolejce` : ''}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
