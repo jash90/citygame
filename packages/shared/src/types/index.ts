@@ -1,6 +1,7 @@
 export * from './user';
 export * from './game';
 export * from './task';
+export * from './character';
 export * from './session';
 export * from './ranking';
 export * from './ws';

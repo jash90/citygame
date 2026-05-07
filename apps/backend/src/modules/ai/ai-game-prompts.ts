@@ -568,6 +568,50 @@ export const BLUEPRINT_SYSTEM_MESSAGE = [
  * The cast is injected into the outline and tasks stages so all stages
  * agree on who the NPCs are.
  */
+/**
+ * Cast section for injection into the tasks stage prompt.
+ * Provides NPC list + assignment rules when cast is available.
+ */
+export function buildTasksPromptCastSection(cast: { characters: Array<{ name: string; archetype: string; roleFunction: string; voiceTrait: string; importance: number }> } | null | undefined): string {
+  if (!cast || cast.characters.length === 0) return '';
+
+  const charactersBlock = cast.characters
+    .map((c, i) => `${i + 1}. ${c.name} — ${c.archetype}
+   Rola: ${c.roleFunction} | Importance: ${c.importance}/5
+   Głos: ${c.voiceTrait}`)
+    .join('\n\n');
+
+  return `
+
+═══════════════════════════════════════════════════════════
+DOSTĘPNI NPC (cast):
+═══════════════════════════════════════════════════════════
+${charactersBlock}
+
+ZASADY PRZYPISANIA NPC DO ZADAŃ:
+- Każde zadanie ustaw npcName na imię z powyższej listy. Wyjątek: zadania CIPHER lub MIXED bez naturalnego rozmówcy → npcName=null.
+- NPC z importance >= 4 musi mieć ≥2 zadania.
+- NPC z importance == 5 (jeśli jest) musi mieć zadanie z taskRoleInArc='CLIMAX'.
+- Każdy NPC z >1 zadaniem tworzy łuk dramatyczny:
+    pierwsze zadanie:    taskRoleInArc='INTRODUCTION'
+    środkowe zadania:    taskRoleInArc='DEEPENING'
+    ostatnie zadanie:    taskRoleInArc='TWIST' lub 'CLIMAX'
+- Pojedyncze zadanie NPC: taskRoleInArc=null.
+- Co najmniej 1 task w grze ma taskRoleInArc='CLIMAX'.
+
+ZASADY GŁOSU NPC W TREŚCI ZADAŃ:
+- storyContext.characterName MUSI być identyczne z npcName.
+- storyContext.taskNarrative MUSI być pisane w głosie tego NPC zgodnie z jego voice trait.
+- clueRevealed MUSI brzmieć jak cytat tego NPC (cudzysłów + voice trait).
+
+ROZKŁAD W GRZE:
+- Pierwszy task MUSI być przypisany do QUEST_GIVER.
+- Ostatni task MUSI mieć taskRoleInArc='CLIMAX' i być przypisany do NPC z importance >= 4.
+- ANTAGONIST_PROXY pojawia się w tasku z taskRoleInArc='TWIST' lub późniejszym.
+═══════════════════════════════════════════════════════════
+`;
+}
+
 export function buildCastPrompt(
   input: BlueprintPromptInput,
   bible: StoryBible,

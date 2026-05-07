@@ -29,6 +29,8 @@ const inputSchema = z.object({
     .min(1, 'Wybierz co najmniej jeden typ zadania'),
   mixedComponentTypes: z.array(z.nativeEnum(TaskType)),
   endingCount: z.coerce.number().int().min(2).max(6),
+  useWebSearch: z.boolean().optional(),
+  storyMode: z.enum(['NONE', 'FLAVOR', 'FULL_NARRATIVE']).optional(),
 }).superRefine((val, ctx) => {
   if (
     val.allowedTaskTypes.includes(TaskType.MIXED) &&
@@ -141,6 +143,8 @@ export function BlueprintInputForm({
           (t) => t !== TaskType.MIXED,
         ) ?? MIXED_COMPONENT_VALUES,
       endingCount: defaultValues?.endingCount ?? 3,
+      useWebSearch: defaultValues?.useWebSearch ?? false,
+      storyMode: defaultValues?.storyMode ?? 'FLAVOR',
     },
   });
 
@@ -395,6 +399,17 @@ export function BlueprintInputForm({
                 {label}
               </option>
             ))}
+          </select>
+        </Field>
+
+        <Field label="Tryb narracji" error={errors.storyMode?.message}>
+          <select
+            {...register('storyMode')}
+            className={inputClass(errors.storyMode?.message)}
+          >
+            <option value="NONE">Brak postaci NPC</option>
+            <option value="FLAVOR">Postaci NPC (rekomendowane)</option>
+            <option value="FULL_NARRATIVE" disabled>Pełna narracja (wkrótce)</option>
           </select>
         </Field>
       </div>

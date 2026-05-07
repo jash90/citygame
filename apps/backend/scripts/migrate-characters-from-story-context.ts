@@ -97,7 +97,7 @@ async function migrate() {
         name: group.characterName,
         archetype: 'nieokreślony',
         roleFunction: 'UNKNOWN',
-        voiceTrait: 'styl wypowiedzi do uzupełnienia',
+        voiceTrait: 'styl wypowiedzi do uzupełnienia — opis słownictwa, rytmu i motywów',
         importance: 3,
       },
       update: {},

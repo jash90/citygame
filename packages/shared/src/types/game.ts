@@ -1,4 +1,4 @@
-import type { StoryMode, TaskListMode } from './task';
+import type { StoryMode, TaskListMode } from './character';
 
 export enum GameStatus {
   DRAFT = 'DRAFT',

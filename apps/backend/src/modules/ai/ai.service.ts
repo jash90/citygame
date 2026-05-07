@@ -5,6 +5,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import { AiCredentialsService, type AiPurpose } from './ai-credentials.service';
 import { extractText, parseResponse } from './ai-evaluation.utils';
 import type { AiEvaluationResult } from './ai-evaluation.utils';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface OpenRouterModel {
   id: string;
@@ -32,6 +33,7 @@ export class AiService {
   constructor(
     private readonly configService: ConfigService,
     private readonly credentials: AiCredentialsService,
+    private readonly prisma: PrismaService,
   ) {
     this.baseUrl = this.configService.get<string>(
       'OPENROUTER_BASE_URL',
@@ -218,15 +220,17 @@ Respond ONLY with a JSON object (no markdown) in the form:
     title: string,
     type: string,
     city: string,
+    taskId?: string,
   ): Promise<string> {
     try {
+      const npcContext = await this.loadNpcContext(taskId ?? null);
       const messages: ChatCompletionMessageParam[] = [
         {
           role: 'user',
           content: `You are a city game designer. Write an engaging task description in Polish for the following task.
 Task title: "${title}"
 Task type: ${type}
-City: ${city}
+City: ${city}${npcContext}
 
 Write 2–3 sentences that describe what the player needs to do. Be specific, immersive, and historically accurate where relevant. Respond with only the description text, no extra formatting.`,
         },
@@ -239,13 +243,14 @@ Write 2–3 sentences that describe what the player needs to do. Be specific, im
     }
   }
 
-  async generateHints(taskDescription: string, count = 3): Promise<string[]> {
+  async generateHints(taskDescription: string, count = 3, taskId?: string): Promise<string[]> {
     try {
+      const npcContext = await this.loadNpcContext(taskId ?? null);
       const messages: ChatCompletionMessageParam[] = [
         {
           role: 'user',
           content: `You are a city game designer. Generate exactly ${count} progressive hints in Polish for the following task. Each hint should reveal slightly more information than the previous one.
-Task description: "${taskDescription}"
+Task description: "${taskDescription}"${npcContext}
 
 Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. No markdown or extra text.`,
         },
@@ -266,14 +271,16 @@ Respond ONLY with a JSON array of strings, e.g. ["hint 1", "hint 2", "hint 3"]. 
   async generateAIPrompt(
     taskType: string,
     taskDescription: string,
+    taskId?: string,
   ): Promise<string> {
     try {
+      const npcContext = await this.loadNpcContext(taskId ?? null);
       const messages: ChatCompletionMessageParam[] = [
         {
           role: 'user',
           content: `You are a city game designer. Write a concise AI verification prompt in Polish for the following task. The prompt will be used to instruct an AI evaluator to score a player's submission.
 Task type: ${taskType}
-Task description: "${taskDescription}"
+Task description: "${taskDescription}"${npcContext}
 
 Respond with only the verification prompt text. It should describe what a correct submission looks like and what the AI should look for. No extra formatting.`,
         },
@@ -287,6 +294,35 @@ Respond with only the verification prompt text. It should describe what a correc
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────
+
+  /**
+   * Loads NPC voice trait context from the task's character, if any.
+   * Returns a prompt fragment injected into editor helper calls so
+   * descriptions/hints/prompts match the character's voice.
+   */
+  private async loadNpcContext(taskId: string | null): Promise<string> {
+    if (!taskId) return '';
+
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { npc: true, game: true },
+    });
+
+    if (!task?.npc || (task.game as { storyMode?: string }).storyMode === 'NONE') return '';
+
+    return `
+
+KONTEKST POSTACI NPC:
+- Imię: ${task.npc.name}
+- Archetyp: ${task.npc.archetype}
+- Rola w fabule: ${task.npc.roleFunction}
+- Głos (voice trait): ${task.npc.voiceTrait}
+${task.npc.era ? `- Epoka: ${task.npc.era}` : ''}
+
+WAŻNE: Pisz tak, żeby treść spójnie wpisywała się w głos i misję tej postaci.
+Jeśli postać mówi barokowo — narracja brzmi barokowo.
+Jeśli ma motywy "księga, klucz, rzeka" — wpleń je w opis.`;
+  }
 
   private async imageToDataUri(imageUrl: string): Promise<string> {
     if (imageUrl.startsWith('data:')) {

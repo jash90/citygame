@@ -424,21 +424,38 @@ export const storyBibleSchema = z.object({
 
 export const castCharacterSchema = z.object({
   name: z.string().min(2).max(80),
-  archetype: z.string().min(5).max(120),
+  archetype: z.string().min(8).max(120),
   roleFunction: z.enum([
     'QUEST_GIVER', 'MENTOR', 'ANTAGONIST_PROXY',
     'WITNESS', 'GATEKEEPER', 'MIRROR', 'RED_HERRING',
   ]),
-  voiceTrait: z.string().min(10).max(300),
+  voiceTrait: z.string().min(20).max(300),
   importance: z.number().int().min(1).max(5),
   era: z.string().max(40).nullable().optional(),
 });
 
 export const castSchema = z.object({
-  characters: z.array(castCharacterSchema).min(1).max(8)
+  characters: z.array(castCharacterSchema)
+    .min(2)
+    .max(8)
     .refine(
-      (chars) => chars.filter(c => c.roleFunction === 'QUEST_GIVER').length >= 1,
-      { message: 'must have at least one QUEST_GIVER' },
+      (chars) => chars.filter(c => c.roleFunction === 'QUEST_GIVER').length === 1,
+      { message: 'must have exactly one QUEST_GIVER' },
+    )
+    .refine(
+      (chars) => {
+        const total = chars.reduce((sum, c) => sum + c.importance, 0);
+        const avg = total / chars.length;
+        return avg >= 2.3 && avg <= 4.2;
+      },
+      { message: 'importance distribution must be balanced (avg 2.3-4.2)' },
+    )
+    .refine(
+      (chars) => {
+        const names = chars.map(c => c.name.toLowerCase().trim());
+        return names.length === new Set(names).size;
+      },
+      { message: 'character names must be unique' },
     ),
 });
 
@@ -596,34 +613,27 @@ export const gameBlueprintSchema = z
     }
   });
 
-import { TaskRoleInArc, CharacterRoleFunction, StoryMode, TaskListMode } from '../types/task';
-
 export type GameBlueprintParsed = z.infer<typeof gameBlueprintSchema>;
 export type StoryBible = z.infer<typeof storyBibleSchema>;
 export type NarrativeBeat = z.infer<typeof narrativeBeatSchema>;
 
 // ── Character schemas ───────────────────────────────────────────────────────
-
-// Re-export enums from types/task.ts (TypeScript enums are the canonical source)
-export { CharacterRoleFunction, TaskRoleInArc, StoryMode, TaskListMode } from '../types/task';
-
-export const characterRoleFunctionSchema = z.nativeEnum(CharacterRoleFunction);
-
-export const characterSchema = z.object({
-  id: z.string(),
-  gameId: z.string(),
-  name: z.string().min(2).max(80),
-  archetype: z.string().min(5).max(120),
-  roleFunction: characterRoleFunctionSchema,
-  voiceTrait: z.string().min(10).max(300),
-  importance: z.number().int().min(1).max(5).default(3),
-  avatarUrl: z.string().url().nullable().optional(),
-  era: z.string().max(40).nullable().optional(),
-  notes: z.string().max(1000).nullable().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-});
-
-export const taskRoleInArcSchema = z.nativeEnum(TaskRoleInArc);
-export const storyModeSchema = z.nativeEnum(StoryMode);
-export const taskListModeSchema = z.nativeEnum(TaskListMode);
+// Canonical Zod schemas live in types/character.ts — re-export from there.
+export {
+  characterRoleFunctionSchema,
+  characterSchema,
+  characterCreateSchema,
+  characterUpdateSchema,
+  taskRoleInArcSchema,
+  storyModeSchema,
+  taskListModeSchema,
+} from '../types/character';
+export type {
+  Character,
+  CharacterCreate,
+  CharacterUpdate,
+  CharacterRoleFunction,
+  TaskRoleInArc,
+  StoryMode,
+  TaskListMode,
+} from '../types/character';
