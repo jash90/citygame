@@ -17,12 +17,43 @@ function extractCompletedIds(progress: GameProgress | null): Set<string> {
   return new Set(progress.session.attempts.map((a) => a.taskId));
 }
 
-/** Mark tasks as completed based on a set of completed IDs. */
-function applyCompletionStatus(tasks: Task[], completedIds: Set<string>): Task[] {
-  if (completedIds.size === 0) return tasks;
-  return tasks.map((t) =>
-    completedIds.has(t.id) ? { ...t, status: 'completed' as const } : t,
-  );
+/**
+ * Compute task statuses based on game flow type and progression.
+ *
+ * - Completed tasks → 'completed'
+ * - OPEN_WORLD → all non-completed tasks are 'available'
+ * - LINEAR / BRANCHING / MIXED → only the task matching currentTaskId is 'available',
+ *   all other non-completed tasks are 'locked'. Falls back to first uncompleted by order
+ *   when currentTaskId is not set.
+ */
+function applyTaskStatuses(
+  tasks: Task[],
+  completedIds: Set<string>,
+  flowType?: string,
+  currentTaskId?: string | null,
+): Task[] {
+  if (flowType === 'OPEN_WORLD') {
+    return tasks.map((t) =>
+      completedIds.has(t.id) ? { ...t, status: 'completed' as const } : { ...t, status: 'available' as const },
+    );
+  }
+
+  // LINEAR, BRANCHING, MIXED (and default)
+  let activeId = currentTaskId;
+  if (!activeId) {
+    const ordered = [...tasks].sort((a, b) => a.order - b.order);
+    activeId = ordered.find((t) => !completedIds.has(t.id))?.id ?? null;
+  }
+
+  return tasks.map((task) => {
+    if (completedIds.has(task.id)) {
+      return { ...task, status: 'completed' as const };
+    }
+    if (task.id === activeId) {
+      return { ...task, status: 'available' as const };
+    }
+    return { ...task, status: 'locked' as const };
+  });
 }
 
 export interface RevealedHint {
@@ -126,7 +157,7 @@ export const useGameStore = create<GameState>()(
 
   setTasks: (tasks) =>
     set((state) => ({
-      tasks: applyCompletionStatus(tasks, state.completedTaskIds),
+      tasks: applyTaskStatuses(tasks, state.completedTaskIds, state.currentGame?.flowType, state.currentSession?.currentTaskId),
     })),
 
   updateTaskStatus: (taskId, status) =>
@@ -142,7 +173,7 @@ export const useGameStore = create<GameState>()(
       return {
         progress,
         completedTaskIds: completedIds,
-        tasks: applyCompletionStatus(state.tasks, completedIds),
+        tasks: applyTaskStatuses(state.tasks, completedIds, state.currentGame?.flowType, state.currentSession?.currentTaskId),
         revealedHints: extractRevealedHints(progress),
       };
     }),
@@ -153,9 +184,7 @@ export const useGameStore = create<GameState>()(
       completedTaskIds.add(taskId);
       return {
         completedTaskIds,
-        tasks: state.tasks.map((t) =>
-          t.id === taskId ? { ...t, status: 'completed' as const } : t,
-        ),
+        tasks: applyTaskStatuses(state.tasks, completedTaskIds, state.currentGame?.flowType, state.currentSession?.currentTaskId),
       };
     }),
 
@@ -208,7 +237,7 @@ export const useGameStore = create<GameState>()(
     set({
       currentGame: game,
       currentSession: session,
-      tasks: applyCompletionStatus(tasks, completedIds),
+      tasks: applyTaskStatuses(tasks, completedIds, game.flowType, session.currentTaskId),
       progress: progress ?? null,
       gameEnded: false,
       completedTaskIds: completedIds,

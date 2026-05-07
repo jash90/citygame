@@ -136,6 +136,14 @@ export class GameService {
             _count: { select: { hints: true } },
           },
         },
+        transitions: {
+          select: {
+            id: true,
+            fromTaskId: true,
+            toTaskId: true,
+            label: true,
+          },
+        },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
         transitions: { orderBy: { orderIndex: 'asc' } },
         endings: { orderBy: { orderIndex: 'asc' } },

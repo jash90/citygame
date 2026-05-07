@@ -48,57 +48,19 @@ enum RunStatus {
   ENDED
 }
 
+enum GameFlowType {
+  LINEAR
+  OPEN_WORLD
+  BRANCHING
+  MIXED
+}
+
 enum AttemptStatus {
   PENDING
   CORRECT
   INCORRECT
   PARTIAL
   ERROR
-}
-
-enum GameFlowType {
-  LINEAR
-  BRANCHING
-  OPEN_WORLD
-  MIXED
-}
-
-enum CharacterRoleFunction {
-  QUEST_GIVER
-  MENTOR
-  ANTAGONIST_PROXY
-  WITNESS
-  GATEKEEPER
-  MIRROR
-  RED_HERRING
-  UNKNOWN
-}
-
-enum StoryMode {
-  NONE
-  FLAVOR
-  FULL_NARRATIVE
-}
-
-enum TaskRoleInArc {
-  INTRODUCTION
-  DEEPENING
-  TWIST
-  CLIMAX
-}
-
-enum TaskListMode {
-  FLAT
-  GROUPED_BY_NPC
-}
-
-/// Singleton-style key/value store for runtime-mutable admin settings.
-/// Used to override env-supplied defaults (e.g. OpenRouter API key + model)
-/// from the admin panel without redeploying.
-model AppSetting {
-  key       String   @id
-  value     String
-  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -130,95 +92,61 @@ model Game {
   city          String
   coverImageUrl String?
   status        GameStatus   @default(DRAFT)
-  flowType      GameFlowType @default(LINEAR)
   settings      Json
   creatorId     String
   currentRun    Int          @default(0)
+  flowType      GameFlowType @default(LINEAR)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
-  storyMode    StoryMode     @default(NONE)
-  taskListMode TaskListMode  @default(FLAT)
-
-  creator     User             @relation(fields: [creatorId], references: [id])
+  creator     User            @relation(fields: [creatorId], references: [id])
   tasks       Task[]
-  characters  Character[]
   sessions    GameSession[]
   runs        GameRun[]
   teams       Team[]
   transitions TaskTransition[]
-  endings     GameEnding[]
 
   @@index([status])
   @@index([city])
 }
 
 model Task {
-  id                 String       @id @default(uuid())
-  gameId             String
-  title              String
-  description        String
-  type               TaskType
-  unlockMethod       UnlockMethod
-  orderIndex         Int
-  latitude           Float
-  longitude          Float
-  unlockConfig       Json
-  verifyConfig       Json
-  maxPoints          Int
-  timeLimitSec       Int?
-  storyContext       String?
-  /// Player-facing item revealed when this task is completed.
-  /// Stored plaintext — players must read & copy the value (e.g. a code).
-  /// Shape: { slug: string, kind: 'CODE'|'WORD'|'SYMBOL'|'NUMBER', label: string, value: string }
-  revealsItem        Json?
-  /// Inventory requirement for opening this task.
-  /// Shape: { requiresItem: string, answerSha256: string }
-  /// `requiresItem` references a slug produced by another task's `revealsItem`.
-  /// `answerSha256` is the hashed expected answer the player must submit.
-  unlockRequirements Json?
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id           String       @id @default(uuid())
+  gameId       String
+  title        String
+  description  String
+  type         TaskType
+  unlockMethod UnlockMethod
+  orderIndex   Int
+  latitude     Float
+  longitude    Float
+  unlockConfig Json
+  verifyConfig Json
+  maxPoints    Int
+  timeLimitSec Int?
+  storyContext String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
-  /// FK to the NPC (Character) who presents or narrates this task.
-  /// Nullable for backward compat — tasks without a story context have null.
-  npcId         String?
-  /// Role this task plays in the character's arc (intro, deepening, twist, climax).
-  taskRoleInArc TaskRoleInArc?
-
-  game             Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  npc              Character?       @relation(fields: [npcId], references: [id], onDelete: SetNull)
-  hints            Hint[]
-  attempts         TaskAttempt[]
-  outgoingTransitions TaskTransition[] @relation("TransitionFrom")
-  incomingTransitions TaskTransition[] @relation("TransitionTo")
+  game     Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  hints    Hint[]
+  attempts TaskAttempt[]
 
   @@index([gameId, orderIndex])
-  @@index([npcId])
 }
 
-model Character {
-  id             String                @id @default(cuid())
-  gameId         String
+model TaskTransition {
+  id         String   @id @default(uuid())
+  gameId     String
+  fromTaskId String?
+  toTaskId   String
+  label      String?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
 
-  name           String
-  archetype      String                // "kronikarz Strzyżowa, XVII w."
-  roleFunction   CharacterRoleFunction
-  voiceTrait     String                // "barokowy język, krótkie zdania, motywy księgi i klucza"
-  importance     Int                   @default(3)  // 1-5
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
 
-  avatarUrl      String?
-  era            String?               // "XVII w." — optional, for historical games
-  notes          String?               // admin free-form notes
-
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
-
-  game           Game                  @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  tasks          Task[]
-
-  @@unique([gameId, name])
-  @@index([gameId])
+  @@index([gameId, fromTaskId, orderIndex])
 }
 
 model Hint {
@@ -282,72 +210,17 @@ model GameSession {
   startedAt     DateTime      @default(now())
   completedAt   DateTime?
   currentTaskId String?
-  /// Per-session inventory of items revealed by completed tasks.
-  /// Keys are item slugs (matching `Task.revealsItem.slug`); values are the
-  /// `RevealedItem` payload. Used by the cipher / code-chain mechanic so that
-  /// items collected at task A can be required as input at task B.
-  unlockedItems Json          @default("{}")
-  /// Reached ending (set when a `GameEnding.condition` first matches).
-  endingId      String?
 
   game       Game          @relation(fields: [gameId], references: [id])
   user       User          @relation(fields: [userId], references: [id])
   team       Team?         @relation(fields: [teamId], references: [id])
   gameRun    GameRun       @relation(fields: [gameRunId], references: [id])
-  ending     GameEnding?   @relation(fields: [endingId], references: [id])
   attempts   TaskAttempt[]
   hintUsages HintUsage[]
 
   @@unique([gameRunId, userId])
   @@index([gameId, totalPoints])
   @@index([gameId, teamId])
-}
-
-/// Edge in the game's task graph. Endings are not transition targets —
-/// they are evaluated as rules from `GameEnding.condition`.
-model TaskTransition {
-  id         String  @id @default(uuid())
-  gameId     String
-  /// `null` marks a starting transition (the task is reachable from game start).
-  fromTaskId String?
-  toTaskId   String
-  label      String?
-  /// Optional condition payload (reserved for future per-edge gating).
-  condition  Json?
-  orderIndex Int     @default(0)
-  createdAt  DateTime @default(now())
-
-  game     Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  fromTask Task? @relation("TransitionFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
-  toTask   Task @relation("TransitionTo", fields: [toTaskId], references: [id], onDelete: Cascade)
-
-  @@index([gameId])
-  @@index([fromTaskId, toTaskId])
-}
-
-/// Terminal node reached when a game-level `condition` matches the session
-/// state. Multiple endings allow replayability for non-linear games.
-model GameEnding {
-  id          String  @id @default(uuid())
-  gameId      String
-  slug        String
-  title       String
-  description String
-  /// Discriminated union: { type: 'ALL_OF'|'ANY_OF', taskIds: string[] }
-  ///                    | { type: 'SCORE_GTE', minScore: number }
-  ///                    | { type: 'ITEM_COLLECTED', slug: string }
-  ///                    | { type: 'TIMEOUT' }
-  ///                    | { type: 'DEFAULT' }  (always matches; lowest priority)
-  condition   Json
-  isDefault   Boolean @default(false)
-  orderIndex  Int     @default(0)
-  createdAt   DateTime @default(now())
-
-  game     Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  sessions GameSession[]
-
-  @@unique([gameId, slug])
-  @@index([gameId])
 }
 
 model Team {

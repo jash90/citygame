@@ -1,7 +1,7 @@
 // Fallback dev URLs in case EXPO_PUBLIC_LOCAL_* are not set in .env.
-// Backend dev port is 3003 — see apps/backend/.env.
-const DEV_API_URL_FALLBACK = 'http://127.0.0.1:3003/api';
-const DEV_WS_URL_FALLBACK = 'http://127.0.0.1:3003';
+// Backend dev port is 3013 — see apps/backend/.env.
+const DEV_API_URL_FALLBACK = 'http://127.0.0.1:3013/api';
+const DEV_WS_URL_FALLBACK = 'http://127.0.0.1:3013';
 
 /**
  * In a development build (__DEV__ === true) we point at the local backend

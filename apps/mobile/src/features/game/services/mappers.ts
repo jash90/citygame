@@ -15,6 +15,8 @@ export function mapGame(bg: BackendGame): Game {
     isRunning: bg.activeRun?.status === 'ACTIVE',
     pinRevealDistanceMeters: bg.settings?.pinRevealDistanceMeters,
     narrative: bg.settings?.narrative as Game['narrative'],
+    flowType: bg.flowType,
+    transitions: bg.transitions,
     tasks: bg.tasks?.map(mapTask),
     flowType: bg.flowType,
     transitions: bg.transitions,

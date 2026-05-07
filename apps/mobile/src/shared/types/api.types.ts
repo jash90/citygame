@@ -17,6 +17,13 @@ export interface BackendActiveRun {
   endsAt?: string | null;
 }
 
+export interface BackendTaskTransition {
+  id: string;
+  fromTaskId: string | null;
+  toTaskId: string;
+  label: string | null;
+}
+
 export interface BackendGame {
   id: string;
   title: string;
@@ -33,6 +40,8 @@ export interface BackendGame {
   activeRun?: BackendActiveRun | null;
   taskCount: number;
   playerCount: number;
+  flowType?: string;
+  transitions?: BackendTaskTransition[];
   tasks?: BackendTask[];
   transitions?: TaskTransition[];
   endings?: GameEnding[];
@@ -118,6 +127,13 @@ export interface NarrativeSettings {
   epilogue?: string;
 }
 
+export interface TaskTransition {
+  id: string;
+  fromTaskId: string | null;
+  toTaskId: string;
+  label: string | null;
+}
+
 export interface Game {
   id: string;
   name: string;
@@ -133,6 +149,8 @@ export interface Game {
   /** Distance (meters) within which an upcoming task pin is revealed on the map. */
   pinRevealDistanceMeters?: number;
   narrative?: NarrativeSettings;
+  flowType?: string;
+  transitions?: TaskTransition[];
   tasks?: Task[];
   flowType?: GameFlowType;
   transitions?: TaskTransition[];

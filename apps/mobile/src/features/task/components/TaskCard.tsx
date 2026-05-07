@@ -1,7 +1,6 @@
 import React, { memo } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Card } from '@/shared/components/ui/Card';
-import { TaskTypeBadge } from '@/shared/components/ui/Badge';
 import type { Task } from '@/shared/types/api.types';
 import { TouchableOpacity, View, Text } from 'react-native';
 
@@ -34,7 +33,8 @@ interface TaskCardProps {
 }
 
 export const TaskCard = memo(({ task, onPress, isPendingSync }: TaskCardProps): React.JSX.Element => {
-  const isInteractive = task.status === 'available' || (__DEV__ && task.status !== 'completed');
+  const isInteractive = task.status === 'available';
+  const isLocked = task.status === 'locked';
   const showAsPendingSync = isPendingSync && task.status === 'completed';
   const statusIcon = showAsPendingSync ? PENDING_SYNC_ICON : STATUS_ICONS[task.status];
 
@@ -55,21 +55,12 @@ export const TaskCard = memo(({ task, onPress, isPendingSync }: TaskCardProps): 
 
           <View className="flex-1">
             <Text
-              className="text-base font-semibold text-gray-900 mb-1"
+              className={`text-base font-semibold mb-1 ${isLocked ? 'text-gray-400' : 'text-gray-900'}`}
               numberOfLines={2}
             >
-              {task.title}
+              {isLocked ? 'Zadanie zablokowane' : task.title}
             </Text>
             <View className="flex-row items-center gap-2 flex-wrap">
-              <TaskTypeBadge type={task.type} />
-              {task.npc ? (
-                <View className="flex-row items-center gap-1">
-                  <Ionicons name="person-outline" size={12} color="#92400E" />
-                  <Text className="text-xs text-amber-800" numberOfLines={1}>
-                    {task.npc.name}
-                  </Text>
-                </View>
-              ) : null}
               {task.timeLimitSec ? (
                 <View className="flex-row items-center gap-0.5">
                   <Ionicons name="timer-outline" size={12} color="#6B7280" />

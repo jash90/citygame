@@ -82,10 +82,10 @@ export default function TaskDetailScreen(): React.JSX.Element {
           <Ionicons name="arrow-back" size={20} color="#374151" />
         </TouchableOpacity>
         <Text
-          className="flex-1 text-base font-bold text-secondary"
+          className={`flex-1 text-base font-bold ${isLocked ? 'text-gray-400' : 'text-secondary'}`}
           numberOfLines={1}
         >
-          {task.title}
+          {isLocked ? 'Zadanie zablokowane' : task.title}
         </Text>
         {task.timeLimitSec && !isLocked ? (
           <CountdownTimer

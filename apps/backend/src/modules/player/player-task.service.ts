@@ -1,22 +1,12 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'crypto';
-import type {
-  RevealedItem,
-  UnlockedItems,
-  UnlockRequirement,
-} from '@citygame/shared';
 import { haversineDistance } from '../../common/utils/geo';
-import { normalizeAnswer } from '../../common/utils/offline-hash';
 import {
   AttemptStatus,
-  GameEnding,
-  GameFlowType,
   Prisma,
   SessionStatus,
   TaskAttempt,
@@ -25,7 +15,6 @@ import {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { withSerializableRetry } from '../../common/utils/prisma-retry';
-import { GameEndingEvaluatorService } from '../game/game-ending-evaluator.service';
 import { RankingGateway } from '../ranking/ranking.gateway';
 import { VerificationService } from '../task/verification/verification.service';
 import { ActivityBroadcastService } from './activity-broadcast.service';
@@ -47,7 +36,6 @@ export class PlayerTaskService {
     private readonly rankingGateway: RankingGateway,
     private readonly activityBroadcast: ActivityBroadcastService,
     private readonly hintService: PlayerHintService,
-    private readonly endingEvaluator: GameEndingEvaluatorService,
   ) {}
 
   /**
@@ -144,33 +132,6 @@ export class PlayerTaskService {
       throw new NotFoundException(`Task ${taskId} not found in game ${gameId}`);
     }
 
-    // Cipher chain gate: if the task has unlockRequirements, the player must
-    // have collected the source item AND the submitted answer must match.
-    const requirement = parseUnlockRequirement(task.unlockRequirements);
-    if (requirement) {
-      const sessionRow = await this.prisma.gameSession.findUnique({
-        where: { id: session.id },
-        select: { unlockedItems: true },
-      });
-      const inventory = (sessionRow?.unlockedItems ?? {}) as unknown as UnlockedItems;
-      if (!inventory[requirement.requiresItem]) {
-        throw new BadRequestException(
-          `This task requires item "${requirement.requiresItem}" — collect it first.`,
-        );
-      }
-      const answer = submission['answer'] as string | undefined;
-      if (!answer) {
-        throw new BadRequestException('Answer is required for this task.');
-      }
-      const submittedSha = createHash('sha256')
-        .update(normalizeAnswer(answer))
-        .digest('hex');
-      if (submittedSha !== requirement.answerSha256) {
-        // Same shape as a regular incorrect answer — let the verification path
-        // record the attempt below.
-      }
-    }
-
     const result = await this.verificationService.verify(task, submission);
 
     const statusMap: Record<string, AttemptStatus> = {
@@ -228,62 +189,60 @@ export class PlayerTaskService {
         });
 
         if (attemptStatus === AttemptStatus.CORRECT) {
-          // Merge any item this task reveals BEFORE evaluating endings, so an
-          // ITEM_COLLECTED-conditioned ending can fire on the same submission.
-          const revealed = parseRevealedItem(task.revealsItem);
-          if (revealed) {
-            await this.endingEvaluator.mergeRevealedItem(tx, session.id, revealed);
-          }
-
           const game = await tx.game.findUnique({
             where: { id: gameId },
             select: { flowType: true },
           });
-          const flowType = game?.flowType ?? GameFlowType.LINEAR;
-          const nextTaskId = await this.computeNextTaskId(
-            tx,
-            flowType,
-            gameId,
-            taskId,
-            task.orderIndex,
-          );
 
-          // Evaluate endings: if any matches, the session is COMPLETED via the
-          // evaluator (which also stamps endingId + completedAt).
-          const evalResult = await this.endingEvaluator.evaluateAndApply(
-            tx,
-            session.id,
-          );
+          let nextTaskId: string | null = null;
+          let isComplete = false;
 
-          // If no ending fired, advance currentTaskId per flow rules.
-          if (!evalResult.ending) {
-            if (updatedSession.teamId) {
-              await tx.gameSession.updateMany({
-                where: { gameId, teamId: updatedSession.teamId, status: SessionStatus.ACTIVE },
-                data: {
-                  currentTaskId: nextTaskId,
-                  totalPoints: updatedSession.totalPoints,
-                },
-              });
+          if (game?.flowType === 'OPEN_WORLD') {
+            nextTaskId = null;
+            isComplete = false;
+          } else if (game?.flowType === 'BRANCHING' || game?.flowType === 'MIXED') {
+            const outgoingTransitions = await tx.taskTransition.findMany({
+              where: { gameId, fromTaskId: taskId },
+              orderBy: { orderIndex: 'asc' },
+              take: 1,
+            });
+            if (outgoingTransitions.length > 0) {
+              nextTaskId = outgoingTransitions[0].toTaskId;
             } else {
-              await tx.gameSession.update({
-                where: { id: session.id },
-                data: { currentTaskId: nextTaskId },
+              const fallbackNext = await tx.task.findFirst({
+                where: { gameId, orderIndex: { gt: task.orderIndex } },
+                orderBy: { orderIndex: 'asc' },
               });
+              nextTaskId = fallbackNext?.id ?? null;
             }
-          } else if (updatedSession.teamId) {
-            // Cascade ending to all team members so they share the same end state.
+            isComplete = nextTaskId === null;
+          } else {
+            // LINEAR (default)
+            const nextTask = await tx.task.findFirst({
+              where: { gameId, orderIndex: { gt: task.orderIndex } },
+              orderBy: { orderIndex: 'asc' },
+            });
+            nextTaskId = nextTask?.id ?? null;
+            isComplete = nextTaskId === null;
+          }
+
+          if (updatedSession.teamId) {
             await tx.gameSession.updateMany({
-              where: {
-                gameId,
-                teamId: updatedSession.teamId,
-                status: SessionStatus.ACTIVE,
-              },
+              where: { gameId, teamId: updatedSession.teamId, status: SessionStatus.ACTIVE },
               data: {
-                endingId: evalResult.ending.id,
-                status: SessionStatus.COMPLETED,
-                completedAt: new Date(),
+                currentTaskId: nextTaskId,
+                status: isComplete ? SessionStatus.COMPLETED : SessionStatus.ACTIVE,
+                completedAt: isComplete ? new Date() : undefined,
                 totalPoints: updatedSession.totalPoints,
+              },
+            });
+          } else {
+            await tx.gameSession.update({
+              where: { id: session.id },
+              data: {
+                currentTaskId: nextTaskId,
+                status: isComplete ? SessionStatus.COMPLETED : SessionStatus.ACTIVE,
+                completedAt: isComplete ? new Date() : undefined,
               },
             });
           }
@@ -335,78 +294,4 @@ export class PlayerTaskService {
   private async requireActiveSession(gameId: string, userId: string) {
     return this.hintService.requireActiveSession(gameId, userId);
   }
-
-  /**
-   * Decide the player's next currentTaskId based on game flow type.
-   * - LINEAR: next task by orderIndex.
-   * - OPEN_WORLD: clear (every task is freely accessible).
-   * - BRANCHING / MIXED: any task with an incoming TaskTransition from the
-   *   completed task that is not yet done. Tie-broken by orderIndex.
-   */
-  private async computeNextTaskId(
-    tx: Prisma.TransactionClient,
-    flowType: GameFlowType,
-    gameId: string,
-    completedTaskId: string,
-    completedOrderIndex: number,
-  ): Promise<string | null> {
-    if (flowType === GameFlowType.LINEAR) {
-      const next = await tx.task.findFirst({
-        where: { gameId, orderIndex: { gt: completedOrderIndex } },
-        orderBy: { orderIndex: 'asc' },
-        select: { id: true },
-      });
-      return next?.id ?? null;
-    }
-    if (flowType === GameFlowType.OPEN_WORLD) {
-      return null;
-    }
-    const transitions = await tx.taskTransition.findMany({
-      where: { gameId, fromTaskId: completedTaskId },
-      orderBy: { orderIndex: 'asc' },
-      include: {
-        toTask: { select: { id: true, orderIndex: true } },
-      },
-    });
-    return transitions[0]?.toTask?.id ?? null;
-  }
 }
-
-function parseRevealedItem(raw: unknown): RevealedItem | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const obj = raw as Record<string, unknown>;
-  const slug = obj.slug;
-  const kind = obj.kind;
-  const label = obj.label;
-  const value = obj.value;
-  if (
-    typeof slug !== 'string' ||
-    typeof label !== 'string' ||
-    typeof value !== 'string'
-  ) {
-    return null;
-  }
-  if (kind !== 'CODE' && kind !== 'WORD' && kind !== 'SYMBOL' && kind !== 'NUMBER') {
-    return null;
-  }
-  return { slug, kind, label, value };
-}
-
-function parseUnlockRequirement(raw: unknown): UnlockRequirement | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const obj = raw as Record<string, unknown>;
-  if (
-    typeof obj.requiresItem !== 'string' ||
-    typeof obj.answerSha256 !== 'string'
-  ) {
-    return null;
-  }
-  return {
-    requiresItem: obj.requiresItem,
-    answerSha256: obj.answerSha256,
-  };
-}
-
-// Surface the unused-import suppressions so TS doesn't complain about the
-// types we keep available for the helpers above.
-export type { GameEnding };

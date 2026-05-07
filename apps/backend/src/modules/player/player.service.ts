@@ -60,9 +60,11 @@ export class PlayerService {
     }
 
     const settings = game.settings as GameSettings;
+    const firstTaskId = game.tasks[0]?.id ?? null;
+    const initialTaskId = game.flowType === 'OPEN_WORLD' ? null : firstTaskId;
 
     if (settings.teamMode) {
-      return this.startTeamGame(gameId, userId, game.tasks[0]?.id ?? null, activeRun.id);
+      return this.startTeamGame(gameId, userId, initialTaskId, activeRun.id);
     }
 
     const existingSession = await this.prisma.gameSession.findUnique({
@@ -82,7 +84,7 @@ export class PlayerService {
         userId,
         gameRunId: activeRun.id,
         status: SessionStatus.ACTIVE,
-        currentTaskId: game.tasks[0]?.id ?? null,
+        currentTaskId: initialTaskId,
       },
     });
 
