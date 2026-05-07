@@ -3,18 +3,38 @@ import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { PrismaService } from '../../prisma/prisma.service';
 
-const KEY_API_KEY = 'openrouterApiKey';
+const KEY_OPENROUTER_API_KEY = 'openrouterApiKey';
 const KEY_MODEL = 'openrouterModel';
 const KEY_USE_WEB_SEARCH = 'aiUseWebSearch';
 const KEY_MODELS_BY_PURPOSE = 'aiModelsByPurpose';
-const DEFAULT_MODEL = 'anthropic/claude-sonnet-4-5';
+const KEY_PROVIDER = 'aiProvider';
+const KEY_OPENAI_API_KEY = 'aiOpenaiApiKey';
+
+const DEFAULT_OPENROUTER_MODEL = 'anthropic/claude-sonnet-4-5';
+const DEFAULT_OPENAI_MODEL = 'gpt-5';
+const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+
+/**
+ * Provider that owns the LLM endpoint.
+ *
+ * - `openrouter`: cloud aggregator, supports OpenRouter-specific extensions
+ *   like the `:online` web-search plugin.
+ * - `openai`: direct OpenAI API at api.openai.com — first-class structured
+ *   outputs (`response_format: json_schema` enforced wire-side), no
+ *   web-search variant.
+ *
+ * Both speak the OpenAI chat completions schema, so the SDK client is
+ * identical — only the baseURL + key differ.
+ */
+export const AI_PROVIDERS = ['openrouter', 'openai'] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
 
 /**
  * Distinct AI use-cases that can each use a different model. Each call site
  * passes its purpose; `getModelFor` returns the per-purpose override or falls
  * back to the global default model. Useful when e.g. cheap blueprint
- * generation should use Sonnet but high-stakes photo verification should use
- * Opus, or vice versa.
+ * generation should use one model but high-stakes photo verification uses
+ * another.
  */
 export const AI_PURPOSES = [
   'blueprint',
@@ -26,10 +46,10 @@ export const AI_PURPOSES = [
 export type AiPurpose = (typeof AI_PURPOSES)[number];
 
 /**
- * Owns the OpenRouter credentials (API key + active model) used by every
- * AI-powered service. Persists overrides in the `AppSetting` table so admins
- * can swap keys/models from the panel without redeploying. Falls back to env
- * vars when the table is empty.
+ * Owns the OpenRouter and OpenAI credentials (API keys + active model) used
+ * by every AI-powered service. Persists overrides in the `AppSetting` table
+ * so admins can swap keys/models from the panel without redeploying. Falls
+ * back to env vars when the table is empty.
  *
  * Plaintext storage is acceptable for self-hosted deployments behind admin
  * auth; encrypt at rest when the surface broadens.
@@ -37,12 +57,15 @@ export type AiPurpose = (typeof AI_PURPOSES)[number];
 @Injectable()
 export class AiCredentialsService implements OnModuleInit {
   private readonly logger = new Logger(AiCredentialsService.name);
-  private apiKey: string | null = null;
-  private model: string = DEFAULT_MODEL;
+  private provider: AiProvider = 'openrouter';
+  private openrouterApiKey: string | null = null;
+  private openaiApiKey: string | null = null;
+  private model: string = DEFAULT_OPENROUTER_MODEL;
   private useWebSearch = false;
   private modelsByPurpose: Partial<Record<AiPurpose, string>> = {};
   private client: OpenAI | null = null;
-  private readonly baseUrl: string;
+  private readonly openrouterBaseUrl: string;
+  private readonly openaiBaseUrl: string;
   private readonly timeoutMs: number;
   private readonly appUrl: string;
 
@@ -50,11 +73,21 @@ export class AiCredentialsService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>(
+    this.openrouterBaseUrl = this.configService.get<string>(
       'OPENROUTER_BASE_URL',
       'https://openrouter.ai/api/v1',
     );
-    this.timeoutMs = this.configService.get<number>('AI_TIMEOUT_MS', 60_000);
+    // Allow Azure / proxy deployments to override the OpenAI base URL via
+    // env without touching the DB. Default points at api.openai.com/v1.
+    this.openaiBaseUrl = this.configService.get<string>(
+      'OPENAI_BASE_URL',
+      DEFAULT_OPENAI_BASE_URL,
+    );
+    // Long default — the blueprint pipeline runs 7-8 chained Anthropic calls
+    // and individual `:online` research calls on OpenRouter routinely exceed
+    // 60 s. Keep the SDK's per-call abort generous so the orchestrator gets
+    // to retry-on-content rather than being killed mid-stage by the SDK.
+    this.timeoutMs = this.configService.get<number>('AI_TIMEOUT_MS', 300_000);
     this.appUrl = this.configService.get<string>(
       'APP_URL',
       'https://citygame.pl',
@@ -62,36 +95,129 @@ export class AiCredentialsService implements OnModuleInit {
   }
 
   async onModuleInit(): Promise<void> {
-    const [dbKey, dbModel, dbWebSearch, dbModelsByPurpose] = await Promise.all([
-      this.prisma.appSetting.findUnique({ where: { key: KEY_API_KEY } }),
+    const [
+      dbOpenrouterKey,
+      dbModel,
+      dbWebSearch,
+      dbModelsByPurpose,
+      dbProvider,
+      dbOpenaiKey,
+    ] = await Promise.all([
+      this.prisma.appSetting.findUnique({
+        where: { key: KEY_OPENROUTER_API_KEY },
+      }),
       this.prisma.appSetting.findUnique({ where: { key: KEY_MODEL } }),
       this.prisma.appSetting.findUnique({ where: { key: KEY_USE_WEB_SEARCH } }),
       this.prisma.appSetting.findUnique({
         where: { key: KEY_MODELS_BY_PURPOSE },
       }),
+      this.prisma.appSetting.findUnique({ where: { key: KEY_PROVIDER } }),
+      this.prisma.appSetting.findUnique({
+        where: { key: KEY_OPENAI_API_KEY },
+      }),
     ]);
 
-    this.apiKey =
-      dbKey?.value ??
+    const persistedProvider = dbProvider?.value;
+    const envProvider = this.configService.get<string>('AI_PROVIDER');
+    const candidate = persistedProvider ?? envProvider ?? 'openrouter';
+    this.provider = (AI_PROVIDERS as readonly string[]).includes(candidate)
+      ? (candidate as AiProvider)
+      : 'openrouter';
+
+    this.openrouterApiKey =
+      dbOpenrouterKey?.value ??
       this.configService.get<string>('OPENROUTER_API_KEY') ??
+      null;
+    this.openaiApiKey =
+      dbOpenaiKey?.value ??
+      this.configService.get<string>('OPENAI_API_KEY') ??
       null;
     this.model =
       dbModel?.value ??
-      this.configService.get<string>('OPENROUTER_MODEL', DEFAULT_MODEL);
-    this.useWebSearch = dbWebSearch?.value === 'true';
+      this.configService.get<string>(
+        'OPENROUTER_MODEL',
+        this.provider === 'openai'
+          ? DEFAULT_OPENAI_MODEL
+          : DEFAULT_OPENROUTER_MODEL,
+      );
+    // OpenAI doesn't have an `:online` web-search variant — keep the toggle
+    // OFF unconditionally for that provider.
+    this.useWebSearch =
+      this.provider === 'openai' ? false : dbWebSearch?.value === 'true';
     this.modelsByPurpose = parseModelsByPurpose(dbModelsByPurpose?.value);
 
     this.refreshClient();
 
-    if (!this.apiKey) {
+    if (!this.isConfigured()) {
       this.logger.warn(
-        'No OpenRouter API key configured — AI features disabled until set in admin → Settings.',
+        `AI provider ${this.provider} is not configured — set the API key in admin → Settings before generating.`,
+      );
+    } else {
+      this.logger.log(
+        `AI provider: ${this.provider} (model=${this.model}, useWebSearch=${this.useWebSearch}).`,
       );
     }
   }
 
+  getProvider(): AiProvider {
+    return this.provider;
+  }
+
+  /**
+   * Switching provider implicitly toggles which fields are required:
+   *   - openrouter: needs an API key; useWebSearch may be re-enabled.
+   *   - openai: needs an API key; useWebSearch forced off (no `:online`).
+   * The model id is preserved across switches — admin will see whatever they
+   * picked last; if it's not valid for the new provider, the next call surfaces
+   * a 4xx and the model picker can fix it.
+   */
+  async setProvider(provider: AiProvider): Promise<void> {
+    this.provider = provider;
+    if (provider === 'openai') {
+      this.useWebSearch = false;
+      await this.prisma.appSetting.upsert({
+        where: { key: KEY_USE_WEB_SEARCH },
+        update: { value: 'false' },
+        create: { key: KEY_USE_WEB_SEARCH, value: 'false' },
+      });
+    }
+    await this.prisma.appSetting.upsert({
+      where: { key: KEY_PROVIDER },
+      update: { value: provider },
+      create: { key: KEY_PROVIDER, value: provider },
+    });
+    this.refreshClient();
+    this.notifyProviderChange();
+    this.logger.log(`AI provider switched to ${provider}`);
+  }
+
+  /**
+   * Subscription hook used by services that cache provider-specific data
+   * (e.g. `AiService.listModels` caches the response — that cache is
+   * meaningless after the URL or key changes for the same provider, not
+   * just on a hard provider swap).
+   */
+  private providerChangeListeners: Array<(p: AiProvider) => void> = [];
+  onProviderChange(listener: (p: AiProvider) => void): () => void {
+    this.providerChangeListeners.push(listener);
+    return () => {
+      this.providerChangeListeners = this.providerChangeListeners.filter(
+        (l) => l !== listener,
+      );
+    };
+  }
+  private notifyProviderChange(): void {
+    this.providerChangeListeners.forEach((fn) => fn(this.provider));
+  }
+
+  /**
+   * "Configured" means we can issue a chat completion right now — both
+   * providers require their respective API key. Server reachability is
+   * checked at call time.
+   */
   isConfigured(): boolean {
-    return !!this.apiKey;
+    if (this.provider === 'openai') return !!this.openaiApiKey;
+    return !!this.openrouterApiKey;
   }
 
   getModel(): string {
@@ -115,7 +241,10 @@ export class AiCredentialsService implements OnModuleInit {
    * Sets (or with a falsy value clears) the model override for a given
    * purpose. Persists the full map as JSON in `AppSetting.aiModelsByPurpose`.
    */
-  async setModelFor(purpose: AiPurpose, model: string | null | undefined): Promise<void> {
+  async setModelFor(
+    purpose: AiPurpose,
+    model: string | null | undefined,
+  ): Promise<void> {
     const trimmed = typeof model === 'string' ? model.trim() : '';
     if (trimmed) {
       this.modelsByPurpose[purpose] = trimmed;
@@ -134,15 +263,22 @@ export class AiCredentialsService implements OnModuleInit {
   }
 
   /**
-   * Whether the blueprint generator should append `:online` to the model so
-   * OpenRouter runs its web-search plugin alongside generation. Persisted in
-   * AppSetting so admins toggle it once globally instead of per-game.
+   * Always false on OpenAI — no `:online` web-search plugin. The setter is
+   * a no-op when provider is OpenAI; the UI hides the toggle but defensive
+   * enforcement here keeps any stale call safe.
    */
   getUseWebSearch(): boolean {
+    if (this.provider === 'openai') return false;
     return this.useWebSearch;
   }
 
   async setUseWebSearch(value: boolean): Promise<void> {
+    if (this.provider === 'openai') {
+      this.logger.warn(
+        'Ignoring setUseWebSearch — provider is OpenAI (no `:online` variant).',
+      );
+      return;
+    }
     this.useWebSearch = value;
     await this.prisma.appSetting.upsert({
       where: { key: KEY_USE_WEB_SEARCH },
@@ -155,53 +291,107 @@ export class AiCredentialsService implements OnModuleInit {
   }
 
   /**
-   * Returns a configured OpenAI client. Throws if no API key is set anywhere.
-   * Callers should catch this and surface a friendly "configure your key"
-   * message to the admin.
+   * Returns a configured OpenAI-compatible client. Throws when the active
+   * provider isn't configured (no API key); callers surface this as a
+   * friendly "configure your key" admin message.
    */
   getClient(): OpenAI {
     if (!this.client) {
       throw new Error(
-        'OpenRouter API key is not configured. Set it in Settings → AI.',
+        this.provider === 'openai'
+          ? 'OpenAI API key is not configured. Set it in Settings → AI.'
+          : 'OpenRouter API key is not configured. Set it in Settings → AI.',
       );
     }
     return this.client;
   }
 
+  // ─── OpenRouter key (the original `apiKey` API) ────────────────────────
+
   /**
-   * Returns the API key with the middle portion masked for display in the UI.
-   * Never returns the full key — clients render only this masked form.
+   * Returns the OpenRouter API key with the middle portion masked. Never
+   * returns the full key — clients render only this masked form.
    */
   getMaskedApiKey(): string | null {
-    if (!this.apiKey) return null;
-    if (this.apiKey.length <= 12) return '****';
-    return `${this.apiKey.slice(0, 6)}…${this.apiKey.slice(-4)}`;
+    return maskKey(this.openrouterApiKey);
   }
 
   async setApiKey(rawKey: string): Promise<void> {
     const trimmed = rawKey.trim();
-    if (!trimmed) {
-      throw new Error('API key cannot be empty');
-    }
-    this.apiKey = trimmed;
+    if (!trimmed) throw new Error('API key cannot be empty');
+    this.openrouterApiKey = trimmed;
     await this.prisma.appSetting.upsert({
-      where: { key: KEY_API_KEY },
+      where: { key: KEY_OPENROUTER_API_KEY },
       update: { value: trimmed },
-      create: { key: KEY_API_KEY, value: trimmed },
+      create: { key: KEY_OPENROUTER_API_KEY, value: trimmed },
     });
-    this.refreshClient();
+    if (this.provider === 'openrouter') this.refreshClient();
     this.logger.log('OpenRouter API key updated by admin');
   }
 
   async clearApiKey(): Promise<void> {
-    this.apiKey =
+    this.openrouterApiKey =
       this.configService.get<string>('OPENROUTER_API_KEY') ?? null;
-    await this.prisma.appSetting.delete({ where: { key: KEY_API_KEY } }).catch(() => {
-      // ignore — row might not exist
-    });
-    this.refreshClient();
+    await this.prisma.appSetting
+      .delete({ where: { key: KEY_OPENROUTER_API_KEY } })
+      .catch(() => {
+        // ignore — row might not exist
+      });
+    if (this.provider === 'openrouter') this.refreshClient();
     this.logger.log('OpenRouter API key cleared (falling back to env var)');
   }
+
+  // ─── OpenAI key ────────────────────────────────────────────────────────
+
+  getOpenaiApiKey(): string | null {
+    return this.openaiApiKey;
+  }
+
+  getOpenaiApiKeyMasked(): string | null {
+    return maskKey(this.openaiApiKey);
+  }
+
+  async setOpenaiApiKey(rawKey: string): Promise<void> {
+    const trimmed = rawKey.trim();
+    if (!trimmed) throw new Error('OpenAI API key cannot be empty');
+    this.openaiApiKey = trimmed;
+    await this.prisma.appSetting.upsert({
+      where: { key: KEY_OPENAI_API_KEY },
+      update: { value: trimmed },
+      create: { key: KEY_OPENAI_API_KEY, value: trimmed },
+    });
+    if (this.provider === 'openai') {
+      this.refreshClient();
+      // Switching the key may unlock previously-401 model listings in
+      // `AiService.listModels`. Flush downstream caches.
+      this.notifyProviderChange();
+    }
+    this.logger.log('OpenAI API key updated by admin');
+  }
+
+  async clearOpenaiApiKey(): Promise<void> {
+    this.openaiApiKey =
+      this.configService.get<string>('OPENAI_API_KEY') ?? null;
+    await this.prisma.appSetting
+      .delete({ where: { key: KEY_OPENAI_API_KEY } })
+      .catch(() => {
+        // ignore — row might not exist
+      });
+    if (this.provider === 'openai') {
+      this.refreshClient();
+      this.notifyProviderChange();
+    }
+    this.logger.log(
+      'OpenAI API key cleared (falling back to OPENAI_API_KEY env var if set)',
+    );
+  }
+
+  /** Base URL the OpenAI client points at. Surfaced for the model lister. */
+  getOpenaiBaseUrl(): string {
+    return this.openaiBaseUrl;
+  }
+
+  // ─── Active model ──────────────────────────────────────────────────────
 
   async setModel(modelId: string): Promise<void> {
     const trimmed = modelId.trim();
@@ -214,14 +404,30 @@ export class AiCredentialsService implements OnModuleInit {
     });
   }
 
+  // ─── Client construction ───────────────────────────────────────────────
+
   private refreshClient(): void {
-    if (!this.apiKey) {
+    if (this.provider === 'openai') {
+      if (!this.openaiApiKey) {
+        this.client = null;
+        return;
+      }
+      this.client = new OpenAI({
+        baseURL: this.openaiBaseUrl,
+        apiKey: this.openaiApiKey,
+        timeout: this.timeoutMs,
+      });
+      return;
+    }
+
+    // openrouter
+    if (!this.openrouterApiKey) {
       this.client = null;
       return;
     }
     this.client = new OpenAI({
-      baseURL: this.baseUrl,
-      apiKey: this.apiKey,
+      baseURL: this.openrouterBaseUrl,
+      apiKey: this.openrouterApiKey,
       timeout: this.timeoutMs,
       defaultHeaders: {
         'HTTP-Referer': this.appUrl,
@@ -229,6 +435,12 @@ export class AiCredentialsService implements OnModuleInit {
       },
     });
   }
+}
+
+function maskKey(key: string | null): string | null {
+  if (!key) return null;
+  if (key.length <= 12) return '****';
+  return `${key.slice(0, 6)}…${key.slice(-4)}`;
 }
 
 function parseModelsByPurpose(

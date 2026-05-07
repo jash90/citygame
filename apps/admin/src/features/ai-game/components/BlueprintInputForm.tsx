@@ -6,6 +6,7 @@ import { AlertTriangle, ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import { z } from 'zod';
 import { GameFlowType, TaskType } from '@citygame/shared';
 import type { BlueprintInput } from '@citygame/shared';
+import { isCreditsError } from '../lib/errorClassification';
 
 const TASK_TYPE_VALUES = Object.values(TaskType) as TaskType[];
 const MIXED_COMPONENT_VALUES = TASK_TYPE_VALUES.filter(
@@ -444,15 +445,5 @@ export function BlueprintInputForm({
   );
 }
 
-/** Match the message text the backend sends for `AI_CREDITS_INSUFFICIENT`
- *  (and a few defensive substring fallbacks in case OpenRouter changes its
- *  wording or the error escapes the typed mapping). */
-function isCreditsError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes('ai_credits_insufficient') ||
-    lower.includes('kredyt') ||
-    lower.includes('requires more credits') ||
-    lower.includes('openrouter.ai/settings/credits')
-  );
-}
+// `isCreditsError` lives in `../lib/errorClassification` so the
+// stage-by-stage GenerationStatusBanner can reuse the same matcher.

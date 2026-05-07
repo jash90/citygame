@@ -37,6 +37,13 @@ export class AiService {
       'OPENROUTER_BASE_URL',
       'https://openrouter.ai/api/v1',
     );
+    // OpenRouter and OpenAI have completely different model catalogues; bust
+    // the cache the moment the admin flips provider so the picker shows the
+    // correct list immediately.
+    this.credentials.onProviderChange(() => {
+      this.modelsCache = null;
+      this.modelsCacheExpiry = 0;
+    });
   }
 
   getActiveModel(): string {
@@ -57,20 +64,72 @@ export class AiService {
       return this.modelsCache;
     }
 
-    try {
-      const res = await fetch(`${this.baseUrl.replace('/v1', '')}/v1/models`, {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) throw new Error(`OpenRouter API ${res.status}`);
-      const json = (await res.json()) as { data: OpenRouterModel[] };
+    const provider = this.credentials.getProvider();
 
-      this.modelsCache = json.data ?? [];
+    try {
+      const fetched =
+        provider === 'openai'
+          ? await this.fetchOpenaiModels()
+          : await this.fetchOpenRouterModels();
+
+      this.modelsCache = fetched;
       this.modelsCacheExpiry = Date.now() + AiService.CACHE_TTL_MS;
-      return this.modelsCache;
+      return fetched;
     } catch (error) {
-      this.logger.error('Failed to fetch OpenRouter models', error);
+      this.logger.error(`Failed to fetch ${provider} models`, error);
       return this.modelsCache ?? [];
     }
+  }
+
+  private async fetchOpenRouterModels(): Promise<OpenRouterModel[]> {
+    const res = await fetch(`${this.baseUrl.replace('/v1', '')}/v1/models`, {
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error(`OpenRouter API ${res.status}`);
+    const json = (await res.json()) as { data: OpenRouterModel[] };
+    return json.data ?? [];
+  }
+
+  /**
+   * Lists OpenAI models from `/v1/models` (OpenAI-compatible) and adapts
+   * them into the `OpenRouterModel` shape the model picker consumes.
+   * Pricing is empty (`0`) — actual rates depend on the OpenAI plan and
+   * aren't surfaced via the listing endpoint, so the UI just labels them
+   * "OpenAI · <id>".
+   */
+  private async fetchOpenaiModels(): Promise<OpenRouterModel[]> {
+    const baseUrl = this.credentials.getOpenaiBaseUrl();
+    const apiKey = this.credentials.getOpenaiApiKey();
+    if (!apiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+    const res = await fetch(`${baseUrl.replace(/\/+$/, '')}/models`, {
+      signal: AbortSignal.timeout(10_000),
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!res.ok) throw new Error(`OpenAI API ${res.status}`);
+    const json = (await res.json()) as {
+      data?: Array<{ id: string; owned_by?: string }>;
+    };
+    return (json.data ?? []).map((m) => ({
+      id: m.id,
+      name: m.id,
+      description: m.owned_by ? `OpenAI · ${m.owned_by}` : 'OpenAI',
+      // The `/v1/models` listing doesn't include context length; surface a
+      // safe placeholder. The blueprint pipeline caps `max_tokens` at 16384
+      // anyway — the real ceiling is what the model accepts at call time.
+      context_length: 128000,
+      pricing: { prompt: '0', completion: '0' },
+      architecture: {
+        modality: 'text->text',
+        input_modalities: ['text'],
+        output_modalities: ['text'],
+      },
+      top_provider: {
+        context_length: 128000,
+        max_completion_tokens: 16384,
+      },
+    }));
   }
 
   async evaluatePhoto(

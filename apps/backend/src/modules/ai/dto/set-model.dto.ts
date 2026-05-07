@@ -1,11 +1,13 @@
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsIn,
   IsOptional,
   IsString,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { AI_PROVIDERS } from '../ai-credentials.service';
 
 /**
  * Per-purpose model overrides. Empty string clears an override and falls
@@ -33,4 +35,9 @@ export class SetModelDto {
   @ValidateNested()
   @Type(() => AiModelsByPurposeDto)
   modelsByPurpose?: AiModelsByPurposeDto;
+
+  /** AI provider — 'openrouter' or 'openai'. */
+  @IsOptional()
+  @IsIn(AI_PROVIDERS as unknown as string[])
+  provider?: (typeof AI_PROVIDERS)[number];
 }

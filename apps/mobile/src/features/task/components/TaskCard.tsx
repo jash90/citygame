@@ -62,6 +62,14 @@ export const TaskCard = memo(({ task, onPress, isPendingSync }: TaskCardProps): 
             </Text>
             <View className="flex-row items-center gap-2 flex-wrap">
               <TaskTypeBadge type={task.type} />
+              {task.npc ? (
+                <View className="flex-row items-center gap-1">
+                  <Ionicons name="person-outline" size={12} color="#92400E" />
+                  <Text className="text-xs text-amber-800" numberOfLines={1}>
+                    {task.npc.name}
+                  </Text>
+                </View>
+              ) : null}
               {task.timeLimitSec ? (
                 <View className="flex-row items-center gap-0.5">
                   <Ionicons name="timer-outline" size={12} color="#6B7280" />

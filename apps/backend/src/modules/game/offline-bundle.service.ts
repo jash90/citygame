@@ -40,6 +40,9 @@ export interface OfflineBundleTask {
   maxPoints: number;
   timeLimitSec: number | null;
   storyContext: string | null;
+  npcId: string | null;
+  npc: { id: string; name: string; archetype: string; roleFunction: string; voiceTrait: string; importance: number; avatarUrl: string | null; era: string | null } | null;
+  taskRoleInArc: string | null;
   hints: OfflineBundleHint[];
   /** Cipher chain source — plaintext payload the player reads at this stop. */
   revealsItem: { slug: string; kind: string; label: string; value: string } | null;
@@ -116,7 +119,7 @@ export class OfflineBundleService {
       include: {
         tasks: {
           orderBy: { orderIndex: 'asc' },
-          include: { hints: { orderBy: { orderIndex: 'asc' } } },
+          include: { hints: { orderBy: { orderIndex: 'asc' } }, npc: true },
         },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
         transitions: { orderBy: { orderIndex: 'asc' } },
@@ -151,6 +154,9 @@ export class OfflineBundleService {
         maxPoints: t.maxPoints,
         timeLimitSec: t.timeLimitSec,
         storyContext: t.storyContext,
+        npcId: t.npcId,
+        npc: t.npc ? { id: t.npc.id, name: t.npc.name, archetype: t.npc.archetype, roleFunction: t.npc.roleFunction, voiceTrait: t.npc.voiceTrait, importance: t.npc.importance, avatarUrl: t.npc.avatarUrl, era: t.npc.era } : null,
+        taskRoleInArc: t.taskRoleInArc,
         hints: t.hints.map((h) => ({
           id: h.id,
           orderIndex: h.orderIndex,

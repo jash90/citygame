@@ -1,19 +1,41 @@
 'use client';
 
 import type { GameBlueprint } from '@citygame/shared';
-import { ArrowRight, MapPin } from 'lucide-react';
+import { ArrowRight, Loader2, MapPin } from 'lucide-react';
 
 interface BlueprintOutlineViewProps {
   blueprint: GameBlueprint;
   onBack: () => void;
   onContinue: () => void;
+  /**
+   * Stage-by-stage flow: false while the outline is still pending. Renders
+   * an "outline still loading" placeholder + disables the Dalej button.
+   */
+  canContinue?: boolean;
 }
 
 export function BlueprintOutlineView({
   blueprint,
   onBack,
   onContinue,
+  canContinue = true,
 }: BlueprintOutlineViewProps) {
+  const outlineReady = !!blueprint.title;
+
+  if (!outlineReady) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16 text-gray-500">
+        <Loader2 size={28} className="animate-spin" />
+        <p className="text-sm">Ładuję zarys gry…</p>
+        <p className="text-xs text-gray-400 max-w-md text-center">
+          AI ustala tytuł, miasto-anchor i listę POI. Pasek u góry pokazuje
+          aktualny etap; gdy zarys będzie gotowy, ten widok wypełni się
+          automatycznie.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -107,7 +129,8 @@ export function BlueprintOutlineView({
         </button>
         <button
           onClick={onContinue}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26]"
+          disabled={!canContinue}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Dalej: zadania
           <ArrowRight size={16} />

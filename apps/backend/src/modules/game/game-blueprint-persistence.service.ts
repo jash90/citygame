@@ -56,8 +56,40 @@ export class GameBlueprintPersistenceService {
           status: GameStatus.DRAFT,
           creatorId,
           settings: this.buildSettings(safeBlueprint, safeInput),
+          storyMode: safeInput.storyMode ?? 'NONE',
+          taskListMode: safeInput.storyMode === 'FLAVOR' ? 'GROUPED_BY_NPC' : 'FLAT',
         },
       });
+
+      // Persist Character entities from cast if present
+      const characterByName = new Map<string, string>();
+      if (safeBlueprint.cast) {
+        for (const c of safeBlueprint.cast.characters) {
+          const character = await tx.character.upsert({
+            where: { gameId_name: { gameId: game.id, name: c.name } },
+            create: {
+              gameId: game.id,
+              name: c.name,
+              archetype: c.archetype,
+              roleFunction: c.roleFunction,
+              voiceTrait: c.voiceTrait,
+              importance: c.importance,
+              era: c.era ?? null,
+            },
+            update: {
+              archetype: c.archetype,
+              roleFunction: c.roleFunction,
+              voiceTrait: c.voiceTrait,
+              importance: c.importance,
+              era: c.era ?? null,
+            },
+          });
+          characterByName.set(c.name, character.id);
+        }
+        this.logger.log(
+          `Persisted ${characterByName.size} characters for game ${game.id}`,
+        );
+      }
 
       const indexToTaskId = new Map<number, string>();
 
@@ -91,6 +123,8 @@ export class GameBlueprintPersistenceService {
             unlockRequirements: unlockRequirements
               ? (unlockRequirements as unknown as Prisma.InputJsonValue)
               : Prisma.JsonNull,
+            npcId: bpTask.npcName ? (characterByName.get(bpTask.npcName) ?? null) : null,
+            taskRoleInArc: bpTask.taskRoleInArc ?? null,
           },
         });
         indexToTaskId.set(bpTask.index, created.id);

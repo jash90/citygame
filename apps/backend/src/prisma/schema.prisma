@@ -63,6 +63,35 @@ enum GameFlowType {
   MIXED
 }
 
+enum CharacterRoleFunction {
+  QUEST_GIVER
+  MENTOR
+  ANTAGONIST_PROXY
+  WITNESS
+  GATEKEEPER
+  MIRROR
+  RED_HERRING
+  UNKNOWN
+}
+
+enum StoryMode {
+  NONE
+  FLAVOR
+  FULL_NARRATIVE
+}
+
+enum TaskRoleInArc {
+  INTRODUCTION
+  DEEPENING
+  TWIST
+  CLIMAX
+}
+
+enum TaskListMode {
+  FLAT
+  GROUPED_BY_NPC
+}
+
 /// Singleton-style key/value store for runtime-mutable admin settings.
 /// Used to override env-supplied defaults (e.g. OpenRouter API key + model)
 /// from the admin panel without redeploying.
@@ -108,8 +137,12 @@ model Game {
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
+  storyMode    StoryMode     @default(NONE)
+  taskListMode TaskListMode  @default(FLAT)
+
   creator     User             @relation(fields: [creatorId], references: [id])
   tasks       Task[]
+  characters  Character[]
   sessions    GameSession[]
   runs        GameRun[]
   teams       Team[]
@@ -147,13 +180,45 @@ model Task {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
+  /// FK to the NPC (Character) who presents or narrates this task.
+  /// Nullable for backward compat — tasks without a story context have null.
+  npcId         String?
+  /// Role this task plays in the character's arc (intro, deepening, twist, climax).
+  taskRoleInArc TaskRoleInArc?
+
   game             Game             @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  npc              Character?       @relation(fields: [npcId], references: [id], onDelete: SetNull)
   hints            Hint[]
   attempts         TaskAttempt[]
   outgoingTransitions TaskTransition[] @relation("TransitionFrom")
   incomingTransitions TaskTransition[] @relation("TransitionTo")
 
   @@index([gameId, orderIndex])
+  @@index([npcId])
+}
+
+model Character {
+  id             String                @id @default(cuid())
+  gameId         String
+
+  name           String
+  archetype      String                // "kronikarz Strzyżowa, XVII w."
+  roleFunction   CharacterRoleFunction
+  voiceTrait     String                // "barokowy język, krótkie zdania, motywy księgi i klucza"
+  importance     Int                   @default(3)  // 1-5
+
+  avatarUrl      String?
+  era            String?               // "XVII w." — optional, for historical games
+  notes          String?               // admin free-form notes
+
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  game           Game                  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  tasks          Task[]
+
+  @@unique([gameId, name])
+  @@index([gameId])
 }
 
 model Hint {

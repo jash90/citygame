@@ -43,5 +43,7 @@ export function mapTask(bt: BackendTask): Task {
     },
     revealsItem: bt.revealsItem ?? null,
     unlockRequirements: bt.unlockRequirements ?? null,
+    npc: bt.npc ?? null,
+    taskRoleInArc: bt.taskRoleInArc ?? null,
   };
 }

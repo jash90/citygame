@@ -41,6 +41,11 @@ export interface BlueprintInput {
    * extra tokens for retrieved snippets — defaults to false.
    */
   useWebSearch?: boolean;
+  /**
+   * Narrative mode: NONE = no characters (legacy), FLAVOR = character entities
+   * with npcId on tasks, FULL_NARRATIVE = future (secrets, relations, endings resolver).
+   */
+  storyMode?: 'NONE' | 'FLAVOR' | 'FULL_NARRATIVE';
 }
 
 export interface BlueprintTaskHint {
@@ -118,6 +123,15 @@ export interface BlueprintTask {
         taskNarrative?: string;
         clueRevealed?: string;
       };
+  /**
+   * Name of the NPC from the cast that presents this task. Matches a
+   * Character entity name. Set by the tasks stage when storyMode is FLAVOR.
+   */
+  npcName?: string;
+  /**
+   * Role this task plays in the character's arc.
+   */
+  taskRoleInArc?: 'INTRODUCTION' | 'DEEPENING' | 'TWIST' | 'CLIMAX';
   hints: BlueprintTaskHint[];
   revealsItem?: RevealedItem;
   unlockRequirements?: BlueprintUnlockRequirement;
@@ -187,6 +201,19 @@ export interface BlueprintStoryBible {
   }>;
 }
 
+export interface BlueprintCastCharacter {
+  name: string;
+  archetype: string;
+  roleFunction: 'QUEST_GIVER' | 'MENTOR' | 'ANTAGONIST_PROXY' | 'WITNESS' | 'GATEKEEPER' | 'MIRROR' | 'RED_HERRING';
+  voiceTrait: string;
+  importance: number;
+  era?: string | null;
+}
+
+export interface BlueprintCast {
+  characters: BlueprintCastCharacter[];
+}
+
 export interface GameBlueprint {
   title: string;
   description: string;
@@ -196,6 +223,7 @@ export interface GameBlueprint {
   theme: string;
   prologue?: string;
   storyBible?: BlueprintStoryBible;
+  cast?: BlueprintCast;
   tasks: BlueprintTask[];
   transitions: BlueprintTransition[];
   endings: BlueprintEnding[];
@@ -236,6 +264,22 @@ export interface BlueprintOutline {
     title: string;
     flavour: string;
   }>;
+}
+
+/**
+ * Deterministic CIPHER_SOURCE/LOCK pairing computed by the backend's
+ * `planCipherChains` on the locked outline. The orchestrator forwards each
+ * assignment to the matching `/tasks/single` call so parallel per-POI
+ * generations agree on the same slug + value for source ↔ lock pairs.
+ */
+export interface BlueprintCipherAssignment {
+  role: 'CIPHER_SOURCE' | 'CIPHER_LOCK';
+  /** Stable slug shared by source.revealsItem.slug and lock.unlockRequirements.requiresItem. */
+  slug: string;
+  /** What the player will see / type — used as both `revealsItem.value` on the source and `expectedAnswer` on the lock. */
+  value: string;
+  kind: 'CODE' | 'WORD' | 'SYMBOL' | 'NUMBER';
+  label: string;
 }
 
 export type BlueprintStage = 'outline' | 'tasks' | 'endings' | 'task';

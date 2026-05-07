@@ -122,6 +122,50 @@ export interface UnlockRequirement {
   answerSha256: string;
 }
 
+export enum TaskRoleInArc {
+  INTRODUCTION = 'INTRODUCTION',
+  DEEPENING = 'DEEPENING',
+  TWIST = 'TWIST',
+  CLIMAX = 'CLIMAX',
+}
+
+export enum StoryMode {
+  NONE = 'NONE',
+  FLAVOR = 'FLAVOR',
+  FULL_NARRATIVE = 'FULL_NARRATIVE',
+}
+
+export enum TaskListMode {
+  FLAT = 'FLAT',
+  GROUPED_BY_NPC = 'GROUPED_BY_NPC',
+}
+
+export enum CharacterRoleFunction {
+  QUEST_GIVER = 'QUEST_GIVER',
+  MENTOR = 'MENTOR',
+  ANTAGONIST_PROXY = 'ANTAGONIST_PROXY',
+  WITNESS = 'WITNESS',
+  GATEKEEPER = 'GATEKEEPER',
+  MIRROR = 'MIRROR',
+  RED_HERRING = 'RED_HERRING',
+  UNKNOWN = 'UNKNOWN',
+}
+
+export interface Character {
+  id: string;
+  gameId: string;
+  name: string;
+  archetype: string;
+  roleFunction: CharacterRoleFunction;
+  voiceTrait: string;
+  importance: number;
+  avatarUrl?: string | null;
+  era?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Task {
   id: string;
   gameId: string;
@@ -137,6 +181,9 @@ export interface Task {
   maxPoints: number;
   timeLimitSec?: number;
   storyContext?: string;
+  npcId?: string | null;
+  npc?: Character | null;
+  taskRoleInArc?: TaskRoleInArc | null;
   revealsItem?: RevealedItem | null;
   unlockRequirements?: UnlockRequirement | null;
   hints?: Hint[];

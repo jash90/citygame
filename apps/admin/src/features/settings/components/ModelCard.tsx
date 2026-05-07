@@ -38,7 +38,14 @@ export function formatContext(ctx: number): string {
 }
 
 export function getProvider(modelId: string): string {
-  return modelId.split('/')[0] ?? 'unknown';
+  // OpenRouter ids look like `anthropic/claude-sonnet-4-5` — split on `/`.
+  // OpenAI ids have no `/` (e.g. `gpt-5`, `gpt-4o`, `o3-mini`), so falling
+  // back on the prefix before `:` (used by fine-tunes) would create one
+  // bucket per model. Group them all under a single "openai" pseudo-provider
+  // so the filter dropdown stays usable.
+  const slashIdx = modelId.indexOf('/');
+  if (slashIdx > 0) return modelId.slice(0, slashIdx);
+  return 'openai';
 }
 
 export function getCapabilities(model: OpenRouterModel): string[] {

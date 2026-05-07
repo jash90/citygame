@@ -54,6 +54,9 @@ export interface BackendTask {
   storyContext?: string | null;
   revealsItem?: RevealedItem | null;
   unlockRequirements?: { requiresItem: string } | null;
+  npcId?: string | null;
+  npc?: { id: string; name: string; archetype: string; roleFunction: string; voiceTrait: string; importance: number; avatarUrl?: string | null; era?: string | null } | null;
+  taskRoleInArc?: string | null;
   _count?: { hints: number };
   [key: string]: unknown;
 }
@@ -103,6 +106,9 @@ export interface Task {
   revealsItem?: RevealedItem | null;
   /** Cipher chain consumer — slug of the required item; locked until in inventory. */
   unlockRequirements?: { requiresItem: string } | null;
+  /** NPC character associated with this task. */
+  npc?: { id: string; name: string; archetype: string; roleFunction: string; voiceTrait: string; importance: number; avatarUrl?: string | null; era?: string | null } | null;
+  taskRoleInArc?: string | null;
 }
 
 export interface NarrativeSettings {

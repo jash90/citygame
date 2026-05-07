@@ -17,6 +17,7 @@ interface UseTaskDetailReturn {
   gameId: string;
   isLocked: boolean;
   storyContext: Record<string, string> | null;
+  npcId: string | null;
   goBack: () => void;
   handleUnlock: () => void;
   handleSubmit: (submission: TaskSubmission) => Promise<void>;
@@ -266,6 +267,7 @@ export function useTaskDetail({
     gameId,
     isLocked,
     storyContext,
+    npcId: task?.npc?.id ?? null,
     goBack,
     handleUnlock,
     handleSubmit,

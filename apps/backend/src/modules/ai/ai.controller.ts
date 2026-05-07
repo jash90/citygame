@@ -13,10 +13,17 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
+import { z } from 'zod';
 import {
   blueprintInputSchema,
+  blueprintTaskSchema,
   gameBlueprintSchema,
+  storyBibleSchema,
+  type BlueprintInput,
+  type BlueprintOutline,
+  type BlueprintTask,
   type GameBlueprint,
+  type StoryBible,
 } from '@citygame/shared';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -27,14 +34,51 @@ import {
   AiGameBlueprintService,
   BlueprintGenerationError,
 } from './ai-game-blueprint.service';
+import { outlineSchema } from './ai-game-tools';
+import type { CipherAssignment } from './ai-game-prompts';
 import { GenerateDescriptionDto } from './dto/generate-description.dto';
+import { GenerateEndingsDto } from './dto/generate-endings.dto';
 import { GenerateHintsDto } from './dto/generate-hints.dto';
+import { GenerateOutlineDto } from './dto/generate-outline.dto';
 import { GeneratePromptDto } from './dto/generate-prompt.dto';
 import { GenerateGameBlueprintDto } from './dto/generate-game-blueprint.dto';
+import { GenerateResearchDto } from './dto/generate-research.dto';
+import { GenerateStoryBibleDto } from './dto/generate-story-bible.dto';
+import { GenerateTaskForPoiDto } from './dto/generate-task-for-poi.dto';
+import { GenerateTransitionsDto } from './dto/generate-transitions.dto';
 import { RefineBlueprintDto } from './dto/refine-blueprint.dto';
 import { SetApiKeyDto } from './dto/set-api-key.dto';
 import { SetModelDto } from './dto/set-model.dto';
 import { TestPromptDto } from './dto/test-prompt.dto';
+
+/**
+ * Inline schema for the cipher assignment forwarded by the orchestrator from
+ * the `/outline` response into each `/tasks/single` call. Mirrors backend
+ * `CipherAssignment` interface in `ai-game-prompts.ts`.
+ */
+const cipherAssignmentSchema = z.object({
+  role: z.enum(['CIPHER_SOURCE', 'CIPHER_LOCK']),
+  slug: z.string(),
+  value: z.string(),
+  kind: z.enum(['CODE', 'WORD', 'SYMBOL', 'NUMBER']),
+  label: z.string(),
+});
+
+/**
+ * Surface a Zod parse error as a 400. Embeds the flattened issues directly
+ * in the message string because NestJS' default BadRequestException
+ * serialisation drops extra object fields, and the orchestrator's banner
+ * shows the raw message verbatim.
+ */
+function zodOr400<T>(
+  result: z.SafeParseReturnType<unknown, T>,
+  what: string,
+): T {
+  if (result.success) return result.data;
+  throw new BadRequestException(
+    `${what} is invalid: ${JSON.stringify(result.error.flatten())}`,
+  );
+}
 
 @ApiTags('AI')
 @ApiBearerAuth('access-token')
@@ -59,11 +103,14 @@ export class AiController {
   }
 
   @ApiOperation({
-    summary: 'Get current AI configuration (model + masked API key state)',
+    summary: 'Get current AI configuration (provider + model + masked credentials)',
   })
   @Get('config')
   getConfig() {
     return {
+      provider: this.credentials.getProvider(),
+      openaiApiKeyConfigured: !!this.credentials.getOpenaiApiKey(),
+      openaiApiKeyMasked: this.credentials.getOpenaiApiKeyMasked(),
       activeModel: this.aiService.getActiveModel(),
       apiKeyConfigured: this.credentials.isConfigured(),
       apiKeyMasked: this.credentials.getMaskedApiKey(),
@@ -74,10 +121,15 @@ export class AiController {
 
   @ApiOperation({
     summary:
-      'Change the active AI model, web-search toggle, or per-purpose model overrides',
+      'Change the AI provider, active model, web-search toggle, or per-purpose model overrides',
   })
   @Patch('config')
   async setModel(@Body() dto: SetModelDto) {
+    // Apply provider FIRST so subsequent web-search / model writes hit the
+    // correct provider's storage and `setUseWebSearch` is no-op'd on OpenAI.
+    if (dto.provider !== undefined) {
+      await this.credentials.setProvider(dto.provider);
+    }
     if (dto.model !== undefined) {
       await this.aiService.setActiveModel(dto.model);
     }
@@ -99,6 +151,7 @@ export class AiController {
       }
     }
     return {
+      provider: this.credentials.getProvider(),
       activeModel: this.aiService.getActiveModel(),
       useWebSearch: this.credentials.getUseWebSearch(),
       modelsByPurpose: this.credentials.getModelsByPurpose(),
@@ -126,6 +179,29 @@ export class AiController {
     return {
       apiKeyConfigured: this.credentials.isConfigured(),
       apiKeyMasked: this.credentials.getMaskedApiKey(),
+    };
+  }
+
+  @ApiOperation({
+    summary:
+      'Set the OpenAI API key (required when provider=openai; ignored for OpenRouter)',
+  })
+  @Patch('credentials/openai')
+  async setOpenaiApiKey(@Body() dto: SetApiKeyDto) {
+    await this.credentials.setOpenaiApiKey(dto.apiKey);
+    return {
+      openaiApiKeyConfigured: !!this.credentials.getOpenaiApiKey(),
+      openaiApiKeyMasked: this.credentials.getOpenaiApiKeyMasked(),
+    };
+  }
+
+  @ApiOperation({ summary: 'Clear the admin-set OpenAI API key' })
+  @Delete('credentials/openai')
+  async clearOpenaiApiKey() {
+    await this.credentials.clearOpenaiApiKey();
+    return {
+      openaiApiKeyConfigured: !!this.credentials.getOpenaiApiKey(),
+      openaiApiKeyMasked: this.credentials.getOpenaiApiKeyMasked(),
     };
   }
 
@@ -184,16 +260,175 @@ export class AiController {
     return { prompt };
   }
 
-  @ApiOperation({ summary: 'Generate a complete game blueprint with AI' })
-  @Post('games/blueprint')
-  async generateGameBlueprint(
-    @Body() dto: GenerateGameBlueprintDto,
-  ): Promise<{ blueprint: GameBlueprint }> {
+  // ─── Stage-by-stage blueprint pipeline ──────────────────────────────────
+  // The wizard fans out one HTTP call per stage so the UI can show a live
+  // checklist (research → bible → outline → tasks×N → transitions/endings)
+  // and retry just the stage that broke. Per-POI calls are parallelised by
+  // the client with a concurrency cap of 3. See
+  // `apps/admin/src/features/ai-game/hooks/useAiBlueprintOrchestrator.ts`.
+
+  @ApiOperation({
+    summary:
+      'Stage 1: optional `:online` web-search research pack (returns null when web search is off or the call fails)',
+  })
+  @Post('games/blueprint/research')
+  async generateResearch(
+    @Body() dto: GenerateResearchDto,
+  ): Promise<{ researchPack: string | null }> {
     this.requireApiKey();
-    const input = blueprintInputSchema.parse(dto);
+    const input = blueprintInputSchema.parse(dto.input);
     try {
-      const blueprint = await this.blueprintService.generateGameBlueprint(input);
-      return { blueprint };
+      const researchPack = await this.blueprintService.gatherResearchPack(input);
+      return { researchPack };
+    } catch (error) {
+      this.handleBlueprintError(error);
+    }
+  }
+
+  @ApiOperation({
+    summary:
+      'Stage 2: generate the StoryBible (narrative skeleton — protagonist, cast, motifs, endings skeleton)',
+  })
+  @Post('games/blueprint/story-bible')
+  async generateStoryBible(
+    @Body() dto: GenerateStoryBibleDto,
+  ): Promise<{ bible: StoryBible }> {
+    this.requireApiKey();
+    const input = blueprintInputSchema.parse(dto.input);
+    try {
+      const bible = await this.blueprintService.generateStoryBible(
+        input,
+        dto.researchPack ?? null,
+      );
+      return { bible };
+    } catch (error) {
+      this.handleBlueprintError(error);
+    }
+  }
+
+  @ApiOperation({
+    summary:
+      'Stage 3: generate the outline (POIs + roles + dramatic beats) and the deterministic cipher pre-plan keyed by POI index',
+  })
+  @Post('games/blueprint/outline')
+  async generateOutline(@Body() dto: GenerateOutlineDto): Promise<{
+    outline: BlueprintOutline;
+    cipherPlan: Record<number, CipherAssignment>;
+  }> {
+    this.requireApiKey();
+    const input = blueprintInputSchema.parse(dto.input);
+    const bible = zodOr400(storyBibleSchema.safeParse(dto.bible), 'bible');
+    try {
+      const outline = await this.blueprintService.generateOutline(
+        input,
+        bible,
+        dto.researchPack ?? null,
+      );
+      const cipherPlan = this.blueprintService.planCipherChains(outline);
+      return { outline, cipherPlan };
+    } catch (error) {
+      this.handleBlueprintError(error);
+    }
+  }
+
+  @ApiOperation({
+    summary:
+      'Stage 4 (×N): generate ONE task for ONE outline POI. The orchestrator fans out N parallel calls (capped at 3 in flight) and forwards the cipher plan from the outline response so SOURCE/LOCK pairs stay consistent.',
+  })
+  @Post('games/blueprint/tasks/single')
+  async generateTaskForPoi(
+    @Body() dto: GenerateTaskForPoiDto,
+  ): Promise<{ task: BlueprintTask }> {
+    this.requireApiKey();
+    const input = blueprintInputSchema.parse(dto.input);
+    const outline = zodOr400(
+      outlineSchema.safeParse(dto.outline),
+      'outline',
+    ) as BlueprintOutline;
+    const bible = zodOr400(storyBibleSchema.safeParse(dto.bible), 'bible');
+    const poi = outline.pois.find((p) => p.index === dto.poiIndex);
+    if (!poi) {
+      throw new BadRequestException(
+        `POI with index=${dto.poiIndex} not present in the supplied outline`,
+      );
+    }
+    const cipherAssignment = dto.cipherAssignment
+      ? zodOr400(
+          cipherAssignmentSchema.safeParse(dto.cipherAssignment),
+          'cipherAssignment',
+        )
+      : undefined;
+    try {
+      const task = await this.blueprintService.generateTaskForPoi(
+        input,
+        outline,
+        bible,
+        poi,
+        cipherAssignment,
+        dto.researchPack ?? null,
+      );
+      return { task };
+    } catch (error) {
+      this.handleBlueprintError(error);
+    }
+  }
+
+  @ApiOperation({
+    summary:
+      'Stage 5: generate the transition graph from a finalised task list (depends on tasks; runs in parallel with /endings)',
+  })
+  @Post('games/blueprint/transitions')
+  async generateTransitions(@Body() dto: GenerateTransitionsDto) {
+    this.requireApiKey();
+    const input = blueprintInputSchema.parse(dto.input);
+    const outline = zodOr400(
+      outlineSchema.safeParse(dto.outline),
+      'outline',
+    ) as BlueprintOutline;
+    const tasks = zodOr400(
+      z.array(blueprintTaskSchema).safeParse(dto.tasks),
+      'tasks',
+    );
+    try {
+      const transitions = await this.blueprintService.generateTransitions(
+        input,
+        outline,
+        tasks as BlueprintTask[],
+      );
+      return { transitions };
+    } catch (error) {
+      this.handleBlueprintError(error);
+    }
+  }
+
+  @ApiOperation({
+    summary:
+      'Stage 6: fill the StoryBible.endingsSkeleton into final endings (depends on tasks; runs in parallel with /transitions). Applies single-default normalisation.',
+  })
+  @Post('games/blueprint/endings')
+  async generateEndings(@Body() dto: GenerateEndingsDto) {
+    this.requireApiKey();
+    const input = blueprintInputSchema.parse(dto.input);
+    const outline = zodOr400(
+      outlineSchema.safeParse(dto.outline),
+      'outline',
+    ) as BlueprintOutline;
+    const bible = zodOr400(storyBibleSchema.safeParse(dto.bible), 'bible');
+    const tasks = zodOr400(
+      z.array(blueprintTaskSchema).safeParse(dto.tasks),
+      'tasks',
+    );
+    try {
+      const payload = await this.blueprintService.generateEndings(
+        input,
+        outline,
+        { tasks: tasks as BlueprintTask[], transitions: [] },
+        bible,
+      );
+      const endings = this.blueprintService.ensureSingleDefaultEnding(
+        payload.endings,
+      );
+      return { endings };
     } catch (error) {
       this.handleBlueprintError(error);
     }
@@ -279,17 +514,19 @@ export class AiController {
   }
 
   private requireApiKey(): void {
-    if (!this.credentials.isConfigured()) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.PRECONDITION_REQUIRED,
-          message:
-            'OpenRouter API key is not configured. Set it in Settings → AI before generating.',
-          code: 'AI_KEY_MISSING',
-        },
-        HttpStatus.PRECONDITION_REQUIRED,
-      );
-    }
+    if (this.credentials.isConfigured()) return;
+    const provider = this.credentials.getProvider();
+    throw new HttpException(
+      {
+        statusCode: HttpStatus.PRECONDITION_REQUIRED,
+        message:
+          provider === 'openai'
+            ? 'OpenAI API key is not configured. Set it in Settings → AI before generating.'
+            : 'OpenRouter API key is not configured. Set it in Settings → AI before generating.',
+        code: 'AI_KEY_MISSING',
+      },
+      HttpStatus.PRECONDITION_REQUIRED,
+    );
   }
 
   private handleBlueprintError(error: unknown): never {
@@ -322,7 +559,11 @@ export class AiController {
         HttpStatus.BAD_GATEWAY,
       );
     }
-    // Surface the upstream provider error body so the admin sees what went wrong.
+    // Surface the upstream provider error body so the admin sees what went
+    // wrong. The global HttpExceptionFilter only forwards `message` and
+    // `error` to the wire — extra fields (`provider`) are stripped — so we
+    // bake the provider body INTO the message string. The orchestrator's
+    // banner shows the message verbatim.
     const err = error as {
       message?: string;
       status?: number;
@@ -333,14 +574,24 @@ export class AiController {
       err.error ??
       err.response?.data ??
       (err.message ? { message: err.message } : { error: 'unknown' });
+    const providerSummary = (() => {
+      try {
+        return JSON.stringify(providerBody);
+      } catch {
+        return String(providerBody);
+      }
+    })();
+    const status = err.status ?? err.response?.status;
+    const summary = status
+      ? `HTTP ${status} — ${providerSummary}`
+      : providerSummary;
     this.logger.error(
-      `Unexpected blueprint generation error: ${JSON.stringify(providerBody)}`,
+      `Unexpected blueprint generation error: ${summary}`,
     );
     throw new HttpException(
       {
         statusCode: HttpStatus.BAD_GATEWAY,
-        message: 'Blueprint generation failed',
-        provider: providerBody,
+        message: `Blueprint generation failed: ${summary}`,
       },
       HttpStatus.BAD_GATEWAY,
     );

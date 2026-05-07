@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 interface TaskStoryContext {
   locationIntro?: string;
   taskNarrative?: string;
@@ -10,12 +11,14 @@ interface TaskStoryContext {
 
 interface StoryContextCardProps {
   context: TaskStoryContext;
+  npcId?: string | null;
 }
 
-export const StoryContextCard = ({ context }: StoryContextCardProps): React.JSX.Element | null => {
+export const StoryContextCard = ({ context, npcId }: StoryContextCardProps): React.JSX.Element | null => {
+  const router = useRouter();
   if (!context.locationIntro && !context.taskNarrative) return null;
 
-  return (
+  const content = (
     <View className="rounded-2xl p-4 border border-amber-200 bg-amber-50">
       {context.characterName ? (
         <View className="flex-row items-center gap-2 mb-3">
@@ -23,6 +26,9 @@ export const StoryContextCard = ({ context }: StoryContextCardProps): React.JSX.
           <Text className="text-xs font-semibold uppercase tracking-wider text-amber-700">
             {context.characterName}
           </Text>
+          {npcId ? (
+            <Ionicons name="chevron-forward" size={14} color="#B45309" />
+          ) : null}
         </View>
       ) : null}
 
@@ -39,4 +45,15 @@ export const StoryContextCard = ({ context }: StoryContextCardProps): React.JSX.
       ) : null}
     </View>
   );
+
+  // Make the card clickable when there's an NPC to navigate to
+  if (npcId) {
+    return (
+      <Pressable onPress={() => router.push(`/character/${npcId}` as never)}>
+        {content}
+      </Pressable>
+    );
+  }
+
+  return content;
 };

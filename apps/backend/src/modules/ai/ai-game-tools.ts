@@ -3,6 +3,7 @@ import {
   blueprintEndingSchema,
   blueprintTaskSchema,
   blueprintTransitionSchema,
+  castSchema,
   narrativeBeatSchema,
   storyBibleSchema,
 } from '@citygame/shared';
@@ -207,7 +208,7 @@ function toStructuredFormat(schema: any, name: string): StructuredFormat {
   };
 }
 
-const outlineSchema = z.object({
+export const outlineSchema = z.object({
   title: z.string(),
   description: z.string(),
   city: z.string(),
@@ -259,7 +260,11 @@ const tasksSchema = z.object({
   transitions: z.array(blueprintTransitionSchema).min(1),
 });
 
+const castOutputSchema = castSchema;
+
 const singleTaskSchema = z.object({ task: blueprintTaskSchema });
+
+const castSchema$ = z.object({ cast: castOutputSchema });
 
 const transitionsSchema = z.object({
   transitions: z.array(blueprintTransitionSchema).min(1),
@@ -280,6 +285,7 @@ export const storyBibleFormat = toStructuredFormat(
   storyBibleSchema,
   'storyBible',
 );
+export const castFormat = toStructuredFormat(castSchema$, 'gameCast');
 
 /**
  * Returns a `singleTaskFormat` whose `task.type` enum is narrowed to
@@ -325,10 +331,10 @@ export type SingleTaskPayload = z.infer<typeof singleTaskSchema>;
 export type TransitionsPayload = z.infer<typeof transitionsSchema>;
 export type EndingsToolPayload = z.infer<typeof endingsSchema>;
 export type StoryBibleToolPayload = z.infer<typeof storyBibleSchema>;
+export type CastToolPayload = z.infer<typeof castSchema$>;
 
 export {
   endingsSchema,
-  outlineSchema,
   singleTaskSchema,
   storyBibleSchema,
   tasksSchema,

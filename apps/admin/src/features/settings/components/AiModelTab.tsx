@@ -8,6 +8,7 @@ import {
   useSetAiModel,
 } from '@/features/settings/hooks/useAdminSettings';
 import { AiApiKeyCard } from './AiApiKeyCard';
+import { AiProviderCard } from './AiProviderCard';
 import { AiPurposeModelsCard } from './AiPurposeModelsCard';
 import { AiWebSearchCard } from './AiWebSearchCard';
 import { OpenRouterModelPickerModal } from './OpenRouterModelPickerModal';
@@ -19,11 +20,17 @@ export function AiModelTab() {
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const activeModel = config?.activeModel ?? '';
+  const provider = config?.provider ?? 'openrouter';
+  const isOpenai = provider === 'openai';
 
   return (
     <div className="flex flex-col gap-5">
-      <AiApiKeyCard />
-      <AiWebSearchCard />
+      <AiProviderCard />
+
+      {/* OpenRouter-only credentials & web search. OpenAI uses its own key
+          card (inside AiProviderCard) and has no `:online` web-search. */}
+      {!isOpenai && <AiApiKeyCard />}
+      {!isOpenai && <AiWebSearchCard />}
 
       {/* Active model banner — clickable to open the picker */}
       <button
@@ -44,7 +51,8 @@ export function AiModelTab() {
               {configLoading ? '…' : activeModel || '— nie ustawiony —'}
             </p>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Kliknij, aby wybrać inny model z listy OpenRouter.
+              Kliknij, aby wybrać inny model z listy{' '}
+              {isOpenai ? 'OpenAI' : 'OpenRouter'}.
             </p>
           </div>
           {mutation.isPending ? (
@@ -57,7 +65,10 @@ export function AiModelTab() {
 
       {modelsError && (
         <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-          Nie udało się pobrać listy modeli — sprawdź klucz API powyżej.
+          Nie udało się pobrać listy modeli —{' '}
+          {isOpenai
+            ? 'sprawdź klucz OpenAI (platform.openai.com/api-keys).'
+            : 'sprawdź klucz API powyżej.'}
         </div>
       )}
 
@@ -76,8 +87,14 @@ export function AiModelTab() {
           if (modelId) mutation.mutate(modelId);
         }}
         currentValue={activeModel}
-        title="Wybierz globalny aktywny model"
-        description="Ten model będzie używany wszędzie tam, gdzie nie ustawiono dedykowanego modelu dla danego zadania AI."
+        title={
+          isOpenai ? 'Wybierz model OpenAI' : 'Wybierz globalny aktywny model'
+        }
+        description={
+          isOpenai
+            ? 'Lista pobierana z `/v1/models` api.openai.com z Twoim kluczem API. Filtr „dostawcy" pogrupuje modele wg `owned_by` (openai / system / Twoje fine-tuned).'
+            : 'Ten model będzie używany wszędzie tam, gdzie nie ustawiono dedykowanego modelu dla danego zadania AI.'
+        }
       />
 
       {modelsLoading && !config && (

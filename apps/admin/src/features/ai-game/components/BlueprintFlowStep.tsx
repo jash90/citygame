@@ -11,6 +11,8 @@ interface BlueprintFlowStepProps {
   onChange: (next: GameBlueprint) => void;
   onBack: () => void;
   onContinue: () => void;
+  /** Stage-by-stage flow: false until transitions+endings have landed. */
+  canContinue?: boolean;
 }
 
 export function BlueprintFlowStep({
@@ -19,8 +21,13 @@ export function BlueprintFlowStep({
   onChange,
   onBack,
   onContinue,
+  canContinue = true,
 }: BlueprintFlowStepProps) {
   const refine = useRefineBlueprint();
+  const tasksReady = blueprint.tasks.length > 0;
+  const transitionsReady = blueprint.transitions.length > 0;
+  const endingsReady = blueprint.endings.length > 0;
+  const ready = tasksReady && transitionsReady && endingsReady;
 
   const tasks = blueprint.tasks.map((t) => ({
     id: `task-${t.index}`,
@@ -62,8 +69,8 @@ export function BlueprintFlowStep({
         </div>
         <button
           onClick={handleRegenerate}
-          disabled={refine.isPending}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          disabled={refine.isPending || !ready}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {refine.isPending ? (
             <Loader2 size={14} className="animate-spin" />
@@ -74,7 +81,18 @@ export function BlueprintFlowStep({
         </button>
       </header>
 
-      <GameFlowDiagram tasks={tasks} transitions={transitions} endings={endings} />
+      {ready ? (
+        <GameFlowDiagram tasks={tasks} transitions={transitions} endings={endings} />
+      ) : (
+        <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 flex flex-col items-center justify-center gap-2 text-sm text-gray-500">
+          <Loader2 size={20} className="animate-spin" />
+          <p>Czekam na zadania, połączenia i zakończenia…</p>
+          <p className="text-xs text-gray-400 max-w-md text-center">
+            Diagram pojawi się, gdy AI zakończy etapy zadań, połączeń i
+            końcówek. Pasek u góry pokazuje, co dzieje się aktualnie.
+          </p>
+        </div>
+      )}
 
       <section className="grid gap-2">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -116,8 +134,8 @@ export function BlueprintFlowStep({
         </button>
         <button
           onClick={onContinue}
-          disabled={refine.isPending}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] disabled:opacity-60"
+          disabled={refine.isPending || !canContinue}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           Dalej: zapis
           <ArrowRight size={16} />

@@ -90,7 +90,7 @@ export class GameService {
         creator: { select: { id: true, displayName: true } },
         tasks: {
           orderBy: { orderIndex: 'asc' },
-          include: { hints: { orderBy: { orderIndex: 'asc' } } },
+          include: { hints: { orderBy: { orderIndex: 'asc' } }, npc: true },
         },
         runs: { where: { status: RunStatus.ACTIVE }, take: 1 },
         transitions: { orderBy: { orderIndex: 'asc' } },
@@ -130,6 +130,9 @@ export class GameService {
             storyContext: true,
             revealsItem: true,
             unlockRequirements: true,
+            npcId: true,
+            taskRoleInArc: true,
+            npc: { select: { id: true, gameId: true, name: true, archetype: true, roleFunction: true, voiceTrait: true, importance: true, avatarUrl: true, era: true, notes: true, createdAt: true, updatedAt: true } },
             _count: { select: { hints: true } },
           },
         },

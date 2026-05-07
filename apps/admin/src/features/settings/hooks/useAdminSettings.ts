@@ -34,7 +34,14 @@ export const AI_PURPOSES = [
 ] as const;
 export type AiPurpose = (typeof AI_PURPOSES)[number];
 
+export const AI_PROVIDERS = ['openrouter', 'openai'] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+
 export interface AiConfigResponse {
+  provider: AiProvider;
+  /** Whether an OpenAI API key is set (required when provider=openai). */
+  openaiApiKeyConfigured: boolean;
+  openaiApiKeyMasked: string | null;
   activeModel: string;
   apiKeyConfigured: boolean;
   apiKeyMasked: string | null;
@@ -65,6 +72,18 @@ export function useSetAiModel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-models'] });
       queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+    },
+  });
+}
+
+export function useSetAiProvider() {
+  const queryClient = useQueryClient();
+  return useMutation<{ provider: AiProvider }, Error, AiProvider>({
+    mutationFn: (provider: AiProvider) =>
+      api.patch('/api/admin/ai/config', { provider }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
     },
   });
 }
@@ -106,6 +125,37 @@ export function useSetAiApiKey() {
   >({
     mutationFn: (apiKey: string) =>
       api.patch('/api/admin/ai/credentials', { apiKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+    },
+  });
+}
+
+export function useSetOpenaiApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { openaiApiKeyConfigured: boolean; openaiApiKeyMasked: string | null },
+    Error,
+    string
+  >({
+    mutationFn: (apiKey: string) =>
+      api.patch('/api/admin/ai/credentials/openai', { apiKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-models'] });
+    },
+  });
+}
+
+export function useClearOpenaiApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation<
+    { openaiApiKeyConfigured: boolean; openaiApiKeyMasked: string | null },
+    Error,
+    void
+  >({
+    mutationFn: () => api.delete('/api/admin/ai/credentials/openai'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-config'] });
       queryClient.invalidateQueries({ queryKey: ['ai-models'] });

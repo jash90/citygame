@@ -12,9 +12,12 @@ interface BlueprintEnvelope {
   blueprint: GameBlueprint;
 }
 
-// AI blueprint generation chains 3 sequential model calls (outline → tasks
-// → endings); the whole flow legitimately takes ~60–180s on slower models.
-const AI_TIMEOUT_MS = 240_000;
+// AI blueprint generation chains 7–8 sequential model calls (research →
+// geocode → outline → cipher plan → tasks → endings → validation) plus
+// optional `:online` web-search; legitimate runs hit 8–15 minutes on slower
+// models. Backend SDK timeout is 300 s per call, so the orchestrator may
+// take longer end-to-end. Keep the client-side abort generous.
+const AI_TIMEOUT_MS = 1_200_000; // 20 min
 
 export function useGenerateBlueprint() {
   return useMutation<GameBlueprint, Error, BlueprintInput>({

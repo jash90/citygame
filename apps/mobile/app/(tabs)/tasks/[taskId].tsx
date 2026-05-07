@@ -30,6 +30,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
     gameId,
     isLocked,
     storyContext,
+    npcId,
     goBack,
     handleUnlock,
     handleSubmit,
@@ -113,7 +114,7 @@ export default function TaskDetailScreen(): React.JSX.Element {
         </View>
 
         {/* Story context (narrative games) */}
-        {storyContext ? <StoryContextCard context={storyContext} /> : null}
+        {storyContext ? <StoryContextCard context={storyContext} npcId={npcId} /> : null}
 
         {/* Description */}
         <View className="bg-surface rounded-2xl p-4 border border-gray-100">

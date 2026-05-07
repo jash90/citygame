@@ -10,6 +10,12 @@ interface BlueprintConfirmViewProps {
   onSave: () => void;
   isSaving: boolean;
   errorMessage?: string | null;
+  /**
+   * Stage-by-stage flow: false until every pipeline stage has landed AND
+   * `gameBlueprintSchema.safeParse` succeeds on the composed blueprint.
+   * Disables the save button so partial state can never reach the DB.
+   */
+  canSave?: boolean;
 }
 
 export function BlueprintConfirmView({
@@ -19,6 +25,7 @@ export function BlueprintConfirmView({
   onSave,
   isSaving,
   errorMessage,
+  canSave = true,
 }: BlueprintConfirmViewProps) {
   return (
     <div className="flex flex-col gap-5">
@@ -69,8 +76,9 @@ export function BlueprintConfirmView({
         </button>
         <button
           onClick={onSave}
-          disabled={isSaving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] disabled:opacity-60"
+          disabled={isSaving || !canSave}
+          title={!canSave ? 'Czekam na ukończenie wszystkich etapów generacji' : undefined}
+          className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] text-white text-sm font-semibold rounded-lg hover:bg-[#e55a26] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           Zapisz jako wersję roboczą

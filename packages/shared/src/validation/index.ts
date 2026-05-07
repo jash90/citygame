@@ -1,6 +1,31 @@
 import { z } from 'zod';
 import { TaskType, UnlockMethod } from '../types/task';
 
+/**
+ * Coerce a partial nullable nested object into `null` when a required
+ * descriptor field is missing or empty. Used in the storyBible schema to
+ * tolerate output from models without strict structured-output enforcement
+ * (e.g. deepseek-v4-pro), which sometimes emit `{ name: "X" }` for a
+ * nullable nested object instead of either the full shape or `null`.
+ *
+ * Returns the original value when the field is present (the inner schema
+ * runs as before), or `null` when the field is missing — matching the
+ * "nothing fits" semantic of the surrounding `.nullable()`.
+ */
+function coercePartialNullable(
+  val: unknown,
+  requiredField: string,
+): unknown {
+  if (val === null || val === undefined) return null;
+  if (typeof val !== 'object') return val;
+  const obj = val as Record<string, unknown>;
+  const candidate = obj[requiredField];
+  if (typeof candidate !== 'string' || candidate.trim().length === 0) {
+    return null;
+  }
+  return val;
+}
+
 export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -214,6 +239,7 @@ export const blueprintInputSchema = z.object({
     .optional(),
   endingCount: z.number().int().min(2).max(6).optional(),
   useWebSearch: z.boolean().optional(),
+  storyMode: z.enum(['NONE', 'FLAVOR', 'FULL_NARRATIVE']).optional(),
 });
 
 export const blueprintHintSchema = z.object({
@@ -264,6 +290,10 @@ export const blueprintTaskSchema = z.object({
       }),
     ])
     .optional(),
+  /** Name of the NPC from cast that presents this task. */
+  npcName: z.string().max(80).optional(),
+  /** Role this task plays in the character's arc. */
+  taskRoleInArc: z.enum(['INTRODUCTION', 'DEEPENING', 'TWIST', 'CLIMAX']).optional(),
   hints: z.array(blueprintHintSchema).max(5),
   revealsItem: revealedItemSchema.optional(),
   unlockRequirements: blueprintUnlockRequirementSchema.optional(),
@@ -337,19 +367,31 @@ export const storyBibleSchema = z.object({
     motivation: z.string().min(5).max(400),
     voiceTrait: z.string().min(3).max(200),
   }),
-  antagonist: z
-    .object({
-      name: z.string().min(2).max(80),
-      motivation: z.string().min(5).max(400),
-      revealMode: z.enum(['known_from_start', 'midpoint', 'climax_twist']),
-    })
-    .nullable(),
-  macguffin: z
-    .object({
-      name: z.string().min(2).max(80),
-      significance: z.string().min(5).max(400),
-    })
-    .nullable(),
+  // Both `antagonist` and `macguffin` are nullable, and the prompt
+  // explicitly says "set null when no clear X fits". Models without strict
+  // structured-output enforcement (smaller OSS-routed models on OpenRouter)
+  // sometimes emit partial objects with the name field but no motivation/
+  // significance. Coerce those partial shapes to `null` so the bible still
+  // validates instead of failing the whole pipeline at stage 1.
+  antagonist: z.preprocess(
+    (val) => coercePartialNullable(val, 'motivation'),
+    z
+      .object({
+        name: z.string().min(2).max(80),
+        motivation: z.string().min(5).max(400),
+        revealMode: z.enum(['known_from_start', 'midpoint', 'climax_twist']),
+      })
+      .nullable(),
+  ),
+  macguffin: z.preprocess(
+    (val) => coercePartialNullable(val, 'significance'),
+    z
+      .object({
+        name: z.string().min(2).max(80),
+        significance: z.string().min(5).max(400),
+      })
+      .nullable(),
+  ),
   centralMystery: z.string().min(10).max(600),
   toneAnchors: z.array(z.string().min(2).max(40)).min(3).max(5),
   thematicMotifs: z.array(z.string().min(2).max(40)).min(2).max(5),
@@ -380,6 +422,29 @@ export const storyBibleSchema = z.object({
     .max(6),
 });
 
+export const castCharacterSchema = z.object({
+  name: z.string().min(2).max(80),
+  archetype: z.string().min(5).max(120),
+  roleFunction: z.enum([
+    'QUEST_GIVER', 'MENTOR', 'ANTAGONIST_PROXY',
+    'WITNESS', 'GATEKEEPER', 'MIRROR', 'RED_HERRING',
+  ]),
+  voiceTrait: z.string().min(10).max(300),
+  importance: z.number().int().min(1).max(5),
+  era: z.string().max(40).nullable().optional(),
+});
+
+export const castSchema = z.object({
+  characters: z.array(castCharacterSchema).min(1).max(8)
+    .refine(
+      (chars) => chars.filter(c => c.roleFunction === 'QUEST_GIVER').length >= 1,
+      { message: 'must have at least one QUEST_GIVER' },
+    ),
+});
+
+export type CastCharacter = z.infer<typeof castCharacterSchema>;
+export type CastOutput = z.infer<typeof castSchema>;
+
 export const gameBlueprintSchema = z
   .object({
     title: z.string().min(3).max(120),
@@ -390,6 +455,7 @@ export const gameBlueprintSchema = z
     theme: z.string().min(3).max(280),
     prologue: z.string().max(2000).optional(),
     storyBible: storyBibleSchema.optional(),
+    cast: castSchema.optional(),
     tasks: z.array(blueprintTaskSchema).min(3).max(20),
     transitions: z.array(blueprintTransitionSchema).min(1),
     endings: z.array(blueprintEndingSchema).min(1).max(6),
@@ -530,6 +596,34 @@ export const gameBlueprintSchema = z
     }
   });
 
+import { TaskRoleInArc, CharacterRoleFunction, StoryMode, TaskListMode } from '../types/task';
+
 export type GameBlueprintParsed = z.infer<typeof gameBlueprintSchema>;
 export type StoryBible = z.infer<typeof storyBibleSchema>;
 export type NarrativeBeat = z.infer<typeof narrativeBeatSchema>;
+
+// ── Character schemas ───────────────────────────────────────────────────────
+
+// Re-export enums from types/task.ts (TypeScript enums are the canonical source)
+export { CharacterRoleFunction, TaskRoleInArc, StoryMode, TaskListMode } from '../types/task';
+
+export const characterRoleFunctionSchema = z.nativeEnum(CharacterRoleFunction);
+
+export const characterSchema = z.object({
+  id: z.string(),
+  gameId: z.string(),
+  name: z.string().min(2).max(80),
+  archetype: z.string().min(5).max(120),
+  roleFunction: characterRoleFunctionSchema,
+  voiceTrait: z.string().min(10).max(300),
+  importance: z.number().int().min(1).max(5).default(3),
+  avatarUrl: z.string().url().nullable().optional(),
+  era: z.string().max(40).nullable().optional(),
+  notes: z.string().max(1000).nullable().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const taskRoleInArcSchema = z.nativeEnum(TaskRoleInArc);
+export const storyModeSchema = z.nativeEnum(StoryMode);
+export const taskListModeSchema = z.nativeEnum(TaskListMode);

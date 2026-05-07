@@ -122,6 +122,38 @@ export interface CityGeocodeAnchor {
 }
 
 /**
+ * Renders the optional research pack (output of the one-time `:online` call)
+ * as a clearly-labelled block downstream stages can lean on for facts.
+ * Empty string when the pack isn't available so prompt templates stay clean.
+ */
+function researchPackBlock(researchPack: string | undefined): string {
+  if (!researchPack) return '';
+  return `\n\nRESEARCH PACK (verified web-search results — treat these facts as authoritative ground truth about the city; weave them into the narrative wherever they fit, prefer them over invented details):\n${researchPack}\n`;
+}
+
+/**
+ * Prompt for the one-time `:online` research call. Asks the model to surface
+ * concrete facts about the city + theme (real POIs, legends, historical
+ * names) that downstream stages need so they don't have to (and can't) guess.
+ */
+export function buildResearchPrompt(input: BlueprintPromptInput): string {
+  const audience = input.audience ? ` Audience: ${input.audience}.` : '';
+  const tone = input.tone ? ` Tone: ${input.tone}.` : '';
+  return `Research the following city + theme combination for a location-based exploration game and return a tight factual brief (≤300 words, plain text, bullet points OK, no citations, no markdown headings).
+
+City: ${input.city}
+Theme: ${input.theme}
+Language for player-facing text: ${input.language}${audience}${tone}
+
+Cover:
+- 4–7 real, named POIs in the city that fit the theme (give the canonical name + a one-line note about why it fits + approximate latitude/longitude). Prefer well-known landmarks the operator can easily verify on a map.
+- 2–4 short factual nuggets (legends, historical events, cultural references) directly tied to the theme — the kind of detail that makes a quest feel locally grounded.
+- 1–2 cultural/linguistic notes that affect tone (local idioms, naming conventions, sensitivities to avoid).
+
+Be concrete. Use real names. Skip generic statements that would apply to any city.`;
+}
+
+/**
  * Stage 1 of the pipeline. Produces the narrative skeleton — protagonist,
  * quest giver, antagonist, macguffin, tone anchors, thematic motifs, the
  * recurring cast, and the endings skeleton — that every later stage reads as
@@ -129,7 +161,10 @@ export interface CityGeocodeAnchor {
  * downstream cost reduction (fewer task/ending retries because the model
  * isn't reinventing characters and clues call-by-call) more than pays for it.
  */
-export function buildStoryBiblePrompt(input: BlueprintPromptInput): string {
+export function buildStoryBiblePrompt(
+  input: BlueprintPromptInput,
+  researchPack?: string,
+): string {
   const flowDesc = FLOW_DESCRIPTIONS[input.flowType];
   const audience = input.audience
     ? `Target audience: ${input.audience}.`
@@ -147,7 +182,7 @@ export function buildStoryBiblePrompt(input: BlueprintPromptInput): string {
         ? '\nLINEAR flow: emit exactly 1 endingsSkeleton entry — it IS the default ending.'
         : `\nOPEN_WORLD/MIXED flow: produce ${endingCount} endingsSkeleton entries (e.g. one good, one bad/timeout, optionally one secret). Exactly one will become the DEFAULT fallback in the final endings.`;
 
-  return `You are a city-game designer crafting the NARRATIVE SKELETON for an urban exploration game in ${input.city}. This skeleton is the single source of truth — every later stage (outline → tasks → endings) will reference it and MUST NOT contradict it.
+  return `You are a city-game designer crafting the NARRATIVE SKELETON for an urban exploration game in ${input.city}. This skeleton is the single source of truth — every later stage (outline → tasks → endings) will reference it and MUST NOT contradict it.${researchPackBlock(researchPack)}
 
 City: ${input.city}
 Theme: ${input.theme}
@@ -191,6 +226,7 @@ export function buildOutlinePrompt(
   input: BlueprintPromptInput,
   geo: CityGeocodeAnchor | undefined,
   bible: StoryBible,
+  researchPack?: string,
 ): string {
   const flowDesc = FLOW_DESCRIPTIONS[input.flowType];
   const audience = input.audience
@@ -218,7 +254,7 @@ RULES:
       ? `Available recurring-character ids (use these EXACT ids in 'recurringCharacterIds'): ${recurringIds.join(', ')}.`
       : 'No recurring cast — leave every POI\'s recurringCharacterIds empty.';
 
-  return `You are a city-game designer. Sketch the OUTLINE of a new game.
+  return `You are a city-game designer. Sketch the OUTLINE of a new game.${researchPackBlock(researchPack)}
 
 STORY BIBLE (authoritative — every later stage will read it; do NOT contradict any of these decisions):
 ${JSON.stringify(bible, null, 2)}
@@ -315,6 +351,8 @@ export function buildTaskForPoiPrompt(
   cipher: CipherAssignment | undefined,
   bible: StoryBible,
   poi: BlueprintOutline['pois'][number],
+  researchPack?: string,
+  cast?: { characters: Array<{ name: string; archetype: string; roleFunction: string; voiceTrait: string; importance: number }> },
 ): string {
   // The cipher source/lock pair must use a type that produces an
   // `expectedAnswer` (CIPHER or TEXT_EXACT). Pick one that's also in the
@@ -383,7 +421,7 @@ The player will only solve this if they previously obtained the item slug "${cip
     ? `\nTHIS POI'S NARRATIVE BEAT: "${poi.narrativeBeat}" — ${NARRATIVE_BEAT_GLOSS[poi.narrativeBeat] ?? 'unspecified beat — match the dramatic position of this POI in the arc.'}`
     : '';
 
-  return `You are a city-game designer. Hydrate ONE POI from the outline into a complete task.
+  return `You are a city-game designer. Hydrate ONE POI from the outline into a complete task.${researchPackBlock(researchPack)}
 
 STORY BIBLE (authoritative — every word you write must respect these decisions):
 ${JSON.stringify(bible, null, 2)}
@@ -413,7 +451,18 @@ ALWAYS provide 'storyContext' as an OBJECT (never as a plain string) with these 
   - characterName: the in-fiction speaker / guide / NPC at this stop (e.g. "Stary Kronikarz")
   - locationIntro: what the player sees as they arrive (sensory description of the place)
   - taskNarrative: in-fiction setup that motivates the puzzle BEFORE the player solves it
-  - clueRevealed: what the character tells the player AFTER they solve it (the reward + lead-in to the next location). Set unused fields to null.${cipherInstruction}
+  - clueRevealed: what the character tells the player AFTER they solve it (the reward + lead-in to the next location). Set unused fields to null.${cast ? `
+
+AVAILABLE NPC CAST (you MUST pick one of these for storyContext.characterName and set npcName accordingly):
+${cast.characters.map((c, i) => `${i + 1}. ${c.name} (${c.archetype}, ${c.roleFunction}, importance ${c.importance})\n   Voice: ${c.voiceTrait}`).join('\n')}
+
+NPC ASSIGNMENT RULES:
+- Every task MUST have an npcName from the list above (unless it's a CIPHER or MIXED type without a natural "speaker" — then omit npcName).
+- NPC with importance >= 4 should appear in at least 2 tasks.
+- Tasks for one NPC should form an arc: first=INTRODUCTION, middle=DEEPENING, last=TWIST or CLIMAX.
+- Set taskRoleInArc accordingly (INTRODUCTION / DEEPENING / TWIST / CLIMAX / omit for single-task NPCs).
+- storyContext.characterName MUST be identical to npcName.
+- storyContext.taskNarrative should be written in the voice of that NPC (per voiceTrait above).` : ''}${cipherInstruction}
 
 Return only the single task object in the 'task' field.`;
 }
@@ -513,3 +562,74 @@ export const BLUEPRINT_SYSTEM_MESSAGE = [
   'You are an experienced urban-game designer. You produce engaging, geographically accurate, well-paced location-based exploration games.',
   'You always call the requested tool with strictly-typed JSON arguments — never reply with prose. Treat the tool schema as a hard contract.',
 ].join('\n');
+
+/**
+ * Prompt for the 'cast' stage. Produces 3-7 NPC characters for the game.
+ * The cast is injected into the outline and tasks stages so all stages
+ * agree on who the NPCs are.
+ */
+export function buildCastPrompt(
+  input: BlueprintPromptInput,
+  bible: StoryBible,
+  researchPack?: string,
+): string {
+  const recommendedCount = Math.min(Math.max(2, Math.ceil(input.taskCount / 2)), 7);
+  const audience = input.audience
+    ? `Target audience: ${input.audience}.`
+    : 'Target audience: general adult players.';
+  const tone = input.tone
+    ? `Tone: ${input.tone}.`
+    : 'Tone: engaging, immersive.';
+
+  return `You are a character designer for city-based narrative games. Create a cast of ${recommendedCount} NPC characters for a game in ${input.city}.
+
+STORY BIBLE (authoritative context):
+- Protagonist role: ${bible.protagonistRole}
+- Quest giver: ${bible.questGiver.name}, ${bible.questGiver.role}, motivation: ${bible.questGiver.motivation}
+- Quest giver voice: ${bible.questGiver.voiceTrait}
+- Antagonist: ${bible.antagonist ? `${bible.antagonist.name}, motivation: ${bible.antagonist.motivation}, reveal: ${bible.antagonist.revealMode}` : 'none'}
+- Central mystery: ${bible.centralMystery}
+- Tone anchors: ${bible.toneAnchors.join(', ')}
+- Thematic motifs: ${bible.thematicMotifs.join(', ')}
+- Recurring characters from bible: ${bible.recurringCharacters.map(c => `${c.name} (${c.role}, voice: ${c.voiceTrait})`).join('; ') || 'none'}
+
+GAME PARAMETERS:
+- City: ${input.city}
+- Theme: ${input.theme}
+- Tasks: ${input.taskCount}
+- Language: ${input.language}
+${audience}
+${tone}${researchPackBlock(researchPack)}
+
+RULES:
+1. Produce 2-${recommendedCount} characters.
+2. Each character has a DISTINCT narrative function (roleFunction).
+3. Each character has a UNIQUE voice (voiceTrait) — describe vocabulary, rhythm, mannerisms concretely.
+4. Characters are rooted in the setting and history.
+5. Importance is distributed evenly (avoid 1 super-NPC + background extras).
+6. The quest giver from the story bible (${bible.questGiver.name}) MUST appear with roleFunction='QUEST_GIVER'.
+7. Recurring characters from the bible should be included with appropriate roleFunction.
+8. If there is an antagonist in the bible, add 1-2 ANTAGONIST_PROXY characters instead of the antagonist directly.
+
+ROLE_FUNCTIONS:
+- QUEST_GIVER: starts the plot, has motivation for hiring the player. Exactly 1 required.
+- MENTOR: helps the player with specialist knowledge.
+- ANTAGONIST_PROXY: works for the antagonist (when bible has antagonist).
+- WITNESS: saw something important, carries a clue.
+- GATEKEEPER: blocks access to info/place, requires solving a challenge.
+- MIRROR: emotionally reflects the protagonist thematically.
+- RED_HERRING: misleads players toward a false trail.
+
+VOICE_TRAIT examples:
+✓ "barokowy język, krótkie zdania, gęste metafory, motywy księgi i rzeki"
+✗ "tajemniczy" (too vague)
+
+ARCHETYPE examples:
+✓ "kronikarz miejski, XVII w."
+✓ "barmanka w gospodzie pod Diabłem"
+✗ "starsza kobieta" (too generic)
+
+Write in ${input.language}. Match the audience and tone.
+
+Use the 'submitGameCast' tool. Return the character array.`;
+}

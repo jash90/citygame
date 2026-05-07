@@ -103,4 +103,14 @@ export class GenerateGameBlueprintDto {
   @IsOptional()
   @IsBoolean()
   useWebSearch?: boolean;
+
+  @ApiProperty({
+    required: false,
+    enum: ['NONE', 'FLAVOR', 'FULL_NARRATIVE'],
+    description:
+      'Narrative mode: NONE = no characters (legacy), FLAVOR = character entities with npcId on tasks, FULL_NARRATIVE = future.',
+  })
+  @IsOptional()
+  @IsEnum(['NONE', 'FLAVOR', 'FULL_NARRATIVE'] as const)
+  storyMode?: 'NONE' | 'FLAVOR' | 'FULL_NARRATIVE';
 }

@@ -1,3 +1,5 @@
+import type { StoryMode, TaskListMode } from './task';
+
 export enum GameStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED',
@@ -60,6 +62,10 @@ export interface GameSettings {
    */
   pinRevealDistanceMeters?: number;
   narrative?: NarrativeSettings;
+  /** How characters and narrative are used in this game. */
+  storyMode?: StoryMode;
+  /** How tasks are displayed in the mobile task list. */
+  taskListMode?: TaskListMode;
 }
 
 export const DEFAULT_PIN_REVEAL_DISTANCE_METERS = 100;
