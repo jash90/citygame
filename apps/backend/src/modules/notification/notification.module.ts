@@ -1,13 +1,12 @@
 import { Global, Module } from '@nestjs/common';
-import { Expo } from 'expo-server-sdk';
-import { NotificationService, EXPO_CLIENT } from './notification.service';
+import { NotificationService, EXPO_CLIENT, createExpoClient } from './notification.service';
 
 @Global()
 @Module({
   providers: [
     {
       provide: EXPO_CLIENT,
-      useFactory: () => new Expo(),
+      useFactory: createExpoClient,
     },
     NotificationService,
   ],
