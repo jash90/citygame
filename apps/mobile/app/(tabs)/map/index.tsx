@@ -21,7 +21,7 @@ import type { Task } from '@/shared/types/api.types';
 const StyledSafeAreaView = withUniwind(SafeAreaView);
 
 export default function MapScreen(): React.JSX.Element {
-  const { hasPermission, requestPermission } = useLocation();
+  const { hasPermission, requestPermission } = useLocation({ watch: false });
   const { tasks, currentGame, currentSession, completedTaskIds, collectedClues, gameEnded, reset, setGameEnded } = useGameStore();
   const playerLocation = useLocationStore((s) => s.location);
   const router = useRouter();

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth/stores/authStore';
 import { useRankingStore } from '@/features/ranking/stores/rankingStore';
 import { useGameStore, type AiResult } from '@/features/game/stores/gameStore';
 import { useLocationStore } from '@/features/map/stores/locationStore';
+import { useLocationWatcher } from '@/features/map/hooks/useLocation';
 import type { RankingEntry } from '@/shared/types/api.types';
 
 interface WebSocketContextValue {
@@ -44,6 +45,9 @@ export const WebSocketProvider = ({
   const { tokens, isAuthenticated } = useAuthStore();
   const { setRanking, updateRanking, setLive } = useRankingStore();
   const { setLastAiResult } = useGameStore();
+  const currentGameId = useGameStore((s) => s.currentGame?.id ?? null);
+
+  useLocationWatcher({ enabled: isAuthenticated && Boolean(currentGameId) });
 
   useEffect(() => {
     if (!isAuthenticated || !tokens?.accessToken) {
@@ -100,7 +104,6 @@ export const WebSocketProvider = ({
 
   // Broadcast live location to backend every 5 seconds while in a game
   const activeGameRef = useRef<string | null>(null);
-  const currentGameId = useGameStore((s) => s.currentGame?.id ?? null);
 
   useEffect(() => {
     if (!isConnected || !currentGameId) return;
@@ -109,7 +112,7 @@ export const WebSocketProvider = ({
     // Join the game room so the backend associates this socket with the game
     socketRef.current?.emit('join-game', { gameId: currentGameId });
 
-    const intervalId = setInterval(() => {
+    const emitLocation = (): void => {
       const loc = useLocationStore.getState().location;
       const heading = useLocationStore.getState().heading;
       const accuracy = useLocationStore.getState().accuracy;
@@ -125,7 +128,10 @@ export const WebSocketProvider = ({
         heading,
         accuracy,
       });
-    }, 5000);
+    };
+
+    emitLocation();
+    const intervalId = setInterval(emitLocation, 5000);
 
     return () => {
       clearInterval(intervalId);

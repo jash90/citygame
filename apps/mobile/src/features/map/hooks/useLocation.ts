@@ -10,21 +10,26 @@ interface UseLocationReturn {
   requestPermission: () => Promise<boolean>;
 }
 
-export const useLocation = (): UseLocationReturn => {
-  const { location, heading, accuracy, hasPermission, setLocation, setHeading, setPermission } =
-    useLocationStore();
+interface UseLocationOptions {
+  watch?: boolean;
+}
 
+interface UseLocationWatcherOptions {
+  enabled?: boolean;
+}
+
+export const useLocationWatcher = ({
+  enabled = true,
+}: UseLocationWatcherOptions = {}): void => {
+  const setLocation = useLocationStore((s) => s.setLocation);
+  const setHeading = useLocationStore((s) => s.setHeading);
+  const setPermission = useLocationStore((s) => s.setPermission);
   const watcherRef = useRef<Location.LocationSubscription | null>(null);
   const headingWatcherRef = useRef<Location.LocationSubscription | null>(null);
 
-  const requestPermission = async (): Promise<boolean> => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    const granted = status === Location.PermissionStatus.GRANTED;
-    setPermission(granted);
-    return granted;
-  };
-
   useEffect(() => {
+    if (!enabled) return;
+
     let mounted = true;
 
     const startWatching = async (): Promise<void> => {
@@ -64,7 +69,23 @@ export const useLocation = (): UseLocationReturn => {
       watcherRef.current?.remove();
       headingWatcherRef.current?.remove();
     };
-  }, [hasPermission, setLocation, setHeading, setPermission]);
+  }, [enabled, setLocation, setHeading, setPermission]);
+};
+
+export const useLocation = ({
+  watch = true,
+}: UseLocationOptions = {}): UseLocationReturn => {
+  const { location, heading, accuracy, hasPermission, setPermission } =
+    useLocationStore();
+
+  useLocationWatcher({ enabled: watch });
+
+  const requestPermission = async (): Promise<boolean> => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    const granted = status === Location.PermissionStatus.GRANTED;
+    setPermission(granted);
+    return granted;
+  };
 
   return { location, heading, accuracy, hasPermission, requestPermission };
 };
