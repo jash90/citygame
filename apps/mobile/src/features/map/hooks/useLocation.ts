@@ -21,6 +21,7 @@ interface UseLocationWatcherOptions {
 export const useLocationWatcher = ({
   enabled = true,
 }: UseLocationWatcherOptions = {}): void => {
+  const hasPermission = useLocationStore((s) => s.hasPermission);
   const setLocation = useLocationStore((s) => s.setLocation);
   const setHeading = useLocationStore((s) => s.setHeading);
   const setPermission = useLocationStore((s) => s.setPermission);
@@ -69,7 +70,7 @@ export const useLocationWatcher = ({
       watcherRef.current?.remove();
       headingWatcherRef.current?.remove();
     };
-  }, [enabled, setLocation, setHeading, setPermission]);
+  }, [enabled, hasPermission, setLocation, setHeading, setPermission]);
 };
 
 export const useLocation = ({
