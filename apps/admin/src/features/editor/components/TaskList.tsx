@@ -7,6 +7,8 @@ import {
   Brain,
   Lock,
   Layers,
+  Video,
+  ClipboardCheck,
 } from 'lucide-react';
 import { TaskType } from '@citygame/shared';
 import type { Task } from '@citygame/shared';
@@ -26,6 +28,10 @@ const taskTypeIcon: Record<TaskType, React.ReactNode> = {
   [TaskType.TEXT_AI]: <Brain size={14} />,
   [TaskType.CIPHER]: <Lock size={14} />,
   [TaskType.MIXED]: <Layers size={14} />,
+  [TaskType.AUDIO]: <Mic size={14} />,
+  [TaskType.PHOTO]: <Camera size={14} />,
+  [TaskType.VIDEO]: <Video size={14} />,
+  [TaskType.PRACTICAL]: <ClipboardCheck size={14} />,
 };
 
 const taskTypeLabel: Record<TaskType, string> = {
@@ -37,6 +43,10 @@ const taskTypeLabel: Record<TaskType, string> = {
   [TaskType.TEXT_AI]: 'Tekst AI',
   [TaskType.CIPHER]: 'Szyfr',
   [TaskType.MIXED]: 'Mix',
+  [TaskType.AUDIO]: 'Audio',
+  [TaskType.PHOTO]: 'Foto',
+  [TaskType.VIDEO]: 'Wideo',
+  [TaskType.PRACTICAL]: 'Praktyczne',
 };
 
 interface TaskRowProps {

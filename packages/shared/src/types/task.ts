@@ -7,6 +7,10 @@ export enum TaskType {
   TEXT_AI = 'TEXT_AI',
   CIPHER = 'CIPHER',
   MIXED = 'MIXED',
+  AUDIO = 'AUDIO',
+  PHOTO = 'PHOTO',
+  VIDEO = 'VIDEO',
+  PRACTICAL = 'PRACTICAL',
 }
 
 export enum UnlockMethod {

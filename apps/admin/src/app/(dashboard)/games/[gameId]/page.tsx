@@ -11,6 +11,7 @@ import { GameStatusBadge } from '@/features/dashboard/components/GameStatusBadge
 import { GameSettingsEditor } from '@/features/game/components/GameSettingsEditor';
 import { GameRunControl } from '@/features/game/components/GameRunControl';
 import { GameRunHistory } from '@/features/game/components/GameRunHistory';
+import { GameMentorsSection } from '@/features/game/components/GameMentorsSection';
 
 interface GameDetailResponse extends Game {
   tasks?: unknown[];
@@ -123,6 +124,9 @@ export default function GameDetailPage() {
 
       {/* Run History */}
       {runs && runs.length > 0 && <GameRunHistory gameId={game.id} runs={runs} />}
+
+      {/* Mentors */}
+      <GameMentorsSection gameId={game.id} />
 
       {/* Settings */}
       <GameSettingsEditor gameId={game.id} settings={game.settings ?? {}} />

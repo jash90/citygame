@@ -11,6 +11,10 @@ import { QRTaskInput } from './QRTaskInput';
 import { GPSTaskInput } from './GPSTaskInput';
 import { PhotoAITaskInput } from './PhotoAITaskInput';
 import { AudioAITaskInput } from './AudioAITaskInput';
+import { AudioTaskInput } from './AudioTaskInput';
+import { PhotoTaskInput } from './PhotoTaskInput';
+import { VideoTaskInput } from './VideoTaskInput';
+import { PracticalTaskInput } from './PracticalTaskInput';
 import type { Task } from '@/shared/types/api.types';
 import type { TaskSubmission } from '@citygame/shared';
 
@@ -38,8 +42,15 @@ export const TaskRenderer = ({
     onSubmit(readyPayload);
   };
 
-  const isSelfSubmitting = task.type === 'PHOTO_AI' || task.type === 'AUDIO_AI';
+  const isSelfSubmitting =
+    task.type === 'PHOTO_AI' ||
+    task.type === 'AUDIO_AI' ||
+    task.type === 'AUDIO' ||
+    task.type === 'PHOTO' ||
+    task.type === 'VIDEO' ||
+    task.type === 'PRACTICAL';
   const isCompleted = task.status === 'completed';
+  const isPendingMentorReview = task.status === 'pending_review';
 
   return (
     <View className="gap-4">
@@ -66,6 +77,26 @@ export const TaskRenderer = ({
 
       {task.type === 'AUDIO_AI' && (
         <AudioAITaskInput onSubmit={onSubmit} />
+      )}
+
+      {task.type === 'AUDIO' && (
+        <AudioTaskInput onSubmit={onSubmit} />
+      )}
+
+      {task.type === 'PHOTO' && (
+        <PhotoTaskInput onSubmit={onSubmit} />
+      )}
+
+      {task.type === 'VIDEO' && (
+        <VideoTaskInput onSubmit={onSubmit} />
+      )}
+
+      {task.type === 'PRACTICAL' && (
+        <PracticalTaskInput
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+          isPendingReview={isPendingMentorReview}
+        />
       )}
 
       {!isSelfSubmitting && (

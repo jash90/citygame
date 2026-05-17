@@ -21,11 +21,13 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // If we already have a cached role, try navigating to dashboard.
-    // The AuthGuard will verify the cookie is still valid.
+    // If we already have a cached role, try navigating to the right shell.
+    // The matching guard will verify the cookie is still valid.
     const role = localStorage.getItem('userRole');
     if (role === 'ADMIN') {
       router.replace('/dashboard');
+    } else if (role === 'MENTOR') {
+      router.replace('/mentor/dashboard');
     }
   }, [router]);
 
@@ -43,9 +45,9 @@ export default function LoginPage() {
       const res = await api.post<AuthTokens & { user: { role: string } }>('/api/auth/login', data, { skipAuthRedirect: true });
       const { accessToken, user } = res;
 
-      if (user?.role !== 'ADMIN') {
+      if (user?.role !== 'ADMIN' && user?.role !== 'MENTOR') {
         setError('root', {
-          message: 'Brak uprawnień administratora',
+          message: 'Brak uprawnień do panelu',
         });
         return;
       }
@@ -59,7 +61,7 @@ export default function LoginPage() {
       if (accessToken) {
         setWsToken(accessToken);
       }
-      router.push('/dashboard');
+      router.push(user.role === 'MENTOR' ? '/mentor/dashboard' : '/dashboard');
     } catch (err) {
       setError('root', {
         message: err instanceof Error ? err.message : 'Błąd logowania',

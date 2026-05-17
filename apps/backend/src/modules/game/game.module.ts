@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MentorModule } from '../mentor/mentor.module';
 import { NotificationModule } from '../notification/notification.module';
 import { AdminGameController } from './admin-game.controller';
 import { GameAnalyticsService } from './game-analytics.service';
@@ -11,7 +12,7 @@ import { OfflineBundleService } from './offline-bundle.service';
 import { PlayerGameController } from './player-game.controller';
 
 @Module({
-  imports: [NotificationModule],
+  imports: [NotificationModule, MentorModule],
   controllers: [AdminGameController, PlayerGameController],
   providers: [
     GameService,

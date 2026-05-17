@@ -24,6 +24,8 @@ import { GameRunActivityService } from './game-run-activity.service';
 import { GameRunService } from './game-run.service';
 import { GameService } from './game.service';
 import { GameStatusService } from './game-status.service';
+import { MentorService } from '../mentor/mentor.service';
+import { AssignMentorDto } from './dto/assign-mentor.dto';
 
 @ApiTags('Games — Admin')
 @ApiBearerAuth('access-token')
@@ -37,6 +39,7 @@ export class AdminGameController {
     private readonly gameRunService: GameRunService,
     private readonly gameRunActivityService: GameRunActivityService,
     private readonly gameAnalyticsService: GameAnalyticsService,
+    private readonly mentorService: MentorService,
   ) {}
 
   @ApiOperation({ summary: 'Create a new game draft' })
@@ -239,5 +242,36 @@ export class AdminGameController {
   @Get('api/admin/running-games')
   runningGames() {
     return this.gameRunService.getRunningGames();
+  }
+
+  // ─── Mentor assignment ────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'List mentors assigned to a game' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @Get('api/admin/games/:id/mentors')
+  listMentors(@Param('id', ParseUUIDPipe) id: string) {
+    return this.mentorService.listGameMentors(id);
+  }
+
+  @ApiOperation({ summary: 'Assign a mentor to a game' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiResponse({ status: 201, description: 'Mentor assigned' })
+  @Post('api/admin/games/:id/mentors')
+  assignMentor(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AssignMentorDto,
+  ) {
+    return this.mentorService.assignMentor(id, dto.mentorId);
+  }
+
+  @ApiOperation({ summary: 'Unassign a mentor from a game' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiParam({ name: 'userId', description: 'Mentor user UUID' })
+  @Delete('api/admin/games/:id/mentors/:userId')
+  unassignMentor(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ) {
+    return this.mentorService.unassignMentor(id, userId);
   }
 }

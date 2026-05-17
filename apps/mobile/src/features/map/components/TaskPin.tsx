@@ -22,6 +22,7 @@ const STATUS_COLORS: Record<Task['status'], string> = {
   available: '#FF6B35',
   completed: '#22C55E',
   failed: '#EF4444',
+  pending_review: '#F59E0B',
 };
 
 interface TaskPinProps {

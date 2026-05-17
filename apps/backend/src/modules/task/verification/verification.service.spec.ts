@@ -24,6 +24,10 @@ describe('VerificationService', () => {
   const mockAudioAi = createMockStrategy(correctResult);
   const mockCipher = createMockStrategy(correctResult);
   const mockMixed = createMockStrategy(correctResult);
+  const mockAudio = createMockStrategy(correctResult);
+  const mockPhoto = createMockStrategy(correctResult);
+  const mockVideo = createMockStrategy(correctResult);
+  const mockPractical = createMockStrategy({ ...correctResult, status: 'PENDING' });
 
   beforeEach(() => {
     service = new VerificationService(
@@ -35,6 +39,10 @@ describe('VerificationService', () => {
       mockAudioAi as any,
       mockCipher as any,
       mockMixed as any,
+      mockAudio as any,
+      mockPhoto as any,
+      mockVideo as any,
+      mockPractical as any,
     );
   });
 

@@ -7,6 +7,8 @@ import {
   Brain,
   Lock,
   Layers,
+  Video,
+  ClipboardCheck,
 } from 'lucide-react';
 import { TaskType } from '@citygame/shared';
 
@@ -70,6 +72,30 @@ const typeOptions: TypeOption[] = [
     label: 'Mix',
     description: 'Kilka kroków',
     icon: <Layers size={20} />,
+  },
+  {
+    type: TaskType.AUDIO,
+    label: 'Audio',
+    description: 'Nagranie głosowe',
+    icon: <Mic size={20} />,
+  },
+  {
+    type: TaskType.PHOTO,
+    label: 'Zdjęcie',
+    description: 'Zwykłe zdjęcie',
+    icon: <Camera size={20} />,
+  },
+  {
+    type: TaskType.VIDEO,
+    label: 'Wideo',
+    description: 'Nagranie wideo',
+    icon: <Video size={20} />,
+  },
+  {
+    type: TaskType.PRACTICAL,
+    label: 'Praktyczne',
+    description: 'Ocenia mentor',
+    icon: <ClipboardCheck size={20} />,
   },
 ];
 

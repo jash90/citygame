@@ -139,9 +139,24 @@ export class PlayerTaskService {
       INCORRECT: AttemptStatus.INCORRECT,
       PARTIAL: AttemptStatus.PARTIAL,
       ERROR: AttemptStatus.ERROR,
+      PENDING: AttemptStatus.PENDING,
     };
     const attemptStatus = statusMap[result.status] ?? AttemptStatus.ERROR;
-    const pointsAwarded = Math.round(result.score * task.maxPoints);
+    const pointsAwarded =
+      attemptStatus === AttemptStatus.PENDING
+        ? 0
+        : Math.round(result.score * task.maxPoints);
+
+    // Don't create a duplicate PENDING attempt — if the player already has
+    // one in PENDING for this task, return it. (Mentor-reviewed tasks should
+    // result in a single open submission per task; resubmission is allowed
+    // only after the mentor rejects, which moves it out of PENDING.)
+    if (attemptStatus === AttemptStatus.PENDING) {
+      const existingPending = await this.prisma.taskAttempt.findFirst({
+        where: { sessionId: session.id, taskId, status: AttemptStatus.PENDING },
+      });
+      if (existingPending) return existingPending;
+    }
 
     const attempt = await withSerializableRetry(this.prisma, async (tx) => {
       if (attemptStatus === AttemptStatus.CORRECT) {

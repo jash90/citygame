@@ -20,6 +20,8 @@ export const taskEditorSchema = z.object({
   /** Hash for unlock-method QR (still hash; admin pastes/exports it). */
   qrHash: z.string().optional(),
   gpsRadius: z.coerce.number().optional(),
+  /** Mentor rubric for PRACTICAL tasks. */
+  practicalCriteria: z.string().optional(),
   characterName: z.string().optional(),
   locationIntro: z.string().optional(),
   taskNarrative: z.string().optional(),
@@ -71,6 +73,14 @@ export function buildVerifyConfig(
       return { type: 'TEXT_EXACT', expectedAnswer: data.expectedAnswer ?? '' };
     case T.CIPHER:
       return { type: 'CIPHER', expectedAnswer: data.expectedAnswer ?? '' };
+    case T.AUDIO:
+      return { type: 'AUDIO' };
+    case T.PHOTO:
+      return { type: 'PHOTO' };
+    case T.VIDEO:
+      return { type: 'VIDEO' };
+    case T.PRACTICAL:
+      return { type: 'PRACTICAL', criteria: data.practicalCriteria ?? '' };
     default:
       return { type: 'MIXED', steps: [] };
   }
@@ -140,5 +150,9 @@ export function parseVerifyDefaults(task: { verifyConfig?: unknown; unlockConfig
         : '',
     qrHash: uc?.method === 'QR' ? ((uc.expectedHash as string) ?? '') : '',
     gpsRadius: vc?.type === 'GPS_REACH' ? (vc.radiusMeters as number) : 50,
+    practicalCriteria:
+      vc?.type === 'PRACTICAL' && typeof vc.criteria === 'string'
+        ? vc.criteria
+        : '',
   };
 }

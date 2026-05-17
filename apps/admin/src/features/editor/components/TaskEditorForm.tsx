@@ -70,6 +70,7 @@ export function TaskEditorForm({
       qrAnswer: verifyDefaults.qrAnswer,
       qrHash: verifyDefaults.qrHash,
       gpsRadius: verifyDefaults.gpsRadius,
+      practicalCriteria: verifyDefaults.practicalCriteria,
       ...storyCtx,
     },
   });
@@ -270,6 +271,28 @@ export function TaskEditorForm({
         {selectedType === TaskType.MIXED && (
           <p className="text-sm text-gray-500 italic">
             Konfiguracja kroków dla typu MIXED jest dostępna po zapisaniu zadania.
+          </p>
+        )}
+
+        {selectedType === TaskType.PRACTICAL && (
+          <Field
+            label="Kryteria oceny (dla mentora)"
+            hint="Opis tego, co mentor ma sprawdzić oceniając wykonanie. Wyświetlamy mentorowi przy każdej recenzji."
+          >
+            <textarea
+              {...register('practicalCriteria')}
+              rows={3}
+              placeholder="np. Gracz wymienił co najmniej 3 elementy z listy; opisał własnymi słowami…"
+              className={inputClass()}
+            />
+          </Field>
+        )}
+
+        {(selectedType === TaskType.AUDIO ||
+          selectedType === TaskType.PHOTO ||
+          selectedType === TaskType.VIDEO) && (
+          <p className="text-sm text-gray-500 italic">
+            Zadania medialne nie wymagają dodatkowej konfiguracji — gracz przesyła nagranie/zdjęcie i zadanie zalicza się automatycznie.
           </p>
         )}
       </div>

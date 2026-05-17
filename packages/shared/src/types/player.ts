@@ -20,7 +20,10 @@ export type TaskSubmission =
   | { latitude: number; longitude: number }
   | { answer: string }
   | { imageUrl: string }
-  | { transcription: string };
+  | { transcription: string }
+  | { audioUrl: string }
+  | { videoUrl: string }
+  | { description: string };
 
 /** Presigned upload URL result from the storage API. */
 export interface PresignResult {

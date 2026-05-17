@@ -7,13 +7,17 @@ import {
 } from '@nestjs/common';
 import { Task, TaskType } from '@prisma/client';
 import { AudioAiStrategy } from './strategies/audio-ai.strategy';
+import { AudioStrategy } from './strategies/audio.strategy';
 import { CipherStrategy } from './strategies/cipher.strategy';
 import { GpsReachStrategy } from './strategies/gps-reach.strategy';
 import { MixedStrategy } from './strategies/mixed.strategy';
 import { PhotoAiStrategy } from './strategies/photo-ai.strategy';
+import { PhotoStrategy } from './strategies/photo.strategy';
+import { PracticalStrategy } from './strategies/practical.strategy';
 import { QrScanStrategy } from './strategies/qr-scan.strategy';
 import { TextAiStrategy } from './strategies/text-ai.strategy';
 import { TextExactStrategy } from './strategies/text-exact.strategy';
+import { VideoStrategy } from './strategies/video.strategy';
 import {
   VerificationResult,
   VerificationStrategy,
@@ -33,6 +37,10 @@ export class VerificationService {
     private readonly cipherStrategy: CipherStrategy,
     @Inject(forwardRef(() => MixedStrategy))
     private readonly mixedStrategy: MixedStrategy,
+    private readonly audioStrategy: AudioStrategy,
+    private readonly photoStrategy: PhotoStrategy,
+    private readonly videoStrategy: VideoStrategy,
+    private readonly practicalStrategy: PracticalStrategy,
   ) {
     this.strategies = {
       [TaskType.QR_SCAN]: this.qrScanStrategy,
@@ -43,6 +51,10 @@ export class VerificationService {
       [TaskType.AUDIO_AI]: this.audioAiStrategy,
       [TaskType.CIPHER]: this.cipherStrategy,
       [TaskType.MIXED]: this.mixedStrategy,
+      [TaskType.AUDIO]: this.audioStrategy,
+      [TaskType.PHOTO]: this.photoStrategy,
+      [TaskType.VIDEO]: this.videoStrategy,
+      [TaskType.PRACTICAL]: this.practicalStrategy,
     };
   }
 

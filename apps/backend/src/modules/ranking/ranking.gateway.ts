@@ -47,6 +47,15 @@ export interface AiResultPayload {
   feedback?: string;
 }
 
+export interface MentorReviewResultPayload {
+  attemptId: string;
+  userId: string;
+  taskId: string;
+  status: string;
+  pointsAwarded: number;
+  feedback: string;
+}
+
 export interface ActivityPayload {
   type: string;
   playerName: string;
@@ -161,6 +170,13 @@ export class RankingGateway implements OnGatewayConnection, OnGatewayDisconnect,
 
   broadcastAiResult(gameId: string, payload: AiResultPayload): void {
     this.server.to(`game:${gameId}`).emit('ai:result', payload);
+  }
+
+  broadcastMentorReviewResult(
+    gameId: string,
+    payload: MentorReviewResultPayload,
+  ): void {
+    this.server.to(`game:${gameId}`).emit('mentor:review-result', payload);
   }
 
   broadcastActivity(gameId: string, payload: ActivityPayload): void {

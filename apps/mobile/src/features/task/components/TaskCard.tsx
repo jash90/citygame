@@ -12,6 +12,7 @@ const STATUS_ICONS: Record<Task['status'], { name: IoniconsName; color: string }
   available: { name: 'play-circle', color: '#FF6B35' },
   completed: { name: 'checkmark-circle', color: '#22C55E' },
   failed: { name: 'close-circle', color: '#EF4444' },
+  pending_review: { name: 'hourglass-outline', color: '#F59E0B' },
 };
 
 // Distinct icon + color for tasks completed locally but not yet synced to the

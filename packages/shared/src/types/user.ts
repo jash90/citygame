@@ -1,6 +1,7 @@
 export enum UserRole {
   PLAYER = 'PLAYER',
   ADMIN = 'ADMIN',
+  MENTOR = 'MENTOR',
 }
 
 export interface User {

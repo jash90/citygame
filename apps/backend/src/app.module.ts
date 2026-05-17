@@ -16,6 +16,7 @@ import { StorageModule } from './modules/storage/storage.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { MentorModule } from './modules/mentor/mentor.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AdminModule } from './modules/admin/admin.module';
     StorageModule,
     NotificationModule,
     AdminModule,
+    MentorModule,
   ],
 })
 export class AppModule implements NestModule {

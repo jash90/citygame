@@ -203,4 +203,71 @@ export const adminApi = {
     const qs = runId ? `?runId=${runId}` : '';
     return api.get(`/api/admin/games/${gameId}/analytics/ai-verification${qs}`);
   },
+
+  // ─── Mentor management ────────────────────────────────────────────────────
+
+  /** GET /api/admin/games/:id/mentors — list mentors assigned to a game */
+  getGameMentors(gameId: string): Promise<{
+    id: string;
+    assignedAt: string;
+    mentor: { id: string; displayName: string; email: string; avatarUrl?: string | null };
+  }[]> {
+    return api.get(`/api/admin/games/${gameId}/mentors`);
+  },
+
+  /** POST /api/admin/games/:id/mentors — assign a mentor */
+  assignMentor(gameId: string, mentorId: string): Promise<unknown> {
+    return api.post(`/api/admin/games/${gameId}/mentors`, { mentorId });
+  },
+
+  /** DELETE /api/admin/games/:id/mentors/:userId — unassign a mentor */
+  unassignMentor(gameId: string, mentorId: string): Promise<unknown> {
+    return api.delete(`/api/admin/games/${gameId}/mentors/${mentorId}`);
+  },
+};
+
+// ─── Mentor (mentor-role) API ────────────────────────────────────────────────
+
+export const mentorApi = {
+  /** GET /api/mentor/games — games this mentor is assigned to */
+  getMyGames(): Promise<{
+    id: string;
+    title: string;
+    city: string;
+    status: string;
+    coverImageUrl: string | null;
+    assignedAt: string;
+    pendingCount: number;
+  }[]> {
+    return api.get('/api/mentor/games');
+  },
+
+  /** GET /api/mentor/games/:id/pending — pending attempts to review */
+  getPendingAttempts(gameId: string): Promise<{
+    id: string;
+    userId: string;
+    taskId: string;
+    submission: Record<string, unknown>;
+    createdAt: string;
+    user: { id: string; displayName: string; email: string };
+    task: {
+      id: string;
+      title: string;
+      description: string;
+      type: string;
+      maxPoints: number;
+      verifyConfig: Record<string, unknown>;
+      orderIndex: number;
+    };
+  }[]> {
+    return api.get(`/api/mentor/games/${gameId}/pending`);
+  },
+
+  /** POST /api/mentor/attempts/:attemptId/review — score 0-100 + feedback */
+  reviewAttempt(
+    attemptId: string,
+    body: { score: number; feedback: string },
+  ): Promise<unknown> {
+    return api.post(`/api/mentor/attempts/${attemptId}/review`, body);
+  },
 };

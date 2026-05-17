@@ -63,9 +63,18 @@ export type TaskType =
   | 'TEXT_EXACT'
   | 'TEXT_AI'
   | 'CIPHER'
-  | 'MIXED';
+  | 'MIXED'
+  | 'AUDIO'
+  | 'PHOTO'
+  | 'VIDEO'
+  | 'PRACTICAL';
 
-export type TaskStatus = 'locked' | 'available' | 'completed' | 'failed';
+export type TaskStatus =
+  | 'locked'
+  | 'available'
+  | 'completed'
+  | 'failed'
+  | 'pending_review';
 
 export type AttemptStatus = 'PENDING' | 'CORRECT' | 'INCORRECT' | 'PARTIAL' | 'ERROR';
 

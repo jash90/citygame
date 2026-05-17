@@ -11,6 +11,7 @@ datasource db {
 enum UserRole {
   PLAYER
   ADMIN
+  MENTOR
 }
 
 enum GameStatus {
@@ -28,6 +29,10 @@ enum TaskType {
   TEXT_AI
   CIPHER
   MIXED
+  AUDIO
+  PHOTO
+  VIDEO
+  PRACTICAL
 }
 
 enum UnlockMethod {
@@ -68,12 +73,14 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  games           Game[]
-  sessions        GameSession[]
-  attempts        TaskAttempt[]
-  hintUsages      HintUsage[]
-  captainOf       Team[]       @relation("TeamCaptain")
-  teamMemberships TeamMember[]
+  games            Game[]
+  sessions         GameSession[]
+  attempts         TaskAttempt[]
+  hintUsages       HintUsage[]
+  captainOf        Team[]       @relation("TeamCaptain")
+  teamMemberships  TeamMember[]
+  mentorGames      GameMentor[] @relation("MentorGames")
+  reviewedAttempts TaskAttempt[] @relation("ReviewedAttempts")
 
   @@index([pushToken])
 }
@@ -96,9 +103,23 @@ model Game {
   sessions GameSession[]
   runs     GameRun[]
   teams    Team[]
+  mentors  GameMentor[]
 
   @@index([status])
   @@index([city])
+}
+
+model GameMentor {
+  id         String   @id @default(uuid())
+  gameId     String
+  mentorId   String
+  assignedAt DateTime @default(now())
+
+  game   Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  mentor User @relation("MentorGames", fields: [mentorId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, mentorId])
+  @@index([mentorId])
 }
 
 model Task {
@@ -249,9 +270,15 @@ model TaskAttempt {
   /// online players are not penalised by an offline player's late sync.
   clientCapturedAt DateTime?
 
-  session GameSession @relation(fields: [sessionId], references: [id])
-  task    Task        @relation(fields: [taskId], references: [id])
-  user    User        @relation(fields: [userId], references: [id])
+  /// Mentor who reviewed the submission (only used for PRACTICAL tasks).
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewerFeedback String?
+
+  session    GameSession @relation(fields: [sessionId], references: [id])
+  task       Task        @relation(fields: [taskId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+  reviewedBy User?       @relation("ReviewedAttempts", fields: [reviewedById], references: [id])
 
   @@index([sessionId, taskId])
   @@index([taskId, status])

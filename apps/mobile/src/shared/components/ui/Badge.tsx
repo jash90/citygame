@@ -54,6 +54,10 @@ const TASK_TYPE_LABELS: Record<TaskType, string> = {
   TEXT_AI: 'Tekst AI',
   CIPHER: 'Szyfr',
   MIXED: 'Mieszane',
+  AUDIO: 'Audio',
+  PHOTO: 'Foto',
+  VIDEO: 'Wideo',
+  PRACTICAL: 'Praktyczne',
 };
 
 const TASK_TYPE_VARIANTS: Record<TaskType, BadgeVariant> = {
@@ -65,6 +69,10 @@ const TASK_TYPE_VARIANTS: Record<TaskType, BadgeVariant> = {
   TEXT_AI: 'default',
   CIPHER: 'error',
   MIXED: 'muted',
+  AUDIO: 'primary',
+  PHOTO: 'primary',
+  VIDEO: 'primary',
+  PRACTICAL: 'warning',
 };
 
 const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
@@ -72,6 +80,7 @@ const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   available: 'Dostępne',
   completed: 'Ukończone',
   failed: 'Nieudane',
+  pending_review: 'Oczekuje na ocenę',
 };
 
 const TASK_STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
@@ -79,6 +88,7 @@ const TASK_STATUS_VARIANTS: Record<TaskStatus, BadgeVariant> = {
   available: 'primary',
   completed: 'success',
   failed: 'error',
+  pending_review: 'warning',
 };
 
 export const TaskTypeBadge = ({ type }: { type: TaskType }): React.JSX.Element => (
