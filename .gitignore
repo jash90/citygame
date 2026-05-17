@@ -22,6 +22,7 @@ dist/
 AGENTS.local.md
 
 # Local agent/tooling state
+.worktrees/
 .claude/worktrees/
 .mcp.json
 .pi/
