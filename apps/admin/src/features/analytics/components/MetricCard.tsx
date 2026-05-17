@@ -5,15 +5,16 @@ import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 interface MetricCardProps {
   label: string;
   value: string | number;
-  change?: number; // percentage change, positive = up, negative = down
+  /** Percentage change, positive = up, negative = down. `null` hides the trend chip. */
+  change?: number | null;
   icon: React.ReactNode;
 }
 
 export function MetricCard({ label, value, change, icon }: MetricCardProps) {
   const hasTrend = change !== undefined && change !== null;
-  const isPositive = change !== undefined && change > 0;
-  const isNegative = change !== undefined && change < 0;
-  const isNeutral = change === 0;
+  const isPositive = hasTrend && (change as number) > 0;
+  const isNegative = hasTrend && (change as number) < 0;
+  const isNeutral = hasTrend && change === 0;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col gap-3">

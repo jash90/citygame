@@ -9,12 +9,14 @@ import {
   Tooltip,
   Cell,
   ResponsiveContainer,
+  Legend,
 } from 'recharts';
 
 interface TaskDifficultyDataPoint {
   taskTitle: string;
   avgAttempts: number;
   avgTimeSec: number;
+  priorAvgAttempts?: number;
 }
 
 interface TaskDifficultyChartProps {
@@ -22,9 +24,9 @@ interface TaskDifficultyChartProps {
 }
 
 function getDifficultyColor(avgAttempts: number): string {
-  if (avgAttempts <= 1.5) return '#22c55e'; // easy — green
-  if (avgAttempts <= 2.5) return '#f59e0b'; // medium — yellow
-  return '#ef4444'; // hard — red
+  if (avgAttempts <= 1.5) return '#22c55e';
+  if (avgAttempts <= 2.5) return '#f59e0b';
+  return '#ef4444';
 }
 
 function getDifficultyLabel(avgAttempts: number): string {
@@ -42,15 +44,19 @@ export function TaskDifficultyChart({ data }: TaskDifficultyChartProps) {
     );
   }
 
+  const hasPrior = data.some((d) => d.priorAvgAttempts !== undefined);
   const sorted = [...data].sort((a, b) => b.avgAttempts - a.avgAttempts);
 
   return (
     <div className="w-full">
-      <ResponsiveContainer width="100%" height={Math.max(200, sorted.length * 44)}>
+      <ResponsiveContainer
+        width="100%"
+        height={Math.max(220, sorted.length * (hasPrior ? 56 : 44))}
+      >
         <BarChart
           data={sorted}
           layout="vertical"
-          margin={{ top: 4, right: 40, left: 8, bottom: 4 }}
+          margin={{ top: 10, right: 40, left: 8, bottom: 4 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
           <XAxis
@@ -58,7 +64,13 @@ export function TaskDifficultyChart({ data }: TaskDifficultyChartProps) {
             tick={{ fontSize: 11, fill: '#9ca3af' }}
             tickLine={false}
             axisLine={{ stroke: '#e5e7eb' }}
-            label={{ value: 'śr. prób', position: 'insideBottomRight', offset: -4, fontSize: 10, fill: '#9ca3af' }}
+            label={{
+              value: 'śr. prób',
+              position: 'insideBottomRight',
+              offset: -4,
+              fontSize: 10,
+              fill: '#9ca3af',
+            }}
           />
           <YAxis
             type="category"
@@ -76,22 +88,37 @@ export function TaskDifficultyChart({ data }: TaskDifficultyChartProps) {
             }}
             formatter={(value, name) => {
               const num = typeof value === 'number' ? value : Number(value ?? 0);
-              if (name === 'avgAttempts') {
-                return [`${num.toFixed(1)} prób (${getDifficultyLabel(num)})`, 'Średnia prób'];
+              if (name === 'priorAvgAttempts') {
+                return [`${num.toFixed(1)} prób`, 'Średnia poprzednich sesji'];
               }
-              return [value ?? 0, name];
+              return [`${num.toFixed(1)} prób (${getDifficultyLabel(num)})`, 'Bieżąca sesja'];
             }}
           />
-          <Bar dataKey="avgAttempts" radius={[0, 4, 4, 0]} maxBarSize={28}>
+          {hasPrior && <Legend wrapperStyle={{ fontSize: 11 }} iconType="rect" />}
+          <Bar
+            dataKey="avgAttempts"
+            name="Bieżąca sesja"
+            radius={[0, 4, 4, 0]}
+            maxBarSize={hasPrior ? 18 : 28}
+          >
             {sorted.map((entry, index) => (
               <Cell key={index} fill={getDifficultyColor(entry.avgAttempts)} />
             ))}
           </Bar>
+          {hasPrior && (
+            <Bar
+              dataKey="priorAvgAttempts"
+              name="Średnia poprzednich sesji"
+              fill="#cbd5e1"
+              radius={[0, 4, 4, 0]}
+              maxBarSize={18}
+            />
+          )}
         </BarChart>
       </ResponsiveContainer>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-2 justify-end text-xs text-gray-500">
+      {/* Legend (difficulty buckets — independent of prior series) */}
+      <div className="flex items-center gap-4 mt-2 justify-end text-xs text-gray-500 flex-wrap">
         <span className="flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
           Łatwe (≤1.5 prób)

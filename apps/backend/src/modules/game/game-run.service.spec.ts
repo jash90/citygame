@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { GameStatus, RunStatus, SessionStatus } from '@prisma/client';
 import { GameRunService } from './game-run.service';
@@ -172,6 +173,42 @@ describe('GameRunService', () => {
 
       await expect(service.endRun(game.id, 'creator-1', false))
         .rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('getRunDetail', () => {
+    it('returns the run with session count', async () => {
+      const gameId = uid('game');
+      mockGameService.findOne.mockResolvedValue(makeGame({ id: gameId }));
+      const run = {
+        id: 'r1',
+        gameId,
+        runNumber: 3,
+        status: RunStatus.ENDED,
+        startedAt: new Date(),
+        endedAt: new Date(),
+        _count: { sessions: 7 },
+      };
+      mockPrisma.gameRun.findFirst.mockResolvedValue(run);
+
+      const result = await service.getRunDetail(gameId, 'r1');
+
+      expect(result.runNumber).toBe(3);
+      expect(result._count.sessions).toBe(7);
+      expect(mockPrisma.gameRun.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'r1', gameId },
+        }),
+      );
+    });
+
+    it('throws NotFoundException when run does not belong to game', async () => {
+      const gameId = uid('game');
+      mockGameService.findOne.mockResolvedValue(makeGame({ id: gameId }));
+      mockPrisma.gameRun.findFirst.mockResolvedValue(null);
+
+      await expect(service.getRunDetail(gameId, 'r-orphan'))
+        .rejects.toThrow(NotFoundException);
     });
   });
 

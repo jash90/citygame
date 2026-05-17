@@ -10,12 +10,14 @@ import {
   Cell,
   ResponsiveContainer,
   LabelList,
+  Legend,
 } from 'recharts';
 
 interface TaskFunnelDataPoint {
   taskTitle: string;
   completions: number;
   totalPlayers: number;
+  priorCompletionRate?: number;
 }
 
 interface TaskFunnelChartProps {
@@ -27,25 +29,16 @@ function getBarColor(index: number, total: number): string {
   if (total <= 1) return '#22c55e';
   const ratio = index / (total - 1);
   if (ratio < 0.5) {
-    // green → yellow
     const r = Math.round(34 + (234 - 34) * (ratio * 2));
     const g = Math.round(197 + (179 - 197) * (ratio * 2));
     const b = Math.round(94 + (8 - 94) * (ratio * 2));
     return `rgb(${r},${g},${b})`;
   }
-  // yellow → red
   const r2 = (ratio - 0.5) * 2;
   const r = Math.round(234 + (239 - 234) * r2);
   const g = Math.round(179 + (68 - 179) * r2);
   const b = Math.round(8 + (68 - 8) * r2);
   return `rgb(${r},${g},${b})`;
-}
-
-function _formatLabel(value: number, entry: { payload?: TaskFunnelDataPoint }) {
-  const total = entry?.payload?.totalPlayers ?? 0;
-  if (total === 0) return `${value}`;
-  const pct = Math.round((value / total) * 100);
-  return `${pct}%`;
 }
 
 export function TaskFunnelChart({ data }: TaskFunnelChartProps) {
@@ -57,9 +50,22 @@ export function TaskFunnelChart({ data }: TaskFunnelChartProps) {
     );
   }
 
+  const hasPrior = data.some((d) => d.priorCompletionRate !== undefined);
+
+  // Compute current run completion percentage per task so both series live
+  // on the same scale (0-100 %).
+  const chartData = data.map((d) => ({
+    taskTitle: d.taskTitle,
+    currentPct:
+      d.totalPlayers > 0 ? Math.round((d.completions / d.totalPlayers) * 100) : 0,
+    priorPct: d.priorCompletionRate ?? null,
+    completions: d.completions,
+    totalPlayers: d.totalPlayers,
+  }));
+
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <BarChart data={data} margin={{ top: 20, right: 24, left: 0, bottom: 60 }}>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={chartData} margin={{ top: 20, right: 24, left: 0, bottom: 60 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
         <XAxis
           dataKey="taskTitle"
@@ -74,7 +80,9 @@ export function TaskFunnelChart({ data }: TaskFunnelChartProps) {
           tick={{ fontSize: 11, fill: '#9ca3af' }}
           tickLine={false}
           axisLine={false}
-          width={28}
+          width={32}
+          domain={[0, 100]}
+          tickFormatter={(v) => `${v}%`}
         />
         <Tooltip
           contentStyle={{
@@ -82,36 +90,37 @@ export function TaskFunnelChart({ data }: TaskFunnelChartProps) {
             border: '1px solid #e5e7eb',
             fontSize: '12px',
           }}
-          formatter={(value, _name, props) => {
+          formatter={(value, name) => {
             const num = typeof value === 'number' ? value : Number(value ?? 0);
-            const total = (props as { payload?: TaskFunnelDataPoint })?.payload?.totalPlayers ?? 0;
-            const pct = total > 0 ? Math.round((num / total) * 100) : 0;
-            return [`${num} (${pct}%)`, 'Ukończenia'];
+            if (name === 'priorPct') return [`${num}%`, 'Średnia poprzednich sesji'];
+            return [`${num}%`, 'Bieżąca sesja'];
           }}
         />
-        <Bar dataKey="completions" radius={[4, 4, 0, 0]} maxBarSize={48}>
-          {data.map((_, index) => (
-            <Cell key={index} fill={getBarColor(index, data.length)} />
+        {hasPrior && <Legend wrapperStyle={{ fontSize: 11 }} iconType="rect" />}
+        {hasPrior && (
+          <Bar
+            dataKey="priorPct"
+            name="Średnia poprzednich sesji"
+            fill="#cbd5e1"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={32}
+          />
+        )}
+        <Bar
+          dataKey="currentPct"
+          name="Bieżąca sesja"
+          radius={[4, 4, 0, 0]}
+          maxBarSize={hasPrior ? 32 : 48}
+        >
+          {chartData.map((_, index) => (
+            <Cell key={index} fill={getBarColor(index, chartData.length)} />
           ))}
-          <LabelList dataKey="completions" position="top" content={(props) => {
-            const { x, y, width, value, index } = props as {
-              x: number; y: number; width: number; value: number; index: number;
-            };
-            const entry = data[index];
-            const total = entry?.totalPlayers ?? 0;
-            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-            return (
-              <text
-                x={x + width / 2}
-                y={y - 6}
-                textAnchor="middle"
-                fill="#6b7280"
-                fontSize={10}
-              >
-                {pct}%
-              </text>
-            );
-          }} />
+          <LabelList
+            dataKey="currentPct"
+            position="top"
+            formatter={(value: unknown) => `${Number(value ?? 0)}%`}
+            style={{ fontSize: 10, fill: '#6b7280' }}
+          />
         </Bar>
       </BarChart>
     </ResponsiveContainer>

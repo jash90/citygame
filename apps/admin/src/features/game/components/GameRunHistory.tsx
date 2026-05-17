@@ -1,13 +1,15 @@
 'use client';
 
-import { History } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronRight, History } from 'lucide-react';
 import type { GameRun } from '@citygame/shared';
 
 interface GameRunHistoryProps {
+  gameId: string;
   runs: (GameRun & { _count: { sessions: number } })[];
 }
 
-export function GameRunHistory({ runs }: GameRunHistoryProps) {
+export function GameRunHistory({ gameId, runs }: GameRunHistoryProps) {
   if (runs.length === 0) return null;
 
   return (
@@ -18,7 +20,11 @@ export function GameRunHistory({ runs }: GameRunHistoryProps) {
       </h3>
       <div className="divide-y divide-gray-100">
         {runs.map((run) => (
-          <div key={run.id} className="flex items-center justify-between py-3">
+          <Link
+            key={run.id}
+            href={`/games/${gameId}/runs/${run.id}/analytics`}
+            className="group flex items-center justify-between py-3 -mx-2 px-2 rounded-md hover:bg-gray-50 transition-colors"
+          >
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-gray-900">
                 Sesja #{run.runNumber}
@@ -38,8 +44,12 @@ export function GameRunHistory({ runs }: GameRunHistoryProps) {
               <span>
                 {new Date(run.startedAt).toLocaleDateString('pl-PL')}
               </span>
+              <ChevronRight
+                size={16}
+                className="text-gray-300 group-hover:text-[#FF6B35] transition-colors"
+              />
             </div>
-          </div>
+          </Link>
         ))}
       </div>
     </div>

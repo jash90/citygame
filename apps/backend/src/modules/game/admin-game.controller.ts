@@ -136,6 +136,42 @@ export class AdminGameController {
     return this.gameRunService.getRunHistory(id);
   }
 
+  @ApiOperation({ summary: 'Get metadata for a single run' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiParam({ name: 'runId', description: 'Run UUID' })
+  @Get('api/admin/games/:id/runs/:runId')
+  getRunDetail(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('runId', ParseUUIDPipe) runId: string,
+  ) {
+    return this.gameRunService.getRunDetail(id, runId);
+  }
+
+  @ApiOperation({ summary: 'Get baseline averages from earlier ENDED runs' })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiParam({ name: 'runId', description: 'Run UUID (current run, excluded from baseline)' })
+  @Get('api/admin/games/:id/runs/:runId/baseline')
+  getRunBaseline(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('runId', ParseUUIDPipe) runId: string,
+  ) {
+    return this.gameAnalyticsService.getRunsBaseline(id, runId);
+  }
+
+  @ApiOperation({
+    summary:
+      'Get cross-run comparison: per-run timeline + per-task prior averages',
+  })
+  @ApiParam({ name: 'id', description: 'Game UUID' })
+  @ApiParam({ name: 'runId', description: 'Current run UUID' })
+  @Get('api/admin/games/:id/runs/:runId/comparison')
+  getRunComparison(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('runId', ParseUUIDPipe) runId: string,
+  ) {
+    return this.gameAnalyticsService.getRunsComparison(id, runId);
+  }
+
   @Get('api/admin/games/:id/run-activity')
   getRunActivity(
     @Param('id', ParseUUIDPipe) id: string,

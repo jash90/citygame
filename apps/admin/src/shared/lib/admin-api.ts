@@ -121,6 +121,50 @@ export const adminApi = {
     return api.get(`/api/admin/games/${gameId}/runs`);
   },
 
+  /** GET /api/admin/games/:id/runs/:runId — single run metadata */
+  getRunDetail(
+    gameId: string,
+    runId: string,
+  ): Promise<GameRun & { _count: { sessions: number } }> {
+    return api.get(`/api/admin/games/${gameId}/runs/${runId}`);
+  },
+
+  /** GET /api/admin/games/:id/runs/:runId/baseline — averages from earlier ENDED runs */
+  getRunBaseline(
+    gameId: string,
+    runId: string,
+  ): Promise<{ avgTotalPlayers: number; avgCompletionRate: number; runsCount: number }> {
+    return api.get(`/api/admin/games/${gameId}/runs/${runId}/baseline`);
+  },
+
+  /** GET /api/admin/games/:id/runs/:runId/comparison — timeline + per-task prior averages */
+  getRunComparison(
+    gameId: string,
+    runId: string,
+  ): Promise<{
+    runs: {
+      runId: string;
+      runNumber: number;
+      status: 'ACTIVE' | 'ENDED';
+      startedAt: string;
+      endedAt: string | null;
+      totalPlayers: number;
+      completionRate: number;
+      avgScore: number;
+      avgTimeMinutes: number;
+    }[];
+    priorTaskStats: {
+      taskId: string;
+      taskTitle: string;
+      priorCompletionRate: number;
+      priorAvgAttempts: number;
+      priorRunsCount: number;
+    }[];
+    priorRunsCount: number;
+  }> {
+    return api.get(`/api/admin/games/${gameId}/runs/${runId}/comparison`);
+  },
+
   /** GET /api/admin/running-games — games with active runs */
   getRunningGames(): Promise<Game[]> {
     return api.get('/api/admin/running-games');

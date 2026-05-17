@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   AttemptStatus,
@@ -146,6 +147,26 @@ export class GameRunService {
       },
       orderBy: { runNumber: 'desc' },
     });
+  }
+
+  /**
+   * Get metadata for a single run, scoped to its parent game.
+   */
+  async getRunDetail(gameId: string, runId: string) {
+    await this.gameService.findOne(gameId);
+
+    const run = await this.prisma.gameRun.findFirst({
+      where: { id: runId, gameId },
+      include: {
+        _count: { select: { sessions: true } },
+      },
+    });
+
+    if (!run) {
+      throw new NotFoundException(`Run ${runId} not found for game ${gameId}`);
+    }
+
+    return run;
   }
 
   /**

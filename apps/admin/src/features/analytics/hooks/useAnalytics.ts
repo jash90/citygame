@@ -1,82 +1,31 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { adminApi, type GameStats } from '@/shared/lib/admin-api';
-import type { GameSession } from '@citygame/shared';
+import { adminApi } from '@/shared/lib/admin-api';
+import {
+  buildScoreDistribution,
+  buildTaskFunnel,
+  buildTopPlayers,
+  truncate,
+  type AdminGameSession,
+} from '../lib/transforms';
+import type {
+  AnalyticsData,
+  AnalyticsPeriod,
+  RunOption,
+} from './useAnalytics.types';
 
-export type AnalyticsPeriod = '7d' | '30d' | 'all';
-
-// ─── Chart data shapes ────────────────────────────────────────────────────────
-
-export interface PlayerActivityDataPoint {
-  date: string;
-  players: number;
-  completions: number;
-}
-
-export interface TaskFunnelDataPoint {
-  taskTitle: string;
-  completions: number;
-  totalPlayers: number;
-}
-
-export interface ScoreDistributionDataPoint {
-  range: string;
-  count: number;
-}
-
-export interface TaskDifficultyDataPoint {
-  taskTitle: string;
-  avgAttempts: number;
-  avgTimeSec: number;
-}
-
-export interface TopPlayer {
-  rank: number;
-  name: string;
-  score: number;
-  tasksCompleted: number;
-  timeMinutes: number;
-  lastActive: string;
-}
-
-export interface AIVerificationStat {
-  taskName: string;
-  evaluations: number;
-  avgScore: number;
-  errorRate: number;
-}
-
-export interface AnalyticsData {
-  // Summary metrics
-  totalPlayers: number;
-  completionRate: number;
-  averageScore: number;
-  averageTimeMinutes: number;
-  playersTrend: number;
-  completionRateTrend: number;
-
-  // Charts
-  playerActivity: PlayerActivityDataPoint[];
-  taskFunnel: TaskFunnelDataPoint[];
-  scoreDistribution: ScoreDistributionDataPoint[];
-  taskDifficulty: TaskDifficultyDataPoint[];
-
-  // Tables
-  topPlayers: TopPlayer[];
-  aiVerificationStats: AIVerificationStat[];
-}
-
-export type RunOption = { id: string; runNumber: number; status: string; sessionCount: number };
-
-// ─── Real data transforms ────────────────────────────────────────────────────
-
-/** Session data enriched with user info from the admin API. */
-interface AdminGameSession extends GameSession {
-  user: { id: string; displayName: string | null; avatarUrl?: string | null; email?: string };
-  gameRun?: { runNumber: number; status: string };
-  _count: { attempts: number };
-}
+export type {
+  AnalyticsData,
+  AnalyticsPeriod,
+  PlayerActivityDataPoint,
+  TaskFunnelDataPoint,
+  ScoreDistributionDataPoint,
+  TaskDifficultyDataPoint,
+  TopPlayer,
+  AIVerificationStat,
+  RunOption,
+} from './useAnalytics.types';
 
 function periodToDays(period: AnalyticsPeriod): number {
   switch (period) {
@@ -85,85 +34,6 @@ function periodToDays(period: AnalyticsPeriod): number {
     case 'all': return 365;
   }
 }
-
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max - 2) + '…' : text;
-}
-
-function buildTaskFunnel(
-  stats: GameStats,
-): TaskFunnelDataPoint[] {
-  if (!stats.taskCompletionRates?.length) return [];
-
-  return stats.taskCompletionRates.map((r) => ({
-    taskTitle: truncate(r.title, 18),
-    completions: r.completedCount,
-    totalPlayers: stats.totalSessions,
-  }));
-}
-
-function buildScoreDistribution(
-  sessions: AdminGameSession[],
-  tasksCount: number,
-): ScoreDistributionDataPoint[] {
-  const scored = sessions.filter((s) => (s.totalPoints ?? 0) > 0);
-  if (scored.length === 0 || tasksCount === 0) return [];
-
-  const maxPossibleScore = tasksCount * 100;
-  const bucketSize = Math.max(50, Math.ceil(maxPossibleScore / 8));
-  const buckets = new Map<string, number>();
-
-  // Initialize buckets
-  for (let start = 0; start * bucketSize < maxPossibleScore; start++) {
-    const low = start * bucketSize;
-    const high = (start + 1) * bucketSize;
-    buckets.set(`${low}–${high}`, 0);
-  }
-
-  // Place each session in a bucket
-  for (const s of scored) {
-    const pts = s.totalPoints ?? 0;
-    const bucketIndex = Math.min(
-      Math.floor(pts / bucketSize),
-      Math.ceil(maxPossibleScore / bucketSize) - 1,
-    );
-    const low = bucketIndex * bucketSize;
-    const high = (bucketIndex + 1) * bucketSize;
-    const key = `${low}–${high}`;
-    buckets.set(key, (buckets.get(key) ?? 0) + 1);
-  }
-
-  return [...buckets.entries()].map(([range, count]) => ({ range, count }));
-}
-
-function buildTopPlayers(
-  sessions: AdminGameSession[],
-): TopPlayer[] {
-  if (sessions.length === 0) return [];
-
-  return [...sessions]
-    .sort((a, b) => (b.totalPoints ?? 0) - (a.totalPoints ?? 0))
-    .slice(0, 10)
-    .map((session, index) => {
-      const durationMs =
-        session.completedAt && session.startedAt
-          ? new Date(session.completedAt).getTime() - new Date(session.startedAt).getTime()
-          : 0;
-
-      return {
-        rank: index + 1,
-        name: session.user?.displayName ?? 'Gracz',
-        score: session.totalPoints ?? 0,
-        tasksCompleted: session._count?.attempts ?? 0,
-        timeMinutes: durationMs > 0 ? Math.round(durationMs / 60_000) : 0,
-        lastActive: session.completedAt
-          ? new Date(session.completedAt).toLocaleDateString('pl-PL')
-          : new Date(session.startedAt).toLocaleDateString('pl-PL'),
-      };
-    });
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: string) {
   const gameQuery = useQuery({
@@ -236,7 +106,6 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: st
     const averageScore =
       completedSessions > 0 ? Math.round(totalScore / completedSessions) : 0;
 
-    // Compute average time from completed sessions
     let averageTimeMinutes = 0;
     if (completedSessionsList.length > 0) {
       const totalMs = completedSessionsList.reduce((sum, s) => {
@@ -246,14 +115,12 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: st
       averageTimeMinutes = Math.round(totalMs / completedSessionsList.length / 60_000);
     }
 
-    // Format activity dates for display
     const playerActivity = (activityQuery.data ?? []).map((d) => ({
       date: new Date(d.date).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' }),
       players: d.players,
       completions: d.completions,
     }));
 
-    // Task difficulty: map to chart shape
     const taskDifficulty = (difficultyQuery.data ?? []).map((d) => ({
       taskTitle: truncate(d.taskTitle, 22),
       avgAttempts: d.avgAttempts,
@@ -265,8 +132,9 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: st
       completionRate,
       averageScore,
       averageTimeMinutes,
-      playersTrend: 0,
-      completionRateTrend: 0,
+      // Aggregate view has no canonical baseline — keep trend hidden.
+      playersTrend: null,
+      completionRateTrend: null,
 
       playerActivity,
       taskFunnel: buildTaskFunnel(stats),
@@ -278,7 +146,6 @@ export function useAnalytics(gameId: string, period: AnalyticsPeriod, runId?: st
     };
   }
 
-  // Build run options for the selector
   const runs: RunOption[] = (runsQuery.data ?? []).map((r) => ({
     id: r.id,
     runNumber: r.runNumber,

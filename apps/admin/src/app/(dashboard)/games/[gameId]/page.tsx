@@ -122,7 +122,7 @@ export default function GameDetailPage() {
       )}
 
       {/* Run History */}
-      {runs && runs.length > 0 && <GameRunHistory runs={runs} />}
+      {runs && runs.length > 0 && <GameRunHistory gameId={game.id} runs={runs} />}
 
       {/* Settings */}
       <GameSettingsEditor gameId={game.id} settings={game.settings ?? {}} />
