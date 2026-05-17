@@ -8,7 +8,7 @@ interface MentorLayoutProps {
 
 export default function MentorLayout({ children }: MentorLayoutProps) {
   return (
-    <RoleGuard allowedRoles={['MENTOR', 'ADMIN']}>
+    <RoleGuard allowedRoles={['MENTOR']}>
       <MentorShell>{children}</MentorShell>
     </RoleGuard>
   );

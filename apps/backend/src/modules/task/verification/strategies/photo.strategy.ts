@@ -1,36 +1,36 @@
 import { Injectable } from '@nestjs/common';
+import { AiService } from '../../../ai/ai.service';
+import { verifyMediaQuizAnswer } from './media-quiz.shared';
 import {
   VerificationResult,
   VerificationStrategy,
 } from './verification-strategy.interface';
 
 /**
- * PHOTO verification: accept any submission carrying a non-empty imageUrl.
- * No AI evaluation — the player uploads a photo and the task is done.
+ * PHOTO verification: media-quiz format. Admin attaches an image
+ * (config.imageUrl) and the player views then types a text answer.
  *
- * verifyConfig shape: (none required)
- * submission shape:   { imageUrl: string }
+ * Verification mode is chosen per-task in config.mode:
+ *   - EXACT (default): compare against config.expectedAnswer
+ *   - AI:              evaluate against config.prompt with config.threshold
+ *
+ * verifyConfig shape: {
+ *   imageUrl: string,
+ *   mode: 'EXACT' | 'AI',
+ *   expectedAnswer?: string,
+ *   prompt?: string,
+ *   threshold?: number
+ * }
+ * submission shape:   { answer: string }
  */
 @Injectable()
 export class PhotoStrategy implements VerificationStrategy {
+  constructor(private readonly aiService: AiService) {}
+
   async verify(
-    _config: Record<string, unknown>,
+    config: Record<string, unknown>,
     submission: Record<string, unknown>,
   ): Promise<VerificationResult> {
-    const imageUrl = submission['imageUrl'];
-
-    if (typeof imageUrl !== 'string' || imageUrl.trim().length === 0) {
-      return {
-        status: 'INCORRECT',
-        score: 0,
-        feedback: 'Nie odebrano zdjęcia',
-      };
-    }
-
-    return {
-      status: 'CORRECT',
-      score: 1,
-      feedback: 'Zdjęcie odebrane',
-    };
+    return verifyMediaQuizAnswer(config, submission, this.aiService);
   }
 }

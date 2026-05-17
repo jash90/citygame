@@ -84,6 +84,14 @@ export class AdminService {
         }
       }
 
+      // Demoting from MENTOR strips their game assignments — otherwise the
+      // GameMentor rows would silently orphan and the user could re-acquire
+      // access by being promoted back, possibly to games they no longer
+      // belong to.
+      if (user.role === UserRole.MENTOR && role !== UserRole.MENTOR) {
+        await tx.gameMentor.deleteMany({ where: { mentorId: userId } });
+      }
+
       return tx.user.update({
         where: { id: userId },
         data: { role },

@@ -9,6 +9,7 @@ import { TaskTypeSelector } from './TaskTypeSelector';
 import { AIGenerateButton } from './AIGenerateButton';
 import { HintEditor } from './HintEditor';
 import { AIVerifySection } from './AIVerifySection';
+import { MediaQuizFields } from './MediaQuizFields';
 import { StoryContextSection } from './StoryContextSection';
 import { LocationSection } from './LocationSection';
 import type { HintItem } from './HintEditor';
@@ -71,6 +72,8 @@ export function TaskEditorForm({
       qrHash: verifyDefaults.qrHash,
       gpsRadius: verifyDefaults.gpsRadius,
       practicalCriteria: verifyDefaults.practicalCriteria,
+      mediaUrl: verifyDefaults.mediaUrl,
+      mediaMode: verifyDefaults.mediaMode,
       ...storyCtx,
     },
   });
@@ -291,9 +294,17 @@ export function TaskEditorForm({
         {(selectedType === TaskType.AUDIO ||
           selectedType === TaskType.PHOTO ||
           selectedType === TaskType.VIDEO) && (
-          <p className="text-sm text-gray-500 italic">
-            Zadania medialne nie wymagają dodatkowej konfiguracji — gracz przesyła nagranie/zdjęcie i zadanie zalicza się automatycznie.
-          </p>
+          <MediaQuizFields
+            selectedType={selectedType}
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            currentTitle={currentTitle}
+            currentDescription={currentDescription}
+            aiPrompt={aiPrompt}
+            aiThreshold={aiThreshold}
+            task={task ?? null}
+          />
         )}
       </div>
 

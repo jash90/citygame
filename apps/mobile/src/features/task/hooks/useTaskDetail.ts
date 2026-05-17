@@ -212,13 +212,16 @@ export function useTaskDetail({
         pathname: '/(modals)/task-result' as never,
         params: {
           success: isSuccess ? '1' : '0',
+          pending: attempt.status === 'PENDING' ? '1' : '0',
           points: String(attempt.pointsAwarded),
           feedback:
             attempt.status === 'CORRECT'
               ? 'Świetna robota!'
               : attempt.status === 'PARTIAL'
                 ? 'Częściowo poprawna odpowiedź.'
-                : 'Niestety, to nie ta odpowiedź.',
+                : attempt.status === 'PENDING'
+                  ? 'Wysłaliśmy Twoją prośbę. Czekaj, aż mentor zatwierdzi wykonanie.'
+                  : 'Niestety, to nie ta odpowiedź.',
           clue:
             isSuccess && storyContext?.clueRevealed
               ? storyContext.clueRevealed

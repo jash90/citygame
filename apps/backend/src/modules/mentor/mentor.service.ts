@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -136,7 +137,7 @@ export class MentorService {
       where: { id: attemptId },
       include: {
         task: true,
-        session: { select: { id: true, gameId: true, gameRunId: true, teamId: true } },
+        session: { select: { id: true, gameId: true, gameRunId: true, teamId: true, status: true } },
       },
     });
 
@@ -147,6 +148,12 @@ export class MentorService {
     if (attempt.status !== AttemptStatus.PENDING) {
       throw new BadRequestException(
         `Attempt is already ${attempt.status} — only PENDING attempts can be reviewed`,
+      );
+    }
+
+    if (attempt.session.status !== SessionStatus.ACTIVE) {
+      throw new BadRequestException(
+        `Player's session is ${attempt.session.status} — cannot review attempts in non-active sessions`,
       );
     }
 
@@ -161,8 +168,22 @@ export class MentorService {
     const pointsAwarded = Math.round((score / 100) * attempt.task.maxPoints);
 
     const updated = await withSerializableRetry(this.prisma, async (tx) => {
-      const updatedAttempt = await tx.taskAttempt.update({
-        where: { id: attemptId },
+      // Re-check session is still ACTIVE inside the tx (auto-expiry could
+      // have fired between the pre-check and now).
+      const sessionGuard = await tx.gameSession.findUnique({
+        where: { id: attempt.session.id },
+        select: { status: true },
+      });
+      if (sessionGuard?.status !== SessionStatus.ACTIVE) {
+        throw new ConflictException(
+          'Session is no longer active — review cannot be finalised',
+        );
+      }
+
+      // Conditional update: only succeed if the attempt is still PENDING.
+      // updateMany returns count; 0 means another reviewer already finalised.
+      const claimed = await tx.taskAttempt.updateMany({
+        where: { id: attemptId, status: AttemptStatus.PENDING },
         data: {
           status: newStatus,
           pointsAwarded,
@@ -170,6 +191,15 @@ export class MentorService {
           reviewedAt: new Date(),
           reviewerFeedback: feedback,
         },
+      });
+      if (claimed.count === 0) {
+        throw new ConflictException(
+          'Attempt was already reviewed by another mentor',
+        );
+      }
+
+      const updatedAttempt = await tx.taskAttempt.findUniqueOrThrow({
+        where: { id: attemptId },
       });
 
       if (newStatus === AttemptStatus.CORRECT || newStatus === AttemptStatus.PARTIAL) {
@@ -179,39 +209,41 @@ export class MentorService {
           select: { id: true, totalPoints: true, teamId: true },
         });
 
-        if (newStatus === AttemptStatus.CORRECT) {
-          const nextTask = await tx.task.findFirst({
+        // PARTIAL advances the session same as CORRECT — mirrors the player
+        // submit flow. Partial credit locks the task; mentor cannot then mark
+        // another PENDING (the dedupe in submitAnswer blocks new PENDINGs
+        // after CORRECT/PARTIAL exists).
+        const nextTask = await tx.task.findFirst({
+          where: {
+            gameId: attempt.session.gameId,
+            orderIndex: { gt: attempt.task.orderIndex },
+          },
+          orderBy: { orderIndex: 'asc' },
+        });
+
+        if (sessionRow.teamId) {
+          await tx.gameSession.updateMany({
             where: {
               gameId: attempt.session.gameId,
-              orderIndex: { gt: attempt.task.orderIndex },
+              teamId: sessionRow.teamId,
+              status: SessionStatus.ACTIVE,
             },
-            orderBy: { orderIndex: 'asc' },
+            data: {
+              currentTaskId: nextTask?.id ?? null,
+              status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+              completedAt: nextTask ? undefined : new Date(),
+              totalPoints: sessionRow.totalPoints,
+            },
           });
-
-          if (sessionRow.teamId) {
-            await tx.gameSession.updateMany({
-              where: {
-                gameId: attempt.session.gameId,
-                teamId: sessionRow.teamId,
-                status: SessionStatus.ACTIVE,
-              },
-              data: {
-                currentTaskId: nextTask?.id ?? null,
-                status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
-                completedAt: nextTask ? undefined : new Date(),
-                totalPoints: sessionRow.totalPoints,
-              },
-            });
-          } else {
-            await tx.gameSession.update({
-              where: { id: attempt.session.id },
-              data: {
-                currentTaskId: nextTask?.id ?? null,
-                status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
-                completedAt: nextTask ? undefined : new Date(),
-              },
-            });
-          }
+        } else {
+          await tx.gameSession.update({
+            where: { id: attempt.session.id },
+            data: {
+              currentTaskId: nextTask?.id ?? null,
+              status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+              completedAt: nextTask ? undefined : new Date(),
+            },
+          });
         }
       }
 

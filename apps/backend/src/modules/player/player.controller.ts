@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RankingService } from '../ranking/ranking.service';
@@ -112,6 +113,12 @@ export class PlayerController {
   @ApiParam({ name: 'taskId', description: 'Task UUID' })
   @ApiResponse({ status: 201, description: 'Attempt result with score and feedback' })
   @ApiResponse({ status: 409, description: 'Task already completed' })
+  @ApiResponse({ status: 429, description: 'Too many submissions — slow down' })
+  // 20 submits/min is well above honest play (most tasks finish in 1-3 tries)
+  // but caps script-driven prompt spam that would burn AI tokens or DoS the
+  // verification pipeline. Applied via the global ThrottlerGuard.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('api/games/:gameId/tasks/:taskId/submit')
   submitAnswer(
     @Param('gameId') gameId: string,

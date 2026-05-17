@@ -211,6 +211,26 @@ function sanitizeVerifyConfig(
     case TaskType.AUDIO_AI:
       // AI prompt content isn't useful offline; we just queue the submission.
       return {};
+    case TaskType.AUDIO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.audioUrl === 'string') out.audioUrl = cfg.audioUrl;
+      return out;
+    }
+    case TaskType.PHOTO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.imageUrl === 'string') out.imageUrl = cfg.imageUrl;
+      return out;
+    }
+    case TaskType.VIDEO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.videoUrl === 'string') out.videoUrl = cfg.videoUrl;
+      return out;
+    }
+    case TaskType.PRACTICAL: {
+      const out: Record<string, unknown> = {};
+      if (typeof cfg.criteria === 'string') out.criteria = cfg.criteria;
+      return out;
+    }
     case TaskType.MIXED: {
       const steps = cfg.steps as Array<Record<string, unknown>> | undefined;
       if (!steps) return {};

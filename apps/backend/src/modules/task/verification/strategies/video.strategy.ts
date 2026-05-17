@@ -1,36 +1,36 @@
 import { Injectable } from '@nestjs/common';
+import { AiService } from '../../../ai/ai.service';
+import { verifyMediaQuizAnswer } from './media-quiz.shared';
 import {
   VerificationResult,
   VerificationStrategy,
 } from './verification-strategy.interface';
 
 /**
- * VIDEO verification: accept any submission carrying a non-empty videoUrl.
- * No AI evaluation — the player uploads a recording and the task is done.
+ * VIDEO verification: media-quiz format. Admin attaches a video clip
+ * (config.videoUrl) and the player watches then types a text answer.
  *
- * verifyConfig shape: (none required)
- * submission shape:   { videoUrl: string }
+ * Verification mode is chosen per-task in config.mode:
+ *   - EXACT (default): compare against config.expectedAnswer
+ *   - AI:              evaluate against config.prompt with config.threshold
+ *
+ * verifyConfig shape: {
+ *   videoUrl: string,
+ *   mode: 'EXACT' | 'AI',
+ *   expectedAnswer?: string,
+ *   prompt?: string,
+ *   threshold?: number
+ * }
+ * submission shape:   { answer: string }
  */
 @Injectable()
 export class VideoStrategy implements VerificationStrategy {
+  constructor(private readonly aiService: AiService) {}
+
   async verify(
-    _config: Record<string, unknown>,
+    config: Record<string, unknown>,
     submission: Record<string, unknown>,
   ): Promise<VerificationResult> {
-    const videoUrl = submission['videoUrl'];
-
-    if (typeof videoUrl !== 'string' || videoUrl.trim().length === 0) {
-      return {
-        status: 'INCORRECT',
-        score: 0,
-        feedback: 'Nie odebrano nagrania wideo',
-      };
-    }
-
-    return {
-      status: 'CORRECT',
-      score: 1,
-      feedback: 'Nagranie odebrane',
-    };
+    return verifyMediaQuizAnswer(config, submission, this.aiService);
   }
 }

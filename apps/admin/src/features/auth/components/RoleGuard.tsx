@@ -28,14 +28,38 @@ export function RoleGuard({
     router.replace(redirectTo);
   }, [router, redirectTo]);
 
+  // Send authenticated users with a still-valid cookie to their correct
+  // shell without forcing a re-login (e.g. when admin promoted them to
+  // MENTOR while they were viewing the player panel).
+  const redirectToRoleHome = useCallback(
+    (role: string) => {
+      const target =
+        role === 'MENTOR'
+          ? '/mentor/dashboard'
+          : role === 'ADMIN'
+            ? '/dashboard'
+            : '/login';
+      router.replace(target);
+    },
+    [router],
+  );
+
   useEffect(() => {
     if (!checked) return;
-    if (!user || !allowedRoles.includes(user.role as 'ADMIN' | 'MENTOR' | 'PLAYER')) {
+    if (!user) {
       clearAndRedirect();
-    } else {
-      localStorage.setItem('userRole', user.role);
+      return;
     }
-  }, [checked, user, allowedRoles, clearAndRedirect]);
+    const role = user.role as 'ADMIN' | 'MENTOR' | 'PLAYER';
+    if (!allowedRoles.includes(role)) {
+      // Cookie still valid but role no longer permits this shell — bounce
+      // to their proper home instead of /login.
+      localStorage.setItem('userRole', role);
+      redirectToRoleHome(role);
+      return;
+    }
+    localStorage.setItem('userRole', role);
+  }, [checked, user, allowedRoles, clearAndRedirect, redirectToRoleHome]);
 
   useEffect(() => {
     const interval = setInterval(() => recheck(), 60_000);

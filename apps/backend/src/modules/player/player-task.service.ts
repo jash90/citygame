@@ -17,6 +17,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { withSerializableRetry } from '../../common/utils/prisma-retry';
 import { RankingGateway } from '../ranking/ranking.gateway';
 import { VerificationService } from '../task/verification/verification.service';
+import { normalisePracticalSubmission } from '../task/verification/strategies/practical.strategy';
 import { ActivityBroadcastService } from './activity-broadcast.service';
 import { PlayerHintService } from './player-hint.service';
 
@@ -147,25 +148,37 @@ export class PlayerTaskService {
         ? 0
         : Math.round(result.score * task.maxPoints);
 
-    // Don't create a duplicate PENDING attempt — if the player already has
-    // one in PENDING for this task, return it. (Mentor-reviewed tasks should
-    // result in a single open submission per task; resubmission is allowed
-    // only after the mentor rejects, which moves it out of PENDING.)
-    if (attemptStatus === AttemptStatus.PENDING) {
-      const existingPending = await this.prisma.taskAttempt.findFirst({
-        where: { sessionId: session.id, taskId, status: AttemptStatus.PENDING },
-      });
-      if (existingPending) return existingPending;
-    }
-
     const attempt = await withSerializableRetry(this.prisma, async (tx) => {
-      if (attemptStatus === AttemptStatus.CORRECT) {
-        const existingCorrect = await tx.taskAttempt.findFirst({
-          where: { sessionId: session.id, taskId, status: AttemptStatus.CORRECT },
+      // Guard against re-submission for an already-resolved task. The session
+      // advances on CORRECT or PARTIAL (one shot at PARTIAL — see below), so
+      // either of those terminates the task. PENDING re-submits after a
+      // mentor approved with CORRECT would also let the mentor award points
+      // twice.
+      if (
+        attemptStatus === AttemptStatus.CORRECT ||
+        attemptStatus === AttemptStatus.PARTIAL ||
+        attemptStatus === AttemptStatus.PENDING
+      ) {
+        const existingResolved = await tx.taskAttempt.findFirst({
+          where: {
+            sessionId: session.id,
+            taskId,
+            status: { in: [AttemptStatus.CORRECT, AttemptStatus.PARTIAL] },
+          },
         });
-        if (existingCorrect) {
+        if (existingResolved) {
           throw new ConflictException('Task already completed');
         }
+      }
+
+      // Idempotent PENDING: if the player already has an open PENDING for
+      // this task in the same session, return it instead of creating a
+      // duplicate. Inside the tx so two concurrent submits can't both pass.
+      if (attemptStatus === AttemptStatus.PENDING) {
+        const existingPending = await tx.taskAttempt.findFirst({
+          where: { sessionId: session.id, taskId, status: AttemptStatus.PENDING },
+        });
+        if (existingPending) return existingPending;
       }
 
       const attemptCount = await tx.taskAttempt.count({
@@ -181,6 +194,14 @@ export class PlayerTaskService {
           ? parsedCapturedAt
           : null;
 
+      // For PRACTICAL we replace whatever the client sent with a canonical
+      // `{ requestedAt }` payload — the act of submitting is the request,
+      // there's no answer content, so the DB shouldn't carry arbitrary keys.
+      const persistedSubmission =
+        task.type === TaskType.PRACTICAL
+          ? normalisePracticalSubmission()
+          : submission;
+
       const newAttempt = await tx.taskAttempt.create({
         data: {
           sessionId: session.id,
@@ -188,7 +209,7 @@ export class PlayerTaskService {
           userId,
           status: attemptStatus,
           attemptNumber: attemptCount + 1,
-          submission: submission as Prisma.InputJsonValue,
+          submission: persistedSubmission as Prisma.InputJsonValue,
           aiResult: result.aiResult != null ? (result.aiResult as Prisma.InputJsonValue) : Prisma.JsonNull,
           pointsAwarded,
           clientSubmissionId: clientSubmissionId ?? null,
@@ -197,51 +218,52 @@ export class PlayerTaskService {
       });
 
       if (attemptStatus === AttemptStatus.CORRECT || attemptStatus === AttemptStatus.PARTIAL) {
+        // PARTIAL advances the session same as CORRECT — one shot at partial
+        // credit, no infinite gradient-climbing against a non-deterministic
+        // AI evaluator. The dedupe check above blocks any re-submit.
         const updatedSession = await tx.gameSession.update({
           where: { id: session.id },
           data: { totalPoints: { increment: pointsAwarded } },
           select: { id: true, totalPoints: true, teamId: true },
         });
 
-        if (attemptStatus === AttemptStatus.CORRECT) {
-          const nextTask = await tx.task.findFirst({
-            where: { gameId, orderIndex: { gt: task.orderIndex } },
-            orderBy: { orderIndex: 'asc' },
+        const nextTask = await tx.task.findFirst({
+          where: { gameId, orderIndex: { gt: task.orderIndex } },
+          orderBy: { orderIndex: 'asc' },
+        });
+
+        if (updatedSession.teamId) {
+          await tx.gameSession.updateMany({
+            where: { gameId, teamId: updatedSession.teamId, status: SessionStatus.ACTIVE },
+            data: {
+              currentTaskId: nextTask?.id ?? null,
+              status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+              completedAt: nextTask ? undefined : new Date(),
+              totalPoints: updatedSession.totalPoints,
+            },
           });
-
-          if (updatedSession.teamId) {
-            await tx.gameSession.updateMany({
-              where: { gameId, teamId: updatedSession.teamId, status: SessionStatus.ACTIVE },
-              data: {
-                currentTaskId: nextTask?.id ?? null,
-                status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
-                completedAt: nextTask ? undefined : new Date(),
-                totalPoints: updatedSession.totalPoints,
-              },
-            });
-          } else {
-            await tx.gameSession.update({
-              where: { id: session.id },
-              data: {
-                currentTaskId: nextTask?.id ?? null,
-                status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
-                completedAt: nextTask ? undefined : new Date(),
-              },
-            });
-          }
-
-          void this.activityBroadcast.handlePostCorrect(
-            gameId,
-            session.gameRunId,
-            userId,
-            taskId,
-            task.title,
-            pointsAwarded,
-            updatedSession.totalPoints,
-            updatedSession.teamId ?? null,
-            newAttempt.id,
-          ).catch((err) => this.logger.error('handlePostCorrect failed', err));
+        } else {
+          await tx.gameSession.update({
+            where: { id: session.id },
+            data: {
+              currentTaskId: nextTask?.id ?? null,
+              status: nextTask ? SessionStatus.ACTIVE : SessionStatus.COMPLETED,
+              completedAt: nextTask ? undefined : new Date(),
+            },
+          });
         }
+
+        void this.activityBroadcast.handlePostCorrect(
+          gameId,
+          session.gameRunId,
+          userId,
+          taskId,
+          task.title,
+          pointsAwarded,
+          updatedSession.totalPoints,
+          updatedSession.teamId ?? null,
+          newAttempt.id,
+        ).catch((err) => this.logger.error('handlePostCorrect failed', err));
       }
 
       return newAttempt;

@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
@@ -21,13 +22,16 @@ const mockPrisma: Record<string, any> = {
     groupBy: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findUniqueOrThrow: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
   task: {
     findMany: jest.fn(),
     findFirst: jest.fn(),
   },
   gameSession: {
+    findUnique: jest.fn(),
     update: jest.fn(),
     updateMany: jest.fn(),
   },
@@ -99,16 +103,31 @@ describe('MentorService', () => {
         userId: 'u1',
         taskId: 't1',
         status: AttemptStatus.PENDING,
-        session: { id: 's1', gameId: 'g1', gameRunId: 'r1', teamId: null },
+        session: {
+          id: 's1',
+          gameId: 'g1',
+          gameRunId: 'r1',
+          teamId: null,
+          status: SessionStatus.ACTIVE,
+        },
         task: { id: 't1', maxPoints: 100, orderIndex: 0 },
         ...overrides,
       };
     }
 
+    function primeHappyPath() {
+      // Session is ACTIVE inside tx, attempt successfully claimed.
+      mockPrisma.gameSession.findUnique.mockResolvedValue({
+        status: SessionStatus.ACTIVE,
+      });
+      mockPrisma.taskAttempt.updateMany.mockResolvedValue({ count: 1 });
+    }
+
     it('maps score=100 to CORRECT, awards full points and advances session', async () => {
       mockPrisma.taskAttempt.findUnique.mockResolvedValue(makeAttempt());
       mockPrisma.gameMentor.findUnique.mockResolvedValue({ id: 'gm1' });
-      mockPrisma.taskAttempt.update.mockResolvedValue({
+      primeHappyPath();
+      mockPrisma.taskAttempt.findUniqueOrThrow.mockResolvedValue({
         id: 'a1', status: AttemptStatus.CORRECT, pointsAwarded: 100,
       });
       mockPrisma.gameSession.update.mockResolvedValue({ id: 's1', totalPoints: 100, teamId: null });
@@ -122,8 +141,9 @@ describe('MentorService', () => {
       });
 
       expect(result.status).toBe(AttemptStatus.CORRECT);
-      expect(mockPrisma.taskAttempt.update).toHaveBeenCalledWith(
+      expect(mockPrisma.taskAttempt.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: { id: 'a1', status: AttemptStatus.PENDING },
           data: expect.objectContaining({
             status: AttemptStatus.CORRECT,
             pointsAwarded: 100,
@@ -135,13 +155,15 @@ describe('MentorService', () => {
       expect(mockGateway.broadcastMentorReviewResult).toHaveBeenCalled();
     });
 
-    it('maps score=50 to PARTIAL, awards half points, does NOT advance', async () => {
+    it('maps score=50 to PARTIAL, awards half points, AND advances session', async () => {
       mockPrisma.taskAttempt.findUnique.mockResolvedValue(makeAttempt());
       mockPrisma.gameMentor.findUnique.mockResolvedValue({ id: 'gm1' });
-      mockPrisma.taskAttempt.update.mockResolvedValue({
+      primeHappyPath();
+      mockPrisma.taskAttempt.findUniqueOrThrow.mockResolvedValue({
         id: 'a1', status: AttemptStatus.PARTIAL, pointsAwarded: 50,
       });
       mockPrisma.gameSession.update.mockResolvedValue({ id: 's1', totalPoints: 50, teamId: null });
+      mockPrisma.task.findFirst.mockResolvedValue({ id: 'task-next', orderIndex: 1 });
 
       await service.reviewAttempt({
         mentorId: 'mentor-1',
@@ -150,14 +172,17 @@ describe('MentorService', () => {
         feedback: 'OK ale brakuje detalu',
       });
 
-      // task.findFirst (looking for next task) should NOT be called for PARTIAL
-      expect(mockPrisma.task.findFirst).not.toHaveBeenCalled();
+      // PARTIAL locks the task — one shot at partial credit (no infinite
+      // resubmits against the non-deterministic AI). task.findFirst is called
+      // to pick the next task in line.
+      expect(mockPrisma.task.findFirst).toHaveBeenCalled();
     });
 
-    it('maps score=0 to INCORRECT and awards 0 points', async () => {
+    it('maps score=0 to INCORRECT, awards 0 points, but still records reviewer audit fields', async () => {
       mockPrisma.taskAttempt.findUnique.mockResolvedValue(makeAttempt());
       mockPrisma.gameMentor.findUnique.mockResolvedValue({ id: 'gm1' });
-      mockPrisma.taskAttempt.update.mockResolvedValue({
+      primeHappyPath();
+      mockPrisma.taskAttempt.findUniqueOrThrow.mockResolvedValue({
         id: 'a1', status: AttemptStatus.INCORRECT, pointsAwarded: 0,
       });
 
@@ -170,6 +195,20 @@ describe('MentorService', () => {
 
       // No session update for INCORRECT
       expect(mockPrisma.gameSession.update).not.toHaveBeenCalled();
+
+      // Reviewer audit fields MUST still be set so player sees mentor feedback
+      // and the attempt is recoverable. Earlier worktree had a bug where these
+      // were only set on CORRECT/PARTIAL.
+      expect(mockPrisma.taskAttempt.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: AttemptStatus.INCORRECT,
+            pointsAwarded: 0,
+            reviewedById: 'mentor-1',
+            reviewerFeedback: 'Nie spełnia kryteriów',
+          }),
+        }),
+      );
     });
 
     it('throws ForbiddenException when mentor is not assigned to game', async () => {
@@ -184,6 +223,48 @@ describe('MentorService', () => {
           feedback: 'ok',
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws BadRequestException when session is not ACTIVE', async () => {
+      mockPrisma.taskAttempt.findUnique.mockResolvedValue(
+        makeAttempt({
+          session: {
+            id: 's1',
+            gameId: 'g1',
+            gameRunId: 'r1',
+            teamId: null,
+            status: SessionStatus.COMPLETED,
+          },
+        }),
+      );
+
+      await expect(
+        service.reviewAttempt({
+          mentorId: 'mentor-1',
+          attemptId: 'a1',
+          score: 80,
+          feedback: 'ok',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ConflictException when another mentor finalised the attempt concurrently', async () => {
+      mockPrisma.taskAttempt.findUnique.mockResolvedValue(makeAttempt());
+      mockPrisma.gameMentor.findUnique.mockResolvedValue({ id: 'gm1' });
+      mockPrisma.gameSession.findUnique.mockResolvedValue({
+        status: SessionStatus.ACTIVE,
+      });
+      // Conditional update found 0 rows — race lost.
+      mockPrisma.taskAttempt.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.reviewAttempt({
+          mentorId: 'mentor-1',
+          attemptId: 'a1',
+          score: 80,
+          feedback: 'ok',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('throws BadRequestException when attempt is not PENDING', async () => {

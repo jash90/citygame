@@ -22,6 +22,20 @@ export const taskEditorSchema = z.object({
   gpsRadius: z.coerce.number().optional(),
   /** Mentor rubric for PRACTICAL tasks. */
   practicalCriteria: z.string().optional(),
+  /**
+   * Media URL admin attaches as the puzzle prompt (AUDIO/PHOTO/VIDEO).
+   * Empty allowed (form-level draft); when filled, must be https:// because
+   * iOS App Transport Security blocks plain-http media in production builds.
+   */
+  mediaUrl: z
+    .string()
+    .optional()
+    .refine((v) => !v || v.length === 0 || /^https:\/\/[^\s]+$/i.test(v), {
+      message:
+        'URL musi zaczynać się od https:// (http blokuje iOS App Transport Security).',
+    }),
+  /** Verification mode for AUDIO/PHOTO/VIDEO. */
+  mediaMode: z.enum(['EXACT', 'AI']).optional(),
   characterName: z.string().optional(),
   locationIntro: z.string().optional(),
   taskNarrative: z.string().optional(),
@@ -74,11 +88,24 @@ export function buildVerifyConfig(
     case T.CIPHER:
       return { type: 'CIPHER', expectedAnswer: data.expectedAnswer ?? '' };
     case T.AUDIO:
-      return { type: 'AUDIO' };
     case T.PHOTO:
-      return { type: 'PHOTO' };
-    case T.VIDEO:
-      return { type: 'VIDEO' };
+    case T.VIDEO: {
+      const urlKey =
+        data.type === T.AUDIO
+          ? 'audioUrl'
+          : data.type === T.PHOTO
+            ? 'imageUrl'
+            : 'videoUrl';
+      const mode = data.mediaMode ?? 'EXACT';
+      const base = { type: data.type, [urlKey]: data.mediaUrl ?? '', mode } as Record<string, unknown>;
+      if (mode === 'AI') {
+        base.prompt = data.aiPrompt ?? '';
+        base.threshold = data.aiThreshold ?? 0.7;
+      } else {
+        base.expectedAnswer = data.expectedAnswer ?? '';
+      }
+      return base as { type: string; [key: string]: unknown };
+    }
     case T.PRACTICAL:
       return { type: 'PRACTICAL', criteria: data.practicalCriteria ?? '' };
     default:
@@ -140,7 +167,11 @@ export function parseVerifyDefaults(task: { verifyConfig?: unknown; unlockConfig
     aiPrompt: vc && 'prompt' in vc ? (vc.prompt as string) : '',
     aiThreshold: vc && 'threshold' in vc ? (vc.threshold as number) : 0.7,
     expectedAnswer:
-      (vc?.type === 'TEXT_EXACT' || vc?.type === 'CIPHER') &&
+      (vc?.type === 'TEXT_EXACT' ||
+        vc?.type === 'CIPHER' ||
+        vc?.type === 'AUDIO' ||
+        vc?.type === 'PHOTO' ||
+        vc?.type === 'VIDEO') &&
       typeof vc.expectedAnswer === 'string'
         ? vc.expectedAnswer
         : '',
@@ -154,5 +185,18 @@ export function parseVerifyDefaults(task: { verifyConfig?: unknown; unlockConfig
       vc?.type === 'PRACTICAL' && typeof vc.criteria === 'string'
         ? vc.criteria
         : '',
+    mediaUrl:
+      vc?.type === 'AUDIO' && typeof vc.audioUrl === 'string'
+        ? vc.audioUrl
+        : vc?.type === 'PHOTO' && typeof vc.imageUrl === 'string'
+          ? vc.imageUrl
+          : vc?.type === 'VIDEO' && typeof vc.videoUrl === 'string'
+            ? vc.videoUrl
+            : '',
+    mediaMode:
+      (vc?.type === 'AUDIO' || vc?.type === 'PHOTO' || vc?.type === 'VIDEO') &&
+      (vc?.mode === 'AI' || vc?.mode === 'EXACT')
+        ? (vc.mode as 'EXACT' | 'AI')
+        : 'EXACT',
   };
 }

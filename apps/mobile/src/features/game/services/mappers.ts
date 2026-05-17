@@ -33,6 +33,7 @@ export function mapTask(bt: BackendTask): Task {
     unlockMethod: (bt.unlockMethod as 'GPS' | 'QR' | 'NONE') ?? 'NONE',
     storyContext: bt.storyContext ?? undefined,
     hintCount: bt._count?.hints ?? 0,
+    verifyConfig: bt.verifyConfig,
     location: {
       lat: bt.latitude,
       lng: bt.longitude,

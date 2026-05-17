@@ -1,16 +1,27 @@
 import { PhotoStrategy } from './photo.strategy';
 
-describe('PhotoStrategy', () => {
-  const strategy = new PhotoStrategy();
+const mockAi = { evaluateText: jest.fn() } as any;
 
-  it('returns CORRECT when imageUrl is present', async () => {
-    const result = await strategy.verify({}, { imageUrl: 'https://x/y.jpg' });
+describe('PhotoStrategy', () => {
+  const strategy = new PhotoStrategy(mockAi);
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('EXACT mode: CORRECT when answer matches', async () => {
+    const result = await strategy.verify(
+      { imageUrl: 'x', mode: 'EXACT', expectedAnswer: 'Wawel' },
+      { answer: 'wawel' },
+    );
     expect(result.status).toBe('CORRECT');
-    expect(result.score).toBe(1);
   });
 
-  it('returns INCORRECT when imageUrl is missing', async () => {
-    const result = await strategy.verify({}, {});
-    expect(result.status).toBe('INCORRECT');
+  it('AI mode: delegates to AiService.evaluateText', async () => {
+    mockAi.evaluateText.mockResolvedValue({ score: 0.9, feedback: 'ok' });
+    const result = await strategy.verify(
+      { imageUrl: 'x', mode: 'AI', prompt: 'Identify the castle', threshold: 0.6 },
+      { answer: 'Wawel castle in Kraków' },
+    );
+    expect(result.status).toBe('CORRECT');
+    expect(mockAi.evaluateText).toHaveBeenCalled();
   });
 });

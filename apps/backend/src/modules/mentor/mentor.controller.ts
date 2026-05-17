@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import {
   CurrentUser,
@@ -28,7 +29,7 @@ import { MentorService } from './mentor.service';
 @ApiTags('Mentor')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.MENTOR, UserRole.ADMIN)
+@Roles(UserRole.MENTOR)
 @Controller('api/mentor')
 export class MentorController {
   constructor(private readonly mentorService: MentorService) {}
@@ -55,6 +56,12 @@ export class MentorController {
   })
   @ApiParam({ name: 'attemptId', description: 'Task attempt UUID' })
   @ApiResponse({ status: 201, description: 'Attempt updated, session advanced if applicable' })
+  @ApiResponse({ status: 429, description: 'Too many reviews — slow down' })
+  // Mentors typically review one attempt every few seconds while watching a
+  // station; 30/min covers fast queues without letting a compromised account
+  // drain the pending queue programmatically.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('attempts/:attemptId/review')
   review(
     @Param('attemptId', ParseUUIDPipe) attemptId: string,

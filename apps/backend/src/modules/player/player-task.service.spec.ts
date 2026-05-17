@@ -275,9 +275,9 @@ describe('PlayerTaskService', () => {
       expect(result.pointsAwarded).toBe(0);
     });
 
-    it('awards partial points for PARTIAL answers', async () => {
-      const task = makeTask({ gameId, maxPoints: 100 });
-      mockPrisma.task.findFirst.mockResolvedValue(task);
+    it('awards partial points AND advances session for PARTIAL answers', async () => {
+      const task = makeTask({ gameId, maxPoints: 100, orderIndex: 0 });
+      mockPrisma.task.findFirst.mockResolvedValueOnce(task);
       mockVerification.verify.mockResolvedValue({ status: 'PARTIAL', score: 0.7 });
 
       const attempt = {
@@ -287,11 +287,17 @@ describe('PlayerTaskService', () => {
       };
       mockPrisma.taskAttempt.create.mockResolvedValue(attempt);
       mockPrisma.gameSession.update.mockResolvedValue({ id: sessionId, totalPoints: 70, teamId: null });
+      // Second findFirst call inside the tx looks up the next task — return
+      // null so the session is marked COMPLETED.
+      mockPrisma.task.findFirst.mockResolvedValueOnce(null);
 
       const result = await service.submitAnswer(gameId, task.id, userId, { answer: 'partial' });
 
       expect(result.status).toBe(AttemptStatus.PARTIAL);
       expect(result.pointsAwarded).toBe(70);
+      // PARTIAL must advance the session — one shot at partial credit,
+      // no infinite AI gradient-climbing.
+      expect(mockPrisma.gameSession.update).toHaveBeenCalled();
     });
 
     it('broadcasts AI result for AI task types', async () => {

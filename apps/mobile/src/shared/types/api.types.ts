@@ -40,6 +40,8 @@ export interface BackendTask {
   latitude: number;
   longitude: number;
   unlockConfig: Record<string, unknown>;
+  /** Sanitised by offline-bundle.service — no answer/prompt secrets. */
+  verifyConfig?: Record<string, unknown>;
   timeLimitSec?: number | null;
   storyContext?: string | null;
   _count?: { hints: number };
@@ -91,6 +93,8 @@ export interface Task {
   unlockMethod?: 'GPS' | 'QR' | 'NONE';
   storyContext?: string;
   hintCount: number;
+  /** Sanitised verify config (e.g. mediaUrl for AUDIO/PHOTO/VIDEO). */
+  verifyConfig?: Record<string, unknown>;
   location?: {
     lat: number;
     lng: number;

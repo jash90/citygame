@@ -62,17 +62,24 @@ function SubmissionPreview({ task, submission }: { task: PendingAttempt['task'];
       ) : (
         <p className="text-xs text-gray-400">Brak wideo</p>
       );
-    case 'PRACTICAL':
+    case 'PRACTICAL': {
+      const requestedAt =
+        typeof submission.requestedAt === 'string'
+          ? submission.requestedAt
+          : null;
       return (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <p className="text-xs font-semibold text-gray-500 mb-1">Opis wykonania:</p>
-          <p className="text-sm text-gray-800 whitespace-pre-wrap">
-            {typeof submission.description === 'string'
-              ? submission.description
-              : '(brak opisu)'}
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-center gap-2">
+          <ClipboardCheck size={16} className="text-[#FF6B35]" />
+          <p className="text-sm text-orange-900">
+            Gracz wysłał prośbę o zatwierdzenie wykonania zadania
+            {requestedAt
+              ? ` (${new Date(requestedAt).toLocaleString('pl-PL')})`
+              : ''}
+            .
           </p>
         </div>
       );
+    }
     default:
       return (
         <pre className="text-xs bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-auto">

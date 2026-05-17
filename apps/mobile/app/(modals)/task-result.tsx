@@ -7,8 +7,9 @@ import { StyledSafeAreaView } from '@/shared/lib/styled';
 
 export default function TaskResultModal(): React.JSX.Element {
   const router = useRouter();
-  const { success, points, feedback, aiScore, isAiTask, clue } = useLocalSearchParams<{
+  const { success, pending, points, feedback, aiScore, isAiTask, clue } = useLocalSearchParams<{
     success: string;
+    pending?: string;
     points: string;
     feedback: string;
     aiScore?: string;
@@ -17,6 +18,7 @@ export default function TaskResultModal(): React.JSX.Element {
   }>();
 
   const isSuccess = success === '1';
+  const isPending = pending === '1';
   const pointsAwarded = parseInt(points ?? '0', 10);
   const scoreValue = aiScore ? parseFloat(aiScore) : undefined;
   const showAiResult = isAiTask === '1' && scoreValue !== undefined;
@@ -60,10 +62,31 @@ export default function TaskResultModal(): React.JSX.Element {
             }}
           >
             <View
-              className={`w-28 h-28 rounded-full items-center justify-center ${isSuccess ? 'bg-green-100' : 'bg-red-100'
-                }`}
+              className={`w-28 h-28 rounded-full items-center justify-center ${
+                isPending
+                  ? 'bg-orange-100'
+                  : isSuccess
+                    ? 'bg-green-100'
+                    : 'bg-red-100'
+              }`}
             >
-              <Ionicons name={isSuccess ? 'checkmark-circle' : 'close-circle'} size={64} color={isSuccess ? '#15803d' : '#dc2626'} />
+              <Ionicons
+                name={
+                  isPending
+                    ? 'hourglass-outline'
+                    : isSuccess
+                      ? 'checkmark-circle'
+                      : 'close-circle'
+                }
+                size={64}
+                color={
+                  isPending
+                    ? '#FF6B35'
+                    : isSuccess
+                      ? '#15803d'
+                      : '#dc2626'
+                }
+              />
             </View>
           </Animated.View>
 
@@ -71,10 +94,19 @@ export default function TaskResultModal(): React.JSX.Element {
           <Animated.View style={[{ opacity: opacityAnim }]}>
             <View className="items-center gap-2 w-full">
               <Text
-                className={`text-2xl font-extrabold ${isSuccess ? 'text-green-700' : 'text-red-600'
-                  }`}
+                className={`text-2xl font-extrabold ${
+                  isPending
+                    ? 'text-[#FF6B35]'
+                    : isSuccess
+                      ? 'text-green-700'
+                      : 'text-red-600'
+                }`}
               >
-                {isSuccess ? 'Doskonale!' : 'Niestety...'}
+                {isPending
+                  ? 'Czekamy na mentora'
+                  : isSuccess
+                    ? 'Doskonale!'
+                    : 'Niestety...'}
               </Text>
 
               {/* Points badge */}

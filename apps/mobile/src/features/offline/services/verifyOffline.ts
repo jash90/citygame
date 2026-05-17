@@ -54,10 +54,23 @@ export async function verifyOffline(
     case TaskType.PHOTO_AI:
     case TaskType.AUDIO_AI:
     case TaskType.TEXT_AI:
+    case TaskType.AUDIO:
+    case TaskType.PHOTO:
+    case TaskType.VIDEO:
+      // Media-quiz answers can't be verified offline — admin's expected
+      // answer / AI prompt isn't shipped in the offline bundle. Queue the
+      // submission and let the backend decide once we reconnect.
       return {
         status: 'PENDING',
         score: 0,
         feedback: 'Zostanie zweryfikowane po połączeniu z internetem.',
+      };
+    case TaskType.PRACTICAL:
+      // Practical tasks always defer to mentor — no offline shortcut.
+      return {
+        status: 'PENDING',
+        score: 0,
+        feedback: 'Prośba zostanie wysłana do mentora po połączeniu z internetem.',
       };
     case TaskType.MIXED:
       return verifyMixed(task.verifyConfig, submission);

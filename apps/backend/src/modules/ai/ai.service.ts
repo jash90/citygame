@@ -107,12 +107,27 @@ The score must reflect how well the photo meets the requirement. 1.0 = fully mee
       this.logger.error('Photo evaluation failed', error);
       return {
         score: 0,
-        feedback: 'Could not evaluate your photo. Please try again.',
+        feedback: 'Nie udało się sprawdzić zdjęcia — spróbuj ponownie za chwilę.',
         reasoning: `AI evaluation failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+        unavailable: true,
       };
     }
   }
 
+  /**
+   * Admin-authored `prompt` is appended to the system message as untrusted
+   * input. Guidelines for writing it (enforced through admin UI only, not
+   * here):
+   *   - Describe ONE correct answer or a tight family of variants.
+   *   - Avoid open-ended evaluation criteria — they trip the model into giving
+   *     generous partial credit and players exploit that.
+   *   - Never put player-controlled placeholders in the prompt.
+   *   - Keep prompt in Polish so feedback returned to the player matches the
+   *     UI locale.
+   * Score is clamped to [0, 1] in parseResponse. Threshold lives in
+   * verifyConfig per task, not here, so the same eval is reusable across
+   * difficulty tiers.
+   */
   async evaluateText(
     answer: string,
     prompt: string,
@@ -137,8 +152,9 @@ Respond ONLY with a JSON object (no markdown) in the form:
       this.logger.error('Text evaluation failed', error);
       return {
         score: 0,
-        feedback: 'Could not evaluate your answer. Please try again.',
+        feedback: 'Nie udało się sprawdzić odpowiedzi — spróbuj ponownie za chwilę.',
         reasoning: 'AI evaluation temporarily unavailable',
+        unavailable: true,
       };
     }
   }

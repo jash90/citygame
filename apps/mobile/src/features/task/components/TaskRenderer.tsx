@@ -42,13 +42,33 @@ export const TaskRenderer = ({
     onSubmit(readyPayload);
   };
 
+  // Hard-coded list of task types this build of the app knows how to render.
+  // If the backend later adds new types, an old client lands on the
+  // "unsupported" fallback rather than showing a useless submit button.
+  const KNOWN_TASK_TYPES = new Set<Task['type']>([
+    'TEXT_EXACT',
+    'TEXT_AI',
+    'CIPHER',
+    'MIXED',
+    'PHOTO_AI',
+    'AUDIO_AI',
+    'QR_SCAN',
+    'GPS_REACH',
+    'AUDIO',
+    'PHOTO',
+    'VIDEO',
+    'PRACTICAL',
+  ]);
+  const isUnknownType = !KNOWN_TASK_TYPES.has(task.type);
+
   const isSelfSubmitting =
     task.type === 'PHOTO_AI' ||
     task.type === 'AUDIO_AI' ||
     task.type === 'AUDIO' ||
     task.type === 'PHOTO' ||
     task.type === 'VIDEO' ||
-    task.type === 'PRACTICAL';
+    task.type === 'PRACTICAL' ||
+    isUnknownType;
   const isCompleted = task.status === 'completed';
   const isPendingMentorReview = task.status === 'pending_review';
 
@@ -80,23 +100,51 @@ export const TaskRenderer = ({
       )}
 
       {task.type === 'AUDIO' && (
-        <AudioTaskInput onSubmit={onSubmit} />
+        <AudioTaskInput
+          audioUrl={task.verifyConfig?.audioUrl as string | undefined}
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+        />
       )}
 
       {task.type === 'PHOTO' && (
-        <PhotoTaskInput onSubmit={onSubmit} />
+        <PhotoTaskInput
+          imageUrl={task.verifyConfig?.imageUrl as string | undefined}
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+        />
       )}
 
       {task.type === 'VIDEO' && (
-        <VideoTaskInput onSubmit={onSubmit} />
+        <VideoTaskInput
+          videoUrl={task.verifyConfig?.videoUrl as string | undefined}
+          onSubmit={onSubmit}
+          isSubmitting={isSubmitting}
+        />
       )}
 
       {task.type === 'PRACTICAL' && (
         <PracticalTaskInput
+          criteria={task.verifyConfig?.criteria as string | undefined}
           onSubmit={onSubmit}
           isSubmitting={isSubmitting}
           isPendingReview={isPendingMentorReview}
         />
+      )}
+
+      {isUnknownType && (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl p-4 gap-2">
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="alert-circle-outline" size={20} color="#b45309" />
+            <Text className="text-base font-semibold text-amber-900">
+              Nowy typ zadania
+            </Text>
+          </View>
+          <Text className="text-sm text-amber-800 leading-5">
+            To zadanie wymaga nowszej wersji aplikacji. Zaktualizuj CityGame w
+            sklepie, aby móc je wykonać.
+          </Text>
+        </View>
       )}
 
       {!isSelfSubmitting && (

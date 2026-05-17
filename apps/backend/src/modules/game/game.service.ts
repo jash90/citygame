@@ -9,8 +9,46 @@ import {
   GameStatus,
   Prisma,
   RunStatus,
+  TaskType,
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+
+/**
+ * Strip secrets from `verifyConfig` for online task delivery to players.
+ * Exposes media URLs (player needs them to render the puzzle) and rubrics
+ * (PRACTICAL criteria are public context) but never the expected answer,
+ * AI prompt, threshold or any hashes.
+ */
+function sanitizePlayerVerifyConfig(
+  type: TaskType,
+  raw: unknown,
+): Record<string, unknown> {
+  const cfg = (raw ?? {}) as Record<string, unknown>;
+  switch (type) {
+    case TaskType.AUDIO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.audioUrl === 'string') out.audioUrl = cfg.audioUrl;
+      return out;
+    }
+    case TaskType.PHOTO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.imageUrl === 'string') out.imageUrl = cfg.imageUrl;
+      return out;
+    }
+    case TaskType.VIDEO: {
+      const out: Record<string, unknown> = { mode: cfg.mode ?? 'EXACT' };
+      if (typeof cfg.videoUrl === 'string') out.videoUrl = cfg.videoUrl;
+      return out;
+    }
+    case TaskType.PRACTICAL: {
+      const out: Record<string, unknown> = {};
+      if (typeof cfg.criteria === 'string') out.criteria = cfg.criteria;
+      return out;
+    }
+    default:
+      return {};
+  }
+}
 
 import { CreateGameDto } from './dto/create-game.dto';
 import { ListGamesQueryDto } from './dto/list-games-query.dto';
@@ -126,6 +164,7 @@ export class GameService {
             maxPoints: true,
             timeLimitSec: true,
             storyContext: true,
+            verifyConfig: true,
             _count: { select: { hints: true } },
           },
         },
@@ -138,9 +177,13 @@ export class GameService {
       throw new NotFoundException(`Game ${id} not found`);
     }
 
-    const { _count, runs, ...rest } = game;
+    const { _count, runs, tasks, ...rest } = game;
     return {
       ...rest,
+      tasks: tasks.map((t) => ({
+        ...t,
+        verifyConfig: sanitizePlayerVerifyConfig(t.type, t.verifyConfig),
+      })),
       activeRun: runs[0] ?? null,
       taskCount: _count.tasks,
       playerCount: _count.sessions,

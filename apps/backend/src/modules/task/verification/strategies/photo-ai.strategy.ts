@@ -33,6 +33,15 @@ export class PhotoAiStrategy implements VerificationStrategy {
 
     const result = await this.aiService.evaluatePhoto(imageUrl, prompt, threshold);
 
+    if (result.unavailable) {
+      return {
+        status: 'ERROR',
+        score: 0,
+        feedback: result.feedback,
+        aiResult: result,
+      };
+    }
+
     return {
       status: result.score >= threshold ? 'CORRECT' : result.score > 0 ? 'PARTIAL' : 'INCORRECT',
       score: result.score,

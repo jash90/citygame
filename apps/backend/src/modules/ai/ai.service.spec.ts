@@ -84,21 +84,23 @@ describe('AiService', () => {
       expect(result.score).toBe(1);
     });
 
-    it('returns zero score on API failure', async () => {
+    it('returns zero score and unavailable flag on API failure', async () => {
       mockCreate.mockRejectedValue(new Error('API timeout'));
 
       const result = await service.evaluateText('answer', 'prompt', 0.5);
 
       expect(result.score).toBe(0);
-      expect(result.feedback).toContain('Could not evaluate');
+      expect(result.unavailable).toBe(true);
+      expect(result.feedback).toContain('Nie udało się sprawdzić');
     });
 
-    it('returns zero score on unparseable response', async () => {
+    it('returns zero score and unavailable flag on unparseable response', async () => {
       mockCreate.mockResolvedValue(mockChatResponse('not json'));
 
       const result = await service.evaluateText('answer', 'prompt', 0.5);
       expect(result.score).toBe(0);
-      expect(result.feedback).toContain('Could not parse');
+      expect(result.unavailable).toBe(true);
+      expect(result.feedback).toContain('Nie udało się sprawdzić');
     });
   });
 
@@ -202,16 +204,17 @@ describe('AiService', () => {
       expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it('returns zero score when image fetch fails', async () => {
+    it('returns zero score and unavailable flag when image fetch fails', async () => {
       mockFetch.mockResolvedValueOnce({ ok: false, status: 404 });
 
       const result = await service.evaluatePhoto('https://example.com/missing.jpg', 'prompt', 0.5);
 
       expect(result.score).toBe(0);
-      expect(result.feedback).toContain('Could not evaluate your photo');
+      expect(result.unavailable).toBe(true);
+      expect(result.feedback).toContain('Nie udało się sprawdzić zdjęcia');
     });
 
-    it('returns zero score on API failure', async () => {
+    it('returns zero score and unavailable flag on API failure', async () => {
       const fakeImageData = Buffer.from('img');
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -226,7 +229,8 @@ describe('AiService', () => {
       const result = await service.evaluatePhoto('https://example.com/photo.jpg', 'prompt', 0.5);
 
       expect(result.score).toBe(0);
-      expect(result.feedback).toContain('Could not evaluate your photo');
+      expect(result.unavailable).toBe(true);
+      expect(result.feedback).toContain('Nie udało się sprawdzić zdjęcia');
     });
   });
 
