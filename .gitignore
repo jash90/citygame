@@ -29,3 +29,15 @@ AGENTS.local.md
 
 # Screenshots directory
 screenshot/
+
+# IDE / AI tooling config
+.playwright-mcp/
+apps/mobile/.claude/
+apps/mobile/.codex/
+apps/mobile/.cursor/
+apps/mobile/.gemini/
+apps/mobile/.opencode/
+apps/mobile/.playwright-mcp/
+apps/mobile/.vscode/
+apps/mobile/.zed/
+apps/mobile/opencode.json
