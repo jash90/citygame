@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import type {
   UseFormRegister,
   UseFormWatch,
@@ -78,19 +79,20 @@ export function MediaQuizFields({
       {mediaUrl && (
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-2">
           {labels.preview === 'audio' && (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <audio controls src={mediaUrl} className="w-full" />
           )}
           {labels.preview === 'image' && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={mediaUrl}
               alt="Podgląd zadania"
+              width={400}
+              height={400}
+              unoptimized
               className="max-h-48 rounded-md mx-auto"
+              style={{ width: 'auto', height: 'auto' }}
             />
           )}
           {labels.preview === 'video' && (
-            // eslint-disable-next-line jsx-a11y/media-has-caption
             <video controls src={mediaUrl} className="max-h-48 w-full" />
           )}
         </div>

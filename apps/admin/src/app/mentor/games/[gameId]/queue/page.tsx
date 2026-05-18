@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import NextImage from 'next/image';
 import {
   useMutation,
   useQuery,
@@ -47,11 +48,14 @@ function SubmissionPreview({ task, submission }: { task: PendingAttempt['task'];
       );
     case 'PHOTO':
       return submission.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <NextImage
           src={String(submission.imageUrl)}
           alt="Zgłoszenie"
+          width={500}
+          height={500}
+          unoptimized
           className="max-h-64 rounded-lg border border-gray-200"
+          style={{ width: 'auto', height: 'auto' }}
         />
       ) : (
         <p className="text-xs text-gray-400">Brak zdjęcia</p>
