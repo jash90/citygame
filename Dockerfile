@@ -3,7 +3,7 @@ RUN npm install -g bun
 WORKDIR /app
 COPY . .
 RUN bun install
-RUN cd apps/admin && bun run build
+RUN cd apps/admin && npx next build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
