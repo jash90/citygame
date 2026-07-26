@@ -1,9 +1,9 @@
 FROM node:22-alpine AS build
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g bun
 WORKDIR /app
 COPY . .
-RUN pnpm install --config.strict-peer-dependencies=false --config.dangerouslyAllowAllBuilds=true
-RUN pnpm --filter admin build
+RUN bun install
+RUN cd apps/admin && bun run build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
