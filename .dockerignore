@@ -4,12 +4,6 @@ dist
 .turbo
 .expo
 .git
-*.md
-docker/
-apps/admin/
-!apps/admin/package.json
-apps/mobile/
-!apps/mobile/package.json
 .env
 .env.*
 !.npmrc
