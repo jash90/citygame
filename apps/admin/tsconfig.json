@@ -8,6 +8,8 @@
     "allowJs": true,
     "noEmit": true,
     "incremental": true,
+    "noUncheckedSideEffectImports": false,
+    "types": ["node"],
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],

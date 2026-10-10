@@ -6,7 +6,7 @@
     "dev": "expo start --dev-client",
     "build": "expo export",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
     "android": "expo run:android",
     "ios": "expo run:ios"
   },
@@ -57,9 +57,10 @@
   "devDependencies": {
     "@babel/core": "^7.24.0",
     "@types/react": "~19.2.10",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "babel-preset-expo": "~55.0.8",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~55.0.0",
-    "typescript": "~5.9.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }
