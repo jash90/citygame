@@ -13,7 +13,7 @@
     "test:cov": "jest --coverage",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --forceExit",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.726.0",
@@ -58,11 +58,12 @@
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.5",
     "@types/passport-jwt": "^4.0.1",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "jest": "^30.3.0",
     "prisma": "^6.2.1",
     "socket.io": "^4.8.1",
-    "ts-jest": "^29.4.9",
+    "ts-jest": "^29.4.14",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }
